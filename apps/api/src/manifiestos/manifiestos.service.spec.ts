@@ -108,4 +108,54 @@ describe('ManifiestosService - direcciones', () => {
     );
     expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1);
   });
+
+  it('debe crear y geocodificar una dirección nueva cuando no existe para la persona', async () => {
+    const prismaMock = {
+      direccion: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      $executeRaw: vi.fn().mockResolvedValue(1),
+    };
+
+    const geocodificacionMock = {
+      geocodificar: vi.fn().mockResolvedValue({
+        lat: 19.4326,
+        lon: -99.1332,
+        displayName: 'Calle Nueva 789, Mexico',
+      }),
+    };
+
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      providers: [
+        ManifiestosService,
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: ManifiestoParser, useValue: {} },
+        { provide: GeocodificacionService, useValue: geocodificacionMock },
+      ],
+    }).compile();
+
+    const service = moduleRef.get<ManifiestosService>(ManifiestosService);
+
+    const resultado = await (service as any).verificarDirecciones(
+      [
+        {
+          personaId: 'persona-1',
+          nombre: 'Juan Pérez',
+          carnet: '123',
+          direccion: ' calle nueva 789 ',
+        },
+      ],
+      'MEXICO',
+    );
+
+    expect(resultado.direccionesEncontradas).toBe(0);
+    expect(resultado.direccionesReutilizadas).toBe(0);
+    expect(resultado.direccionesGeocodificadas).toBe(1);
+    expect(resultado.direccionesPendientes).toBe(0);
+    expect(geocodificacionMock.geocodificar).toHaveBeenCalledWith(
+      'calle nueva 789',
+      'MEXICO',
+    );
+    expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1);
+  });
 });
