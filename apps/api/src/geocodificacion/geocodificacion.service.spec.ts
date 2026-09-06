@@ -69,7 +69,9 @@ describe('GeocodificacionService', () => {
   });
 
   it('acepta APTO. como marcador de apartamento', () => {
-    const result = normalizar('APTO. 12, RPTO. VERSALLES, SANTIAGO DE CUBA, CUBA');
+    const result = normalizar(
+      'APTO. 12, RPTO. VERSALLES, SANTIAGO DE CUBA, CUBA',
+    );
 
     expect(result.apartamento).toBe('12');
     expect(result.reparto).toBe('VERSALLES');
@@ -89,7 +91,9 @@ describe('GeocodificacionService', () => {
   });
 
   it('no inventa componentes ausentes al construir consultas', () => {
-    const result = normalizar('APTO 7, RPTO JUNCO SUR, CIENFUEGOS, CIENFUEGOS');
+    const result = normalizar(
+      'APTO 7, RPTO JUNCO SUR, CIENFUEGOS, CIENFUEGOS',
+    );
     const queries = construirConsultas(result, 'CUBA');
 
     expect(queries).toEqual([
