@@ -1,1 +1,0 @@
-Validación funcional del Manifiesto 2864 documentada en el PR de normalización cubana.
