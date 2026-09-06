@@ -51,19 +51,21 @@ export class ManifiestosDiagnosticoService {
     let pendientesGeocodificacion = 0;
     let nuevas = 0;
     let sinDireccion = 0;
-    let personasConDireccion = 0;
-    let personasSinDireccion = 0;
+
+    const personasConDireccion = new Set<string>();
+    const personasSinDireccion = new Set<string>();
 
     for (const candidato of candidatos) {
+      const identidad = this.identityKey(candidato.nombre, candidato.carnet);
       const direccion = this.cleanText(candidato.direccion);
 
       if (!direccion) {
         sinDireccion++;
-        personasSinDireccion++;
+        personasSinDireccion.add(identidad);
         continue;
       }
 
-      personasConDireccion++;
+      personasConDireccion.add(identidad);
 
       try {
         const persona = await this.buscarPersona(
@@ -110,7 +112,7 @@ export class ManifiestosDiagnosticoService {
       }
     }
 
-    const total = personasConDireccion;
+    const total = candidatos.filter((item) => !!item.direccion).length;
     const cobertura =
       total > 0 ? Math.round((reutilizables / total) * 100) : 0;
 
@@ -122,8 +124,8 @@ export class ManifiestosDiagnosticoService {
       nuevas,
       sinDireccion,
       cobertura,
-      personasConDireccion,
-      personasSinDireccion,
+      personasConDireccion: personasConDireccion.size,
+      personasSinDireccion: personasSinDireccion.size,
       warnings,
     };
   }
@@ -140,7 +142,8 @@ export class ManifiestosDiagnosticoService {
 
       if (!candidato.nombre && !candidato.carnet) continue;
 
-      const key = `${this.normalizeIdentity(candidato.carnet)}|${this.normalizeIdentity(candidato.nombre)}`;
+      const identidad = this.identityKey(candidato.nombre, candidato.carnet);
+      const key = `${identidad}|${this.normalizeIdentity(candidato.direccion)}`;
       const existente = deduplicados.get(key);
 
       if (!existente || (!existente.direccion && candidato.direccion)) {
@@ -199,5 +202,9 @@ export class ManifiestosDiagnosticoService {
       .replace(/\s+/g, ' ')
       .trim()
       .toUpperCase();
+  }
+
+  private identityKey(nombre: string, carnet: string | null): string {
+    return `${this.normalizeIdentity(carnet)}|${this.normalizeIdentity(nombre)}`;
   }
 }
