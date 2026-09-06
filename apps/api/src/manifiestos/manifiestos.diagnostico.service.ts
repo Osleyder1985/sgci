@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
-import { ManifiestoParser } from './parsers/manifiesto.parser.js';
-import { ManifiestoParsed } from './parsers/manifiesto.parser.js';
+import {
+  ManifiestoParsed,
+  ManifiestoParser,
+} from './parsers/manifiesto.parser.js';
 
 export interface DiagnosticoDireccionesPreview {
   total: number;
@@ -30,7 +32,15 @@ export class ManifiestosDiagnosticoService {
     private readonly parser: ManifiestoParser,
   ) {}
 
-  async analizar(
+  async analizarArchivo(
+    buffer: Buffer,
+    originalname: string,
+  ): Promise<DiagnosticoDireccionesPreview> {
+    const parsed = this.parser.parse(buffer, originalname);
+    return this.analizar(parsed);
+  }
+
+  private async analizar(
     parsed: ManifiestoParsed,
   ): Promise<DiagnosticoDireccionesPreview> {
     const candidatos = this.obtenerCandidatos(parsed);
@@ -44,15 +54,9 @@ export class ManifiestosDiagnosticoService {
     let personasConDireccion = 0;
     let personasSinDireccion = 0;
 
-    const personasProcesadas = new Set<string>();
-
     for (const candidato of candidatos) {
-      const identidad = this.identityKey(candidato.nombre, candidato.carnet);
-
-      if (personasProcesadas.has(identidad)) continue;
-      personasProcesadas.add(identidad);
-
       const direccion = this.cleanText(candidato.direccion);
+
       if (!direccion) {
         sinDireccion++;
         personasSinDireccion++;
@@ -125,15 +129,15 @@ export class ManifiestosDiagnosticoService {
   }
 
   private obtenerCandidatos(parsed: ManifiestoParsed): CandidatoDireccion[] {
-    const candidatos = parsed.rows.map((house) => ({
-      nombre: this.cleanText(house.destinatarioNombre) ?? '',
-      carnet: this.cleanText(house.destinatarioCarnet),
-      direccion: this.cleanText(house.direccionDestinatario),
-    }));
-
     const deduplicados = new Map<string, CandidatoDireccion>();
 
-    for (const candidato of candidatos) {
+    for (const house of parsed.rows) {
+      const candidato: CandidatoDireccion = {
+        nombre: this.cleanText(house.destinatarioNombre) ?? '',
+        carnet: this.cleanText(house.destinatarioCarnet),
+        direccion: this.cleanText(house.direccionDestinatario),
+      };
+
       if (!candidato.nombre && !candidato.carnet) continue;
 
       const key = `${this.normalizeIdentity(candidato.carnet)}|${this.normalizeIdentity(candidato.nombre)}`;
@@ -195,9 +199,5 @@ export class ManifiestosDiagnosticoService {
       .replace(/\s+/g, ' ')
       .trim()
       .toUpperCase();
-  }
-
-  private identityKey(nombre: string, carnet: string | null): string {
-    return `${this.normalizeIdentity(carnet)}|${this.normalizeIdentity(nombre)}`;
   }
 }
