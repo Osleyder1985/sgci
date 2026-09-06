@@ -1,4 +1,4 @@
-import { GeocodificacionService } from './geocodificacion.service';
+import { GeocodificacionService } from './geocodificacion.service.js';
 
 describe('GeocodificacionService - manifest address examples', () => {
   const service = new GeocodificacionService();
