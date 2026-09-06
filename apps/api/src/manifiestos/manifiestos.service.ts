@@ -54,7 +54,11 @@ export class ManifiestosService {
 
       return {
         ok: true,
-        archivo: { nombre: originalname, hash, duplicado: !!manifiestoExistente },
+        archivo: {
+          nombre: originalname,
+          hash,
+          duplicado: !!manifiestoExistente,
+        },
         metadata: parsed.metadata,
         total: parsed.total,
         registros: parsed.rows.length,
@@ -95,7 +99,9 @@ export class ManifiestosService {
       }
 
       if (!parsed.metadata.masterAwb) {
-        throw new BadRequestException('El manifiesto no contiene el Master AWB.');
+        throw new BadRequestException(
+          'El manifiesto no contiene el Master AWB.',
+        );
       }
 
       if (!parsed.metadata.fecha) {
@@ -413,7 +419,8 @@ export class ManifiestosService {
       telefonoDestinatario: this.cleanText(house.telefonoDestinatario),
       direccionDestinatario: this.cleanText(house.direccionDestinatario),
       estadoCobroOrigen:
-        house.estadoCobroOrigen !== null && house.estadoCobroOrigen !== undefined
+        house.estadoCobroOrigen !== null &&
+        house.estadoCobroOrigen !== undefined
           ? String(house.estadoCobroOrigen)
           : null,
       unidadDestino: this.cleanText(house.unidadDestino),
@@ -469,7 +476,9 @@ export class ManifiestosService {
       parsed.total.pesoTotalKg === undefined ||
       !Number.isFinite(Number(parsed.total.pesoTotalKg))
     ) {
-      throw new BadRequestException('El peso total del manifiesto no es válido.');
+      throw new BadRequestException(
+        'El peso total del manifiesto no es válido.',
+      );
     }
   }
 
@@ -500,7 +509,9 @@ export class ManifiestosService {
     console.error('ERROR EN MANIFIESTOS SERVICE', error);
     if (error instanceof BadRequestException) throw error;
     throw new BadRequestException(
-      error instanceof Error ? error.message : 'Error procesando el manifiesto.',
+      error instanceof Error
+        ? error.message
+        : 'Error procesando el manifiesto.',
     );
   }
 }
