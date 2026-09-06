@@ -1,0 +1,65 @@
+name: SGCI Quality Gate
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+      - 'fix/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate TypeScript API
+        run: npx tsc --noEmit -p apps/api/tsconfig.json
+
+      - name: Validate TypeScript Web
+        run: npx tsc --noEmit -p apps/web/tsconfig.json
+
+      - name: Lint API
+        run: npm run lint --workspace=@sgci/api
+
+      - name: Lint Web
+        run: npm run lint --workspace=@sgci/web
+
+      - name: Check formatting
+        run: npx prettier --check "apps/**/*.{ts,tsx,js,jsx,json,css,md}" "packages/**/*.{ts,tsx,js,jsx,json,css,md}"
+
+      - name: Validate Prisma schema
+        run: npx prisma validate --schema apps/api/prisma/schema.prisma
+
+      - name: Run API tests
+        run: npm test --workspace=@sgci/api
+
+      - name: Build API
+        run: npm run build --workspace=@sgci/api
+
+      - name: Build Web
+        run: npm run build --workspace=@sgci/web
