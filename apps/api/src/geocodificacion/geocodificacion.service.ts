@@ -51,13 +51,22 @@ interface DireccionCubanaNormalizada {
 @Injectable()
 export class GeocodificacionService {
   private readonly logger = new Logger(GeocodificacionService.name);
+
   private readonly baseUrl =
-    process.env.GEOCODER_BASE_URL?.trim() || 'https://us1.locationiq.com/v1/search';
+    process.env.GEOCODER_BASE_URL?.trim() ||
+    'https://us1.locationiq.com/v1/search';
+
   private readonly apiKey = process.env.LOCATIONIQ_API_KEY?.trim();
-  private readonly userAgent = process.env.GEOCODER_USER_AGENT?.trim() ?? 'SGCI/1.0';
+
+  private readonly userAgent =
+    process.env.GEOCODER_USER_AGENT?.trim() ?? 'SGCI/1.0';
+
   private lastRequestAt = 0;
 
-  async geocodificar(direccion: string, pais?: string | null): Promise<GeocodingResult | null> {
+  async geocodificar(
+    direccion: string,
+    pais?: string | null,
+  ): Promise<GeocodingResult | null> {
     if (!this.apiKey) {
       throw new Error(
         'LOCATIONIQ_API_KEY no está configurada. No se puede geocodificar una dirección nueva.',
@@ -65,7 +74,10 @@ export class GeocodificacionService {
     }
 
     const texto = direccion.trim();
-    if (!texto) return null;
+
+    if (!texto) {
+      return null;
+    }
 
     const normalizada = this.normalizarDireccionCubana(texto);
     const esCuba = this.esDireccionCubana(texto, normalizada);
@@ -90,7 +102,9 @@ export class GeocodificacionService {
     textoFallback: string,
   ): Promise<GeocodingResult | null> {
     await this.respetarLimiteSolicitudes();
+
     const url = new URL(this.baseUrl);
+
     url.searchParams.set('key', this.apiKey!);
     url.searchParams.set('q', query);
     url.searchParams.set('format', 'json');
@@ -101,20 +115,30 @@ export class GeocodificacionService {
 
     try {
       this.lastRequestAt = Date.now();
+
       const response = await fetch(url, {
-        headers: { Accept: 'application/json', 'User-Agent': this.userAgent },
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': this.userAgent,
+        },
         signal: AbortSignal.timeout(15_000),
       });
 
       if (response.status === 404) return null;
-      if (!response.ok) throw new Error(`LocationIQ respondió HTTP ${response.status}.`);
+      if (!response.ok) {
+        throw new Error(`LocationIQ respondió HTTP ${response.status}.`);
+      }
 
       const result = (await response.json()) as LocationIqResult[];
       const firstResult = result?.[0];
-      if (!firstResult) return null;
+
+      if (!firstResult) {
+        return null;
+      }
 
       const lat = Number(firstResult.lat);
       const lon = Number(firstResult.lon);
+
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
         throw new Error('LocationIQ devolvió coordenadas inválidas.');
       }
@@ -141,6 +165,7 @@ export class GeocodificacionService {
           error instanceof Error ? error.message : String(error)
         }`,
       );
+
       throw error;
     }
   }
@@ -359,6 +384,9 @@ export class GeocodificacionService {
 
   private async respetarLimiteSolicitudes(): Promise<void> {
     const espera = Math.max(0, 1000 - (Date.now() - this.lastRequestAt));
-    if (espera > 0) await new Promise((resolve) => setTimeout(resolve, espera));
+
+    if (espera > 0) {
+      await new Promise((resolve) => setTimeout(resolve, espera));
+    }
   }
 }
