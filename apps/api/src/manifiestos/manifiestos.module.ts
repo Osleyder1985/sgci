@@ -14,10 +14,11 @@ import { ManifiestosController } from './manifiestos.controller.js';
 import { ManifiestosService } from './manifiestos.service.js';
 import { ManifiestoParser } from './parsers/manifiesto.parser.js';
 
+import { GeocodificacionModule } from '../geocodificacion/geocodificacion.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, GeocodificacionModule],
 
   controllers: [ManifiestosController],
 
