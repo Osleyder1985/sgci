@@ -1,35 +1,196 @@
-// =============================================================================
+// ================================================================================
 // SGCI - Sistema de Gestión Contextual Integrado
 //
-// Archivo principal del modelo de datos.
+// Modelo de datos principal.
 //
-// Este esquema define las entidades, relaciones y restricciones del dominio
-// del SGCI.
+// Dominio actual:
+//   - Personas.
+//   - Documentos de identidad.
+//   - Direcciones.
+//   - Geocodificación.
+//   - Conflictos de identidad.
+//   - Continuidad operativa ante inconsistencias.
 //
 // PostgreSQL constituye el motor principal de persistencia.
-//
-// PostGIS está instalado para proporcionar capacidades geográficas y
-// espaciales.
-//
-// Las tablas internas de PostGIS no forman parte del modelo de dominio
-// del SGCI y no deben gestionarse mediante Prisma.
-// =============================================================================
+// PostGIS proporciona capacidades geográficas y espaciales.
+// ================================================================================
 
+// ================================================================================
+// GENERADOR PRISMA CLIENT
+// ================================================================================
 
 generator client {
-
   // Prisma Client moderno.
   provider = "prisma-client"
-
-  // Ubicación donde Prisma generará el cliente tipado.
-  output = "../src/generated/prisma"
+  output   = "../src/generated/prisma"
 }
 
+// ================================================================================
+// BASE DE DATOS
+// ================================================================================
 
 datasource db {
-
   // PostgreSQL es el motor de persistencia principal.
   //
   // PostGIS funciona como extensión de PostgreSQL.
   provider = "postgresql"
+}
+
+// ================================================================================
+// ENUMERACIONES
+// ================================================================================
+
+// Tipos de documentos que pueden identificar a una persona.
+enum TipoDocumentoIdentidad {
+  CARNET_IDENTIDAD
+  PASAPORTE
+}
+
+// Estado de verificación de una identidad.
+enum EstadoIdentidad {
+  PENDIENTE_VERIFICACION
+  VERIFICADA
+  EN_CONFLICTO
+  RECHAZADA
+}
+
+// Estado del proceso de resolución de un conflicto.
+enum EstadoConflictoIdentidad {
+  ABIERTO
+  EN_REVISION
+  RESUELTO
+  DESCARTADO
+}
+
+// Motivo principal por el cual se detectó el conflicto.
+enum TipoConflictoIdentidad {
+  DOCUMENTO_DUPLICADO
+  NOMBRES_DIFERENTES
+  DATOS_PERSONALES_INCONSISTENTES
+  DOCUMENTO_NO_VALIDO
+}
+
+// Estado del proceso de geocodificación de una dirección.
+enum EstadoGeocodificacion {
+  PENDIENTE
+  EN_PROCESO
+  GEOCODIFICADA
+  NO_ENCONTRADA
+  AMBIGUA
+  ERROR
+  REQUIERE_REVISION
+}
+
+// =============================================================================
+// PERSONA
+// =============================================================================
+
+// Representa una persona física dentro del SGCI.
+model Persona {
+  id             String               @id @default(uuid()) @db.Uuid // Identificador interno único.
+  nombres        String // Nombre o nombres de la persona.
+  apellidos      String // Apellidos de la persona.
+  nombreCompleto String // Nombre completo normalizado para búsquedas y comparación.
+  activo         Boolean              @default(true) // Indica si la persona permanece activa dentro del sistema.
+  documentos     DocumentoIdentidad[] // Documentos asociados a la persona.
+  direcciones    Direccion[] // Direcciones asociadas a la persona.
+
+  createdAt DateTime @default(now()) // Fecha de creación.
+  updatedAt DateTime @updatedAt // Fecha de última actualización.
+
+  conflictosExistentes ConflictoIdentidad[] @relation("PersonaExistenteConflicto") // Conflictos en los que esta persona participa como identidad existente.
+  conflictosNuevos     ConflictoIdentidad[] @relation("PersonaNuevaConflicto") // Conflictos generados a partir de una identidad nueva o importada.
+
+  @@index([nombres])
+  @@index([apellidos])
+  @@index([nombreCompleto])
+}
+
+// =============================================================================
+// DOCUMENTO DE IDENTIDAD
+// =============================================================================
+
+// Representa un documento asociado a una persona.
+model DocumentoIdentidad {
+  id             String                 @id @default(uuid()) @db.Uuid // Identificador interno único.
+  personaId      String                 @db.Uuid
+  tipo           TipoDocumentoIdentidad // Tipo de documento.
+  numero         String // Valor normalizado del documento.
+  numeroOriginal String? // Valor original recibido durante importación o captura manual.
+  estado         EstadoIdentidad        @default(PENDIENTE_VERIFICACION) // Estado de validación y verificación.
+  esPrincipal    Boolean                @default(false) // Indica si el documento puede utilizarse como identificación principal.
+  verificadoAt   DateTime? // Fecha en que se verificó el documento.
+
+  createdAt DateTime @default(now()) // Fecha de creación.
+  updatedAt DateTime @updatedAt // Fecha de última actualización.
+
+  persona Persona @relation(fields: [personaId], references: [id], onDelete: Restrict)
+
+  @@unique([tipo, numero])
+  @@index([numero])
+  @@index([estado])
+}
+
+// =============================================================================
+// DIRECCIÓN
+// =============================================================================
+
+// Representa una dirección asociada a una persona.
+model Direccion {
+  id                    String                               @id @default(uuid()) @db.Uuid // Identificador interno único.
+  personaId             String                               @db.Uuid // Persona propietaria o asociada a la dirección.
+  direccionOriginal     String // Dirección exactamente como fue recibida.
+  calle                 String? // Calle o vía principal.
+  numero                String? // Número de vivienda o inmueble.
+  entreCalles           String? // Entrecalles o referencias entre vías.
+  localidad             String? // Reparto, localidad, barrio o asentamiento.
+  municipio             String? // Municipio.
+  provincia             String? // Provincia.
+  pais                  String? // País.
+  codigoPostal          String? // Código postal.
+  ubicacion             Unsupported("geography(Point,4326)")
+  estadoGeocodificacion EstadoGeocodificacion                @default(PENDIENTE) // Estado actual de la geocodificación.
+  geocodificadoAt       DateTime? // Fecha de la última geocodificación exitosa.
+  esPrincipal           Boolean                              @default(false) // Indica si constituye la dirección principal.
+  activa                Boolean                              @default(true) // Permite conservar historial de direcciones.
+
+  createdAt DateTime @default(now()) // Fecha de creación.
+  updatedAt DateTime @updatedAt // Fecha de última actualización.
+
+  persona Persona @relation(fields: [personaId], references: [id], onDelete: Restrict)
+
+  @@index([provincia])
+  @@index([municipio])
+  @@index([localidad])
+  @@index([estadoGeocodificacion])
+}
+
+// =============================================================================
+// CONFLICTO DE IDENTIDAD
+// =============================================================================
+
+// Registra una inconsistencia entre una identidad existente y una nueva identidad recibida.
+model ConflictoIdentidad {
+  id                      String                   @id @default(uuid()) @db.Uuid // Identificador interno único.
+  personaExistenteId      String                   @db.Uuid // Persona existente que ya tenía asociado el documento.
+  personaNuevaId          String                   @db.Uuid // Persona creada temporalmente a partir de la nueva información.
+  tipoDocumento           TipoDocumentoIdentidad // Tipo de documento que originó el conflicto.
+  numeroDocumento         String // Número normalizado del documento en conflicto.
+  numeroDocumentoOriginal String? // Valor original recibido.
+  datosOriginales         Json // Datos originales recibidos durante la importación.
+  tipoConflicto           TipoConflictoIdentidad // Tipo de conflicto detectado.
+  estado                  EstadoConflictoIdentidad @default(ABIERTO) // Estado actual del conflicto.
+  resolucion              String? // Descripción de la resolución realizada.
+  resueltoAt              DateTime? // Fecha de resolución.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  personaExistente Persona @relation("PersonaExistenteConflicto", fields: [personaExistenteId], references: [id], onDelete: Restrict)
+  personaNueva     Persona @relation("PersonaNuevaConflicto", fields: [personaNuevaId], references: [id], onDelete: Restrict)
+
+  @@index([estado])
+  @@index([tipoDocumento, numeroDocumento])
+  @@index([personaExistenteId])
+  @@index([personaNuevaId])
 }
