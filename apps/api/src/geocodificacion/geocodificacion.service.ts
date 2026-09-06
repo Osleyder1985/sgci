@@ -17,11 +17,33 @@ export interface GeocodingResult {
   };
 }
 
+interface GoogleGeocodingResponse {
+  status?: string;
+  error_message?: string;
+  results?: Array<{
+    formatted_address?: string;
+    geometry?: {
+      location?: {
+        lat?: number;
+        lng?: number;
+      };
+    };
+    address_components?: Array<{
+      long_name?: string;
+      types?: string[];
+    }>;
+  }>;
+}
+
 @Injectable()
 export class GeocodificacionService {
   private readonly logger = new Logger(GeocodificacionService.name);
 
-  private readonly baseUrl = process.env.GEOCODER_BASE_URL?.trim();
+  private readonly baseUrl =
+    process.env.GEOCODER_BASE_URL?.trim() ||
+    'https://maps.googleapis.com/maps/api/geocode/json';
+
+  private readonly apiKey = process.env.GOOGLE_MAPS_API_KEY?.trim();
 
   private readonly userAgent =
     process.env.GEOCODER_USER_AGENT?.trim() ?? 'SGCI/1.0';
@@ -30,9 +52,9 @@ export class GeocodificacionService {
     direccion: string,
     pais?: string | null,
   ): Promise<GeocodingResult | null> {
-    if (!this.baseUrl) {
+    if (!this.apiKey) {
       throw new Error(
-        'GEOCODER_BASE_URL no está configurado. No se puede geocodificar una dirección nueva.',
+        'GOOGLE_MAPS_API_KEY no está configurada. No se puede geocodificar una dirección nueva.',
       );
     }
 
@@ -45,9 +67,9 @@ export class GeocodificacionService {
     const query = pais?.trim() ? `${texto}, ${pais.trim()}` : texto;
     const url = new URL(this.baseUrl);
 
-    url.searchParams.set('q', query);
-    url.searchParams.set('format', 'json');
-    url.searchParams.set('limit', '1');
+    url.searchParams.set('address', query);
+    url.searchParams.set('key', this.apiKey);
+    url.searchParams.set('language', 'es');
 
     try {
       const response = await fetch(url, {
@@ -60,34 +82,47 @@ export class GeocodificacionService {
 
       if (!response.ok) {
         throw new Error(
-          `Proveedor de geocodificación respondió HTTP ${response.status}.`,
+          `Google Geocoding API respondió HTTP ${response.status}.`,
         );
       }
 
-      const result = (await response.json()) as {
-        lat?: number | string;
-        lon?: number | string;
-        displayName?: string;
-        display_name?: string;
-        address?: GeocodingResult['address'];
-      } | null;
+      const result = (await response.json()) as GoogleGeocodingResponse;
 
-      if (!result) {
+      if (result.status === 'ZERO_RESULTS') {
         return null;
       }
 
-      const lat = Number(result.lat);
-      const lon = Number(result.lon);
+      if (result.status !== 'OK') {
+        throw new Error(
+          `Google Geocoding API respondió ${result.status ?? 'sin estado'}${
+            result.error_message ? `: ${result.error_message}` : ''
+          }.`,
+        );
+      }
+
+      const firstResult = result.results?.[0];
+      const location = firstResult?.geometry?.location;
+
+      if (!firstResult || !location) {
+        return null;
+      }
+
+      const lat = Number(location.lat);
+      const lon = Number(location.lng);
 
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-        throw new Error('El proveedor devolvió coordenadas inválidas.');
+        throw new Error('Google Geocoding API devolvió coordenadas inválidas.');
       }
+
+      const address = this.mapAddressComponents(
+        firstResult.address_components ?? [],
+      );
 
       return {
         lat,
         lon,
-        displayName: result.displayName ?? result.display_name ?? texto,
-        address: result.address,
+        displayName: firstResult.formatted_address ?? texto,
+        address,
       };
     } catch (error) {
       this.logger.warn(
@@ -98,5 +133,26 @@ export class GeocodificacionService {
 
       throw error;
     }
+  }
+
+  private mapAddressComponents(
+    components: NonNullable<
+      GoogleGeocodingResponse['results']
+    >[number]['address_components'],
+  ): GeocodingResult['address'] {
+    const find = (type: string) =>
+      components.find((component) => component.types?.includes(type))?.long_name;
+
+    return {
+      road: find('route'),
+      houseNumber: find('street_number'),
+      city: find('locality'),
+      town: find('postal_town'),
+      village: find('administrative_area_level_3'),
+      municipality: find('administrative_area_level_2'),
+      state: find('administrative_area_level_1'),
+      country: find('country'),
+      postcode: find('postal_code'),
+    };
   }
 }
