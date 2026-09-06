@@ -385,12 +385,18 @@ export class GeocodificacionService {
     original: string,
     normalizada: DireccionCubanaNormalizada,
   ): boolean {
-    const texto =
-      `${original} ${normalizada.municipio ?? ''} ${normalizada.provincia ?? ''}`
+    const normalizarTexto = (value: string) =>
+      value
         .toUpperCase()
         .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
-    const provincias = [
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+
+    const provincia = normalizarTexto(normalizada.provincia ?? '');
+    const ultimoComponente = normalizarTexto(
+      original.split(',').at(-1) ?? '',
+    );
+    const provinciasCubanas = new Set([
       'PINAR DEL RIO',
       'ARTEMISA',
       'LA HABANA',
@@ -407,10 +413,11 @@ export class GeocodificacionService {
       'SANTIAGO DE CUBA',
       'GUANTANAMO',
       'ISLA DE LA JUVENTUD',
-    ];
+    ]);
+
     return (
-      /\bCUBA\b/.test(texto) ||
-      provincias.some((provincia) => texto.includes(provincia))
+      ultimoComponente === 'CUBA' ||
+      provinciasCubanas.has(provincia)
     );
   }
 
