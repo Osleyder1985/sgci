@@ -1,0 +1,49 @@
+# =============================================================================
+# Ubicación: C:\Proyecto\sgci\docker-compose.yml
+# Proyecto: SGCI
+# Descripción:
+#   Infraestructura local de desarrollo del Sistema de Gestión Contextual
+#   Integrado (SGCI).
+#
+#   Actualmente proporciona:
+#   - PostgreSQL para persistencia de datos.
+#
+#   Los datos se almacenan en un volumen Docker para evitar su pérdida cuando
+#   el contenedor se detiene o se reinicia.
+# =============================================================================
+
+services:
+  postgres:
+    # Motor de base de datos utilizado por SGCI.
+    image: postgis/postgis:16-3.4
+
+    # Nombre explícito para facilitar la administración del contenedor.
+    container_name: sgci-postgres
+
+    # Configuración inicial de PostgreSQL.
+    environment:
+      POSTGRES_DB: sgci
+      POSTGRES_USER: sgci_user
+      POSTGRES_PASSWORD: sgci_password
+
+    # Expone PostgreSQL al equipo anfitrión.
+    ports:
+      - "5432:5432"
+
+    # Persistencia de los datos.
+    volumes:
+      - sgci_postgres_data:/var/lib/postgresql/data
+
+    # Reinicio automático excepto cuando Docker se detenga manualmente.
+    restart: unless-stopped
+
+    # Verifica periódicamente que PostgreSQL esté disponible.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sgci_user -d sgci"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  # Volumen persistente para los datos de PostgreSQL.
+  sgci_postgres_data:

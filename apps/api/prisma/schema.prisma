@@ -1,0 +1,35 @@
+// =============================================================================
+// SGCI - Sistema de Gestión Contextual Integrado
+//
+// Archivo principal del modelo de datos.
+//
+// Este esquema define las entidades, relaciones y restricciones del dominio
+// del SGCI.
+//
+// PostgreSQL constituye el motor principal de persistencia.
+//
+// PostGIS está instalado para proporcionar capacidades geográficas y
+// espaciales.
+//
+// Las tablas internas de PostGIS no forman parte del modelo de dominio
+// del SGCI y no deben gestionarse mediante Prisma.
+// =============================================================================
+
+
+generator client {
+
+  // Prisma Client moderno.
+  provider = "prisma-client"
+
+  // Ubicación donde Prisma generará el cliente tipado.
+  output = "../src/generated/prisma"
+}
+
+
+datasource db {
+
+  // PostgreSQL es el motor de persistencia principal.
+  //
+  // PostGIS funciona como extensión de PostgreSQL.
+  provider = "postgresql"
+}
