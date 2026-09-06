@@ -318,9 +318,12 @@ export class GeocodificacionService {
 
     return [
       ...new Set(
-        [`${completa}${sufijoPais}`.trim(), simplificada && simplificada !== completa
-          ? `${simplificada}${sufijoPais}`.trim()
-          : ''].filter(Boolean),
+        [
+          `${completa}${sufijoPais}`.trim(),
+          simplificada && simplificada !== completa
+            ? `${simplificada}${sufijoPais}`.trim()
+            : '',
+        ].filter(Boolean),
       ),
     ];
   }
