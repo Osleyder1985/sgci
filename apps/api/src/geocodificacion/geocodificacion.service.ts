@@ -393,9 +393,7 @@ export class GeocodificacionService {
         .trim();
 
     const provincia = normalizarTexto(normalizada.provincia ?? '');
-    const ultimoComponente = normalizarTexto(
-      original.split(',').at(-1) ?? '',
-    );
+    const ultimoComponente = normalizarTexto(original.split(',').at(-1) ?? '');
     const provinciasCubanas = new Set([
       'PINAR DEL RIO',
       'ARTEMISA',
