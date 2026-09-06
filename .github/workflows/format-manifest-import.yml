@@ -1,0 +1,31 @@
+name: Format manifest import
+
+on:
+  push:
+    branches:
+      - feat/manifest-import-control-center-v2
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/manifest-import-control-center-v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prettier --write apps/api/src/manifiestos/manifiestos.controller.ts apps/api/src/manifiestos/manifiestos.service.ts apps/web/src/app/operaciones/manifiestos/importar/page.tsx
+      - name: Commit formatted files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/api/src/manifiestos/manifiestos.controller.ts apps/api/src/manifiestos/manifiestos.service.ts apps/web/src/app/operaciones/manifiestos/importar/page.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "style(manifiestos): format import control center"
+          git push origin HEAD:feat/manifest-import-control-center-v2
