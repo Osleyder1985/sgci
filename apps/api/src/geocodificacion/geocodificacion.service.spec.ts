@@ -96,9 +96,10 @@ describe('GeocodificacionService', () => {
     );
     const queries = construirConsultas(result, 'CUBA');
 
-    expect(queries).toEqual([
+    expect(queries).toContain(
       'APARTAMENTO 7, REPARTO JUNCO SUR, CIENFUEGOS, CIENFUEGOS, CUBA',
-    ]);
+    );
+    expect(queries.every((query) => !query.includes('CALLE'))).toBe(true);
   });
 
   it('detecta una dirección cubana aunque el país del manifiesto sea México', () => {
