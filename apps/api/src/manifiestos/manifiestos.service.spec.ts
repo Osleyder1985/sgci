@@ -19,7 +19,6 @@ describe('ManifiestosService - direcciones', () => {
         ]),
       },
     };
-
     const geocodificacionMock = { geocodificar: vi.fn() };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -63,7 +62,6 @@ describe('ManifiestosService - direcciones', () => {
       },
       $executeRaw: vi.fn().mockResolvedValue(1),
     };
-
     const geocodificacionMock = {
       geocodificar: vi.fn().mockResolvedValue({
         lat: 19.4326,
@@ -110,7 +108,6 @@ describe('ManifiestosService - direcciones', () => {
       direccion: { findMany: vi.fn().mockResolvedValue([]) },
       $executeRaw: vi.fn().mockResolvedValue(1),
     };
-
     const geocodificacionMock = {
       geocodificar: vi.fn().mockResolvedValue({
         lat: 19.4326,
@@ -157,7 +154,6 @@ describe('ManifiestosService - direcciones', () => {
       direccion: { findMany: vi.fn().mockResolvedValue([]) },
       $executeRaw: vi.fn(),
     };
-
     const geocodificacionMock = {
       geocodificar: vi.fn().mockResolvedValue(null),
     };
@@ -201,7 +197,6 @@ describe('ManifiestosService - direcciones', () => {
       direccion: { findMany: vi.fn().mockResolvedValue([]) },
       $executeRaw: vi.fn(),
     };
-
     const geocodificacionMock = {
       geocodificar: vi
         .fn()
@@ -273,7 +268,12 @@ describe('ManifiestosService - direcciones', () => {
 
     const tx = {
       masterAwb: {
-        upsert: vi.fn().mockResolvedValue({ id: 'master-1', numero: '649-31382945' }),
+        upsert: vi
+          .fn()
+          .mockResolvedValue({
+            id: 'master-1',
+            numero: '649-31382945',
+          }),
       },
       manifiesto: {
         create: vi.fn().mockResolvedValue({
@@ -286,9 +286,17 @@ describe('ManifiestosService - direcciones', () => {
           importadoAt: new Date('2026-02-18T00:00:00.000Z'),
         }),
       },
-      guia: { create: vi.fn().mockResolvedValue({ id: 'guia-1' }) },
-      paquete: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
-      documentoIdentidad: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), createMany: vi.fn() },
+      guia: {
+        create: vi.fn().mockResolvedValue({ id: 'guia-1' }),
+      },
+      paquete: {
+        createMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+      documentoIdentidad: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn(),
+        createMany: vi.fn(),
+      },
       persona: {
         findFirst: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockResolvedValue({ id: 'persona-1' }),
@@ -301,8 +309,9 @@ describe('ManifiestosService - direcciones', () => {
       direccion: { findMany: vi.fn().mockResolvedValue([]) },
       $executeRaw: vi.fn().mockResolvedValue(1),
     };
-
-    const parserMock = { parse: vi.fn().mockReturnValue(parsed) };
+    const parserMock = {
+      parse: vi.fn().mockReturnValue(parsed),
+    };
     const geocodificacionMock = {
       geocodificar: vi.fn().mockResolvedValue({
         lat: 19.4326,
@@ -352,5 +361,4 @@ describe('ManifiestosService - direcciones', () => {
     });
     expect(resultado.warnings).toEqual([]);
   });
-
 });
