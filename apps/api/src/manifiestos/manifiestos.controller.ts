@@ -18,14 +18,9 @@ import {
 
 import { FileInterceptor } from '@nestjs/platform-express';
 
+import { ManifiestosDiagnosticoService } from './manifiestos.diagnostico.service.js';
 import { ManifiestosService } from './manifiestos.service.js';
 
-/**
- * Archivo recibido mediante multipart/form-data.
- *
- * Definimos el tipo localmente para no depender de
- * Express.Multer.File ni de multer.File.
- */
 interface UploadedManifestFile {
   fieldname: string;
   originalname: string;
@@ -41,7 +36,10 @@ interface UploadedManifestFile {
 
 @Controller('api/guias')
 export class ManifiestosController {
-  constructor(private readonly manifiestosService: ManifiestosService) {}
+  constructor(
+    private readonly manifiestosService: ManifiestosService,
+    private readonly diagnosticoService: ManifiestosDiagnosticoService,
+  ) {}
 
   /**
    * ===========================================================================
@@ -50,17 +48,29 @@ export class ManifiestosController {
    *
    * POST /api/guias/importar/preview
    *
-   * Analiza el manifiesto sin modificar la base de datos.
+   * Analiza el manifiesto sin modificar la base de datos y agrega un
+   * diagnóstico de preparación de las direcciones existentes.
    */
   @Post('importar/preview')
   @UseInterceptors(FileInterceptor('archivo'))
   async preview(@UploadedFile() archivo?: UploadedManifestFile) {
     this.validarArchivo(archivo);
 
-    return this.manifiestosService.preview(
-      archivo.buffer,
-      archivo.originalname,
-    );
+    const [preview, diagnostico] = await Promise.all([
+      this.manifiestosService.preview(
+        archivo.buffer,
+        archivo.originalname,
+      ),
+      this.diagnosticoService.analizarArchivo(
+        archivo.buffer,
+        archivo.originalname,
+      ),
+    ]);
+
+    return {
+      ...preview,
+      direcciones: diagnostico,
+    };
   }
 
   /**
@@ -83,11 +93,6 @@ export class ManifiestosController {
     );
   }
 
-  /**
-   * ===========================================================================
-   * VALIDAR ARCHIVO
-   * ===========================================================================
-   */
   private validarArchivo(
     archivo?: UploadedManifestFile,
   ): asserts archivo is UploadedManifestFile {
