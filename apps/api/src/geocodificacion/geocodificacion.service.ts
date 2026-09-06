@@ -91,9 +91,7 @@ export class GeocodificacionService {
       });
 
       if (!response.ok) {
-        throw new Error(
-          `LocationIQ respondió HTTP ${response.status}.`,
-        );
+        throw new Error(`LocationIQ respondió HTTP ${response.status}.`);
       }
 
       const result = (await response.json()) as LocationIqResult[];
