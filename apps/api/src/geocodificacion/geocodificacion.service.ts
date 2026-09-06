@@ -111,7 +111,10 @@ export class GeocodificacionService {
     url.searchParams.set('addressdetails', '1');
     url.searchParams.set('limit', '1');
     url.searchParams.set('accept-language', 'es');
-    if (/\bCUBA\b/i.test(query)) url.searchParams.set('countrycodes', 'cu');
+
+    if (/\bCUBA\b/i.test(query)) {
+      url.searchParams.set('countrycodes', 'cu');
+    }
 
     try {
       this.lastRequestAt = Date.now();
@@ -380,10 +383,11 @@ export class GeocodificacionService {
     original: string,
     normalizada: DireccionCubanaNormalizada,
   ): boolean {
-    const texto = `${original} ${normalizada.municipio ?? ''} ${normalizada.provincia ?? ''}`
-      .toUpperCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
+    const texto =
+      `${original} ${normalizada.municipio ?? ''} ${normalizada.provincia ?? ''}`
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
     const provincias = [
       'PINAR DEL RIO',
       'ARTEMISA',
