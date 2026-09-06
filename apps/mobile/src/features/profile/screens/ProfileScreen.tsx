@@ -10,7 +10,7 @@
  * del usuario autenticado en SGCI Mobile.
  */
 
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from "react-native";
 
 /**
  * Pantalla principal del perfil del usuario.
@@ -18,13 +18,9 @@ import { StyleSheet, Text, View } from 'react-native';
 export function ProfileScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>
-        Perfil
-      </Text>
+      <Text style={styles.title}>Perfil</Text>
 
-      <Text>
-        Configuración del usuario
-      </Text>
+      <Text>Configuración del usuario</Text>
     </View>
   );
 }
@@ -35,13 +31,13 @@ export function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 8,
   },
 });

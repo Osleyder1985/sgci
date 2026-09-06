@@ -11,12 +11,8 @@ import { DashboardController } from './dashboard.controller.js';
 import { DashboardService } from './dashboard.service.js';
 
 @Module({
-  controllers: [
-    DashboardController,
-  ],
+  controllers: [DashboardController],
 
-  providers: [
-    DashboardService,
-  ],
+  providers: [DashboardService],
 })
 export class DashboardModule {}

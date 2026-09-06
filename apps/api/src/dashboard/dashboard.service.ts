@@ -14,9 +14,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 
 @Injectable()
 export class DashboardService {
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async getDashboard() {
     const [
@@ -103,9 +101,7 @@ export class DashboardService {
       }),
     ]);
 
-    const pesoTotalKg = Number(
-      resumenManifiestos._sum.pesoTotalKg ?? 0,
-    );
+    const pesoTotalKg = Number(resumenManifiestos._sum.pesoTotalKg ?? 0);
 
     return {
       ok: true,
@@ -116,13 +112,10 @@ export class DashboardService {
         manifiestos,
         masterAwb,
         guias,
-        houses:
-          resumenManifiestos._sum.cantidadHouse ?? 0,
-        bultos:
-          resumenManifiestos._sum.totalSacas ?? 0,
+        houses: resumenManifiestos._sum.cantidadHouse ?? 0,
+        bultos: resumenManifiestos._sum.totalSacas ?? 0,
         paquetes,
-        personas:
-          resumenManifiestos._sum.totalPersonas ?? 0,
+        personas: resumenManifiestos._sum.totalPersonas ?? 0,
         pesoTotalKg,
       },
 
@@ -151,13 +144,9 @@ export class DashboardService {
 
       consistencia: {
         pesoDesdeManifiestosKg: pesoTotalKg,
-        pesoDesdeGuiasKg: Number(
-          resumenGuias._sum.pesoKg ?? 0,
-        ),
-        bultosDesdeManifiestos:
-          resumenManifiestos._sum.totalSacas ?? 0,
-        bultosDesdeGuias:
-          resumenGuias._sum.bultos ?? 0,
+        pesoDesdeGuiasKg: Number(resumenGuias._sum.pesoKg ?? 0),
+        bultosDesdeManifiestos: resumenManifiestos._sum.totalSacas ?? 0,
+        bultosDesdeGuias: resumenGuias._sum.bultos ?? 0,
       },
     };
   }

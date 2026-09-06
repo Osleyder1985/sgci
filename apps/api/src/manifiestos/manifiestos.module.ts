@@ -17,22 +17,12 @@ import { ManifiestoParser } from './parsers/manifiesto.parser.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 
 @Module({
-  imports: [
-    PrismaModule,
-  ],
+  imports: [PrismaModule],
 
-  controllers: [
-    ManifiestosController,
-  ],
+  controllers: [ManifiestosController],
 
-  providers: [
-    ManifiestosService,
-    ManifiestoParser,
-  ],
+  providers: [ManifiestosService, ManifiestoParser],
 
-  exports: [
-    ManifiestosService,
-    ManifiestoParser,
-  ],
+  exports: [ManifiestosService, ManifiestoParser],
 })
 export class ManifiestosModule {}

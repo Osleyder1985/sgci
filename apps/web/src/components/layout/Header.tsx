@@ -1,85 +1,85 @@
-'use client';
+"use client";
 
-import { usePathname } from 'next/navigation';
+import { usePathname } from "next/navigation";
 
 function getPageTitle(pathname: string): string {
-  if (pathname === '/dashboard') {
-    return 'Dashboard';
+  if (pathname === "/dashboard") {
+    return "Dashboard";
   }
 
-  if (pathname.includes('/manifiestos/importar')) {
-    return 'Importar Manifiesto';
+  if (pathname.includes("/manifiestos/importar")) {
+    return "Importar Manifiesto";
   }
 
-  if (pathname.includes('/manifiestos')) {
-    return 'Manifiestos';
+  if (pathname.includes("/manifiestos")) {
+    return "Manifiestos";
   }
 
-  if (pathname.includes('/guias')) {
-    return 'Guías / Houses';
+  if (pathname.includes("/guias")) {
+    return "Guías / Houses";
   }
 
-  if (pathname.includes('/bultos')) {
-    return 'Bultos';
+  if (pathname.includes("/bultos")) {
+    return "Bultos";
   }
 
-  if (pathname.includes('/master-awb')) {
-    return 'Master AWB';
+  if (pathname.includes("/master-awb")) {
+    return "Master AWB";
   }
 
-  if (pathname.includes('/personas')) {
-    return 'Personas';
+  if (pathname.includes("/personas")) {
+    return "Personas";
   }
 
-  if (pathname.includes('/recepcion')) {
-    return 'Recepción';
+  if (pathname.includes("/recepcion")) {
+    return "Recepción";
   }
 
-  if (pathname.includes('/almacen')) {
-    return 'Almacén';
+  if (pathname.includes("/almacen")) {
+    return "Almacén";
   }
 
-  if (pathname.includes('/ubicaciones')) {
-    return 'Ubicaciones';
+  if (pathname.includes("/ubicaciones")) {
+    return "Ubicaciones";
   }
 
-  if (pathname.includes('/viajes')) {
-    return 'Viajes';
+  if (pathname.includes("/viajes")) {
+    return "Viajes";
   }
 
-  if (pathname.includes('/rutas')) {
-    return 'Rutas';
+  if (pathname.includes("/rutas")) {
+    return "Rutas";
   }
 
-  if (pathname.includes('/entregas')) {
-    return 'Entregas';
+  if (pathname.includes("/entregas")) {
+    return "Entregas";
   }
 
-  if (pathname.includes('/incidencias')) {
-    return 'Incidencias';
+  if (pathname.includes("/incidencias")) {
+    return "Incidencias";
   }
 
-  if (pathname.includes('/excepciones')) {
-    return 'Excepciones';
+  if (pathname.includes("/excepciones")) {
+    return "Excepciones";
   }
 
-  if (pathname.includes('/inspecciones')) {
-    return 'Inspecciones';
+  if (pathname.includes("/inspecciones")) {
+    return "Inspecciones";
   }
 
-  if (pathname.includes('/auditoria')) {
-    return 'Auditoría';
+  if (pathname.includes("/auditoria")) {
+    return "Auditoría";
   }
 
-  if (pathname.includes('/reportes')) {
-    return 'Reportes';
+  if (pathname.includes("/reportes")) {
+    return "Reportes";
   }
 
-  if (pathname.includes('/administracion')) {
-    return 'Administración';
+  if (pathname.includes("/administracion")) {
+    return "Administración";
   }
 
-  return 'SGCI';
+  return "SGCI";
 }
 
 export function Header() {
@@ -124,9 +124,7 @@ export function Header() {
                 Operador
               </div>
 
-              <div className="text-xs text-slate-500">
-                Sesión activa
-              </div>
+              <div className="text-xs text-slate-500">Sesión activa</div>
             </div>
           </div>
         </div>

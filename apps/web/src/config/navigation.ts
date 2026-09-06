@@ -6,131 +6,131 @@ export interface NavigationItem {
 
 export const navigation: NavigationItem[] = [
   {
-    label: 'Dashboard',
-    href: '/dashboard',
+    label: "Dashboard",
+    href: "/dashboard",
   },
   {
-    label: 'Operaciones',
+    label: "Operaciones",
     children: [
       {
-        label: 'Guías / Houses',
-        href: '/operaciones/guias',
+        label: "Guías / Houses",
+        href: "/operaciones/guias",
       },
       {
-        label: 'Bultos',
-        href: '/operaciones/bultos',
+        label: "Bultos",
+        href: "/operaciones/bultos",
       },
       {
-        label: 'Manifiestos',
-        href: '/operaciones/manifiestos',
+        label: "Manifiestos",
+        href: "/operaciones/manifiestos",
       },
       {
-        label: 'Importar Manifiesto',
-        href: '/operaciones/manifiestos/importar',
+        label: "Importar Manifiesto",
+        href: "/operaciones/manifiestos/importar",
       },
       {
-        label: 'Master AWB',
-        href: '/operaciones/master-awb',
+        label: "Master AWB",
+        href: "/operaciones/master-awb",
       },
       {
-        label: 'Personas',
-        href: '/operaciones/personas',
+        label: "Personas",
+        href: "/operaciones/personas",
       },
     ],
   },
   {
-    label: 'Logística',
+    label: "Logística",
     children: [
       {
-        label: 'Recepción',
-        href: '/logistica/recepcion',
+        label: "Recepción",
+        href: "/logistica/recepcion",
       },
       {
-        label: 'Almacén',
-        href: '/logistica/almacen',
+        label: "Almacén",
+        href: "/logistica/almacen",
       },
       {
-        label: 'Ubicaciones',
-        href: '/logistica/ubicaciones',
+        label: "Ubicaciones",
+        href: "/logistica/ubicaciones",
       },
       {
-        label: 'Viajes',
-        href: '/logistica/viajes',
+        label: "Viajes",
+        href: "/logistica/viajes",
       },
       {
-        label: 'Rutas',
-        href: '/logistica/rutas',
+        label: "Rutas",
+        href: "/logistica/rutas",
       },
       {
-        label: 'Entregas',
-        href: '/logistica/entregas',
+        label: "Entregas",
+        href: "/logistica/entregas",
       },
     ],
   },
   {
-    label: 'Control',
+    label: "Control",
     children: [
       {
-        label: 'Incidencias',
-        href: '/control/incidencias',
+        label: "Incidencias",
+        href: "/control/incidencias",
       },
       {
-        label: 'Excepciones',
-        href: '/control/excepciones',
+        label: "Excepciones",
+        href: "/control/excepciones",
       },
       {
-        label: 'Inspecciones',
-        href: '/control/inspecciones',
+        label: "Inspecciones",
+        href: "/control/inspecciones",
       },
       {
-        label: 'Auditoría',
-        href: '/control/auditoria',
+        label: "Auditoría",
+        href: "/control/auditoria",
       },
     ],
   },
   {
-    label: 'Reportes',
+    label: "Reportes",
     children: [
       {
-        label: 'Operativos',
-        href: '/reportes/operativos',
+        label: "Operativos",
+        href: "/reportes/operativos",
       },
       {
-        label: 'Manifiestos',
-        href: '/reportes/manifiestos',
+        label: "Manifiestos",
+        href: "/reportes/manifiestos",
       },
       {
-        label: 'Guías',
-        href: '/reportes/guias',
+        label: "Guías",
+        href: "/reportes/guias",
       },
       {
-        label: 'Bultos',
-        href: '/reportes/bultos',
+        label: "Bultos",
+        href: "/reportes/bultos",
       },
       {
-        label: 'Estadísticas',
-        href: '/reportes/estadisticas',
+        label: "Estadísticas",
+        href: "/reportes/estadisticas",
       },
     ],
   },
   {
-    label: 'Administración',
+    label: "Administración",
     children: [
       {
-        label: 'Usuarios',
-        href: '/administracion/usuarios',
+        label: "Usuarios",
+        href: "/administracion/usuarios",
       },
       {
-        label: 'Roles y permisos',
-        href: '/administracion/roles',
+        label: "Roles y permisos",
+        href: "/administracion/roles",
       },
       {
-        label: 'Configuración',
-        href: '/administracion/configuracion',
+        label: "Configuración",
+        href: "/administracion/configuracion",
       },
       {
-        label: 'Catálogos',
-        href: '/administracion/catalogos',
+        label: "Catálogos",
+        href: "/administracion/catalogos",
       },
     ],
   },

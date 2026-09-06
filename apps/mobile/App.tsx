@@ -10,12 +10,12 @@
 * Cargar el navegador raíz de la aplicación.
   */
 
-import { RootNavigator } from './src/navigation/RootNavigator';
+import { RootNavigator } from "./src/navigation/RootNavigator";
 
 /**
 
 * Componente raíz de SGCI Mobile.
   */
-  export default function App() {
+export default function App() {
   return <RootNavigator />;
-  }
+}

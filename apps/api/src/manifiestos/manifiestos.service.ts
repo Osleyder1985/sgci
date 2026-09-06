@@ -6,10 +6,7 @@
 //
 // ================================================================================
 
-import {
-  BadRequestException,
-  Injectable,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { createHash } from 'node:crypto';
 
@@ -33,87 +30,62 @@ export class ManifiestosService {
   // PREVIEW
   // ============================================================================
 
-  async preview(
-    buffer: Buffer,
-    originalname: string,
-  ) {
+  async preview(buffer: Buffer, originalname: string) {
     try {
-      const parsed =
-        this.parser.parse(
-          buffer,
-          originalname,
-        );
+      const parsed = this.parser.parse(buffer, originalname);
 
-      this.validateParsedManifest(
-        parsed,
-      );
+      this.validateParsedManifest(parsed);
 
-      const hash =
-        this.calculateHash(buffer);
+      const hash = this.calculateHash(buffer);
 
-      let manifiestoExistente: any =
-        null;
+      let manifiestoExistente: any = null;
 
       try {
-        manifiestoExistente =
-          await this.prisma.manifiesto.findFirst({
-            where: {
-              archivoHash: hash,
-            },
+        manifiestoExistente = await this.prisma.manifiesto.findFirst({
+          where: {
+            archivoHash: hash,
+          },
 
-            select: {
-              id: true,
+          select: {
+            id: true,
 
-              masterAwb: {
-                select: {
-                  numero: true,
-                },
+            masterAwb: {
+              select: {
+                numero: true,
               },
-
-              fecha: true,
-              pesoTotalKg: true,
-              cantidadHouse: true,
-              totalSacas: true,
-              totalPersonas: true,
             },
-          });
+
+            fecha: true,
+            pesoTotalKg: true,
+            cantidadHouse: true,
+            totalSacas: true,
+            totalPersonas: true,
+          },
+        });
       } catch (error) {
         console.error('');
         console.error(
           '============================================================',
         );
-        console.error(
-          'ERROR PRISMA EN PREVIEW DE MANIFIESTO',
-        );
+        console.error('ERROR PRISMA EN PREVIEW DE MANIFIESTO');
         console.error(
           '============================================================',
         );
 
-        console.error(
-          'Tipo de error:',
-          error?.constructor?.name,
-        );
+        console.error('Tipo de error:', error?.constructor?.name);
 
         console.error('');
-        console.error(
-          'Error completo:',
-        );
+        console.error('Error completo:');
 
         console.error(error);
 
         console.error('');
-        console.error(
-          'Mensaje:',
-        );
+        console.error('Mensaje:');
 
         if (error instanceof Error) {
-          console.error(
-            error.message,
-          );
+          console.error(error.message);
         } else {
-          console.error(
-            String(error),
-          );
+          console.error(String(error));
         }
 
         console.error('');
@@ -131,80 +103,48 @@ export class ManifiestosService {
         archivo: {
           nombre: originalname,
           hash,
-          duplicado:
-            !!manifiestoExistente,
+          duplicado: !!manifiestoExistente,
         },
 
-        metadata:
-          parsed.metadata,
+        metadata: parsed.metadata,
 
         total: {
-          cantidadHouses:
-            parsed.total
-              .cantidadHouses,
+          cantidadHouses: parsed.total.cantidadHouses,
 
-          cantidadSacas:
-            parsed.total
-              .cantidadSacas,
+          cantidadSacas: parsed.total.cantidadSacas,
 
-          cantidadPersonas:
-            parsed.total
-              .cantidadPersonas,
+          cantidadPersonas: parsed.total.cantidadPersonas,
 
-          pesoTotalKg:
-            parsed.total
-              .pesoTotalKg,
+          pesoTotalKg: parsed.total.pesoTotalKg,
         },
 
-        registros:
-          parsed.rows.length,
+        registros: parsed.rows.length,
 
-        casas:
-          parsed.rows,
+        casas: parsed.rows,
 
-        warnings:
-          parsed.warnings,
+        warnings: parsed.warnings,
 
-        duplicado:
-          manifiestoExistente
-            ? {
-                existe: true,
+        duplicado: manifiestoExistente
+          ? {
+              existe: true,
 
-                id:
-                  manifiestoExistente
-                    .id,
+              id: manifiestoExistente.id,
 
-                masterAwb:
-                  manifiestoExistente
-                    .masterAwb?.numero ??
-                  null,
+              masterAwb: manifiestoExistente.masterAwb?.numero ?? null,
 
-                fecha:
-                  manifiestoExistente
-                    .fecha ??
-                  null,
+              fecha: manifiestoExistente.fecha ?? null,
 
-                pesoTotalKg:
-                  manifiestoExistente
-                    .pesoTotalKg
-                    ?.toString() ??
-                  null,
+              pesoTotalKg: manifiestoExistente.pesoTotalKg?.toString() ?? null,
 
-                cantidadHouse:
-                  manifiestoExistente
-                    .cantidadHouse,
+              cantidadHouse: manifiestoExistente.cantidadHouse,
 
-                totalSacas:
-                  manifiestoExistente
-                    .totalSacas,
+              totalSacas: manifiestoExistente.totalSacas,
 
-                totalPersonas:
-                  manifiestoExistente
-                    .totalPersonas,
-              }
-            : {
-                existe: false,
-              },
+              totalPersonas: manifiestoExistente.totalPersonas,
+            }
+          : {
+              existe: false,
+            },
       };
     } catch (error) {
       this.handleError(error);
@@ -215,45 +155,34 @@ export class ManifiestosService {
   // IMPORTAR
   // ============================================================================
 
-  async importar(
-    buffer: Buffer,
-    originalname: string,
-  ) {
+  async importar(buffer: Buffer, originalname: string) {
     try {
-      const parsed =
-        this.parser.parse(
-          buffer,
-          originalname,
-        );
+      const parsed = this.parser.parse(buffer, originalname);
 
-      this.validateParsedManifest(
-        parsed,
-      );
+      this.validateParsedManifest(parsed);
 
-      const hash =
-        this.calculateHash(buffer);
+      const hash = this.calculateHash(buffer);
 
-      const manifiestoExistente =
-        await this.prisma.manifiesto.findFirst({
-          where: {
-            archivoHash: hash,
-          },
+      const manifiestoExistente = await this.prisma.manifiesto.findFirst({
+        where: {
+          archivoHash: hash,
+        },
 
-          select: {
-            id: true,
+        select: {
+          id: true,
 
-            masterAwb: {
-              select: {
-                numero: true,
-              },
+          masterAwb: {
+            select: {
+              numero: true,
             },
           },
-        });
+        },
+      });
 
       if (manifiestoExistente) {
         throw new BadRequestException(
           `El manifiesto ya fue importado anteriormente. ` +
-          `Master AWB: ${manifiestoExistente.masterAwb.numero}`,
+            `Master AWB: ${manifiestoExistente.masterAwb.numero}`,
         );
       }
 
@@ -261,9 +190,7 @@ export class ManifiestosService {
       // VALIDAR MASTER AWB
       // ------------------------------------------------------------------------
 
-      if (
-        !parsed.metadata.masterAwb
-      ) {
+      if (!parsed.metadata.masterAwb) {
         throw new BadRequestException(
           'El manifiesto no contiene el Master AWB.',
         );
@@ -273,9 +200,7 @@ export class ManifiestosService {
       // VALIDAR FECHA
       // ------------------------------------------------------------------------
 
-      if (
-        !parsed.metadata.fecha
-      ) {
+      if (!parsed.metadata.fecha) {
         throw new BadRequestException(
           'El manifiesto no contiene una fecha válida.',
         );
@@ -286,10 +211,8 @@ export class ManifiestosService {
       // ------------------------------------------------------------------------
 
       if (
-        parsed.total.pesoTotalKg ===
-          null ||
-        parsed.total.pesoTotalKg ===
-          undefined
+        parsed.total.pesoTotalKg === null ||
+        parsed.total.pesoTotalKg === undefined
       ) {
         throw new BadRequestException(
           'El manifiesto no contiene un peso total válido.',
@@ -300,138 +223,92 @@ export class ManifiestosService {
       // TRANSACTION
       // ------------------------------------------------------------------------
 
-      const resultado =
-        await this.prisma.$transaction(
-          async (
-            tx: Prisma.TransactionClient,
-          ) => {
-            // --------------------------------------------------------------
-            // MASTER AWB
-            // --------------------------------------------------------------
+      const resultado = await this.prisma.$transaction(
+        async (tx: Prisma.TransactionClient) => {
+          // --------------------------------------------------------------
+          // MASTER AWB
+          // --------------------------------------------------------------
 
-            const masterAwb =
-              await tx.masterAwb.upsert({
-                where: {
-                  numero:
-                    parsed.metadata
-                      .masterAwb!,
-                },
+          const masterAwb = await tx.masterAwb.upsert({
+            where: {
+              numero: parsed.metadata.masterAwb!,
+            },
 
-                update: {},
+            update: {},
 
-                create: {
-                  numero:
-                    parsed.metadata
-                      .masterAwb!,
-                },
-              });
+            create: {
+              numero: parsed.metadata.masterAwb!,
+            },
+          });
 
-            // --------------------------------------------------------------
-            // MANIFIESTO
-            // --------------------------------------------------------------
+          // --------------------------------------------------------------
+          // MANIFIESTO
+          // --------------------------------------------------------------
 
-            const manifiesto =
-              await tx.manifiesto.create({
-                data: {
-                  masterAwbId:
-                    masterAwb.id,
+          const manifiesto = await tx.manifiesto.create({
+            data: {
+              masterAwbId: masterAwb.id,
 
-                  agenteTransitario:
-                    parsed.metadata
-                      .agenteTransitario ??
-                    '',
+              agenteTransitario: parsed.metadata.agenteTransitario ?? '',
 
-                  fecha:
-                    parsed.metadata
-                      .fecha!,
+              fecha: parsed.metadata.fecha!,
 
-                  paisOrigen:
-                    parsed.metadata
-                      .paisOrigen ??
-                    'MEXICO',
+              paisOrigen: parsed.metadata.paisOrigen ?? 'MEXICO',
 
-                  consignatario:
-                    parsed.metadata
-                      .consignatario ??
-                    '',
+              consignatario: parsed.metadata.consignatario ?? '',
 
-                  cantidadHouse:
-                    parsed.total
-                      .cantidadHouses,
+              cantidadHouse: parsed.total.cantidadHouses,
 
-                  totalSacas:
-                    parsed.total
-                      .cantidadSacas,
+              totalSacas: parsed.total.cantidadSacas,
 
-                  totalPersonas:
-                    parsed.total
-                      .cantidadPersonas,
+              totalPersonas: parsed.total.cantidadPersonas,
 
-                  // IMPORTANTE:
-                  // El peso ya viene calculado por el parser.
-                  //
-                  // Para el manifiesto actual:
-                  // 2123.23 kg
-                  //
-                  // No se vuelve a sumar la fila TOTAL.
-                  pesoTotalKg:
-                    parsed.total
-                      .pesoTotalKg!,
+              // IMPORTANTE:
+              // El peso ya viene calculado por el parser.
+              //
+              // Para el manifiesto actual:
+              // 2123.23 kg
+              //
+              // No se vuelve a sumar la fila TOTAL.
+              pesoTotalKg: parsed.total.pesoTotalKg!,
 
-                  archivoNombre:
-                    originalname,
+              archivoNombre: originalname,
 
-                  archivoHash:
-                    hash,
-                },
-              });
+              archivoHash: hash,
+            },
+          });
 
-            // --------------------------------------------------------------
-            // GUIAS / HOUSES
-            // --------------------------------------------------------------
+          // --------------------------------------------------------------
+          // GUIAS / HOUSES
+          // --------------------------------------------------------------
 
-            let cantidadGuias = 0;
-            let cantidadPaquetes = 0;
+          let cantidadGuias = 0;
+          let cantidadPaquetes = 0;
 
-            for (
-              const house of parsed.rows
-            ) {
-              const guia =
-                await tx.guia.create({
-                  data:
-                    this.createGuia(
-                      manifiesto.id,
-                      house,
-                    ),
-                });
+          for (const house of parsed.rows) {
+            const guia = await tx.guia.create({
+              data: this.createGuia(manifiesto.id, house),
+            });
 
-              cantidadGuias++;
+            cantidadGuias++;
 
-              const cantidad =
-                this.resolveCantidadPaquetes(
-                  house,
-                );
+            const cantidad = this.resolveCantidadPaquetes(house);
 
-              if (cantidad > 0) {
-                await this.createPaquetes(
-                  tx,
-                  guia.id,
-                  cantidad,
-                );
+            if (cantidad > 0) {
+              await this.createPaquetes(tx, guia.id, cantidad);
 
-                cantidadPaquetes +=
-                  cantidad;
-              }
+              cantidadPaquetes += cantidad;
             }
+          }
 
-            return {
-              manifiesto,
-              masterAwb,
-              cantidadGuias,
-              cantidadPaquetes,
-            };
-          },
-        );
+          return {
+            manifiesto,
+            masterAwb,
+            cantidadGuias,
+            cantidadPaquetes,
+          };
+        },
+      );
 
       // ------------------------------------------------------------------------
       // RESPUESTA
@@ -440,54 +317,33 @@ export class ManifiestosService {
       return {
         ok: true,
 
-        mensaje:
-          'Manifiesto importado correctamente.',
+        mensaje: 'Manifiesto importado correctamente.',
 
         manifiesto: {
-          id:
-            resultado.manifiesto
-              .id,
+          id: resultado.manifiesto.id,
 
-          masterAwb:
-            resultado.masterAwb
-              .numero,
+          masterAwb: resultado.masterAwb.numero,
 
-          cantidadHouse:
-            resultado.manifiesto
-              .cantidadHouse,
+          cantidadHouse: resultado.manifiesto.cantidadHouse,
 
-          totalSacas:
-            resultado.manifiesto
-              .totalSacas,
+          totalSacas: resultado.manifiesto.totalSacas,
 
-          totalPersonas:
-            resultado.manifiesto
-              .totalPersonas,
+          totalPersonas: resultado.manifiesto.totalPersonas,
 
-          pesoTotalKg:
-            resultado.manifiesto
-              .pesoTotalKg
-              .toString(),
+          pesoTotalKg: resultado.manifiesto.pesoTotalKg.toString(),
 
-          archivoNombre:
-            resultado.manifiesto
-              .archivoNombre,
+          archivoNombre: resultado.manifiesto.archivoNombre,
 
-          importadoAt:
-            resultado.manifiesto
-              .importadoAt,
+          importadoAt: resultado.manifiesto.importadoAt,
         },
 
         estadisticas: {
-          guias:
-            resultado.cantidadGuias,
+          guias: resultado.cantidadGuias,
 
-          paquetes:
-            resultado.cantidadPaquetes,
+          paquetes: resultado.cantidadPaquetes,
         },
 
-        warnings:
-          parsed.warnings,
+        warnings: parsed.warnings,
       };
     } catch (error) {
       this.handleError(error);
@@ -498,34 +354,16 @@ export class ManifiestosService {
   // CREAR GUIA
   // ============================================================================
 
-  private createGuia(
-    manifiestoId: string,
-    house: ManifiestoHouse,
-  ) {
-    const numeroHouse =
-      this.resolveNumeroHouse(
-        house,
-      );
+  private createGuia(manifiestoId: string, house: ManifiestoHouse) {
+    const numeroHouse = this.resolveNumeroHouse(house);
 
-    const naturalezaCantidad =
-      this.cleanText(
-        house.naturalezaCantidad,
-      ) ?? '';
+    const naturalezaCantidad = this.cleanText(house.naturalezaCantidad) ?? '';
 
-    const pesoKg =
-      Number(
-        house.pesoKg ?? 0,
-      );
+    const pesoKg = Number(house.pesoKg ?? 0);
 
-    const bultos =
-      this.resolveCantidadPaquetes(
-        house,
-      );
+    const bultos = this.resolveCantidadPaquetes(house);
 
-    const remitenteNombre =
-      this.cleanText(
-        house.remitenteNombre,
-      ) ?? '';
+    const remitenteNombre = this.cleanText(house.remitenteNombre) ?? '';
 
     return {
       manifiestoId,
@@ -540,30 +378,15 @@ export class ManifiestosService {
 
       remitenteNombre,
 
-      remitentePasaporte:
-        this.cleanText(
-          house.remitentePasaporte,
-        ),
+      remitentePasaporte: this.cleanText(house.remitentePasaporte),
 
-      destinatarioNombre:
-        this.cleanText(
-          house.destinatarioNombre,
-        ) ?? '',
+      destinatarioNombre: this.cleanText(house.destinatarioNombre) ?? '',
 
-      destinatarioCarnet:
-        this.cleanText(
-          house.destinatarioCarnet,
-        ),
+      destinatarioCarnet: this.cleanText(house.destinatarioCarnet),
 
-      telefonoDestinatario:
-        this.cleanText(
-          house.telefonoDestinatario,
-        ),
+      telefonoDestinatario: this.cleanText(house.telefonoDestinatario),
 
-      direccionDestinatario:
-        this.cleanText(
-          house.direccionDestinatario,
-        ),
+      direccionDestinatario: this.cleanText(house.direccionDestinatario),
 
       // Prisma define este campo como STRING.
       //
@@ -572,19 +395,12 @@ export class ManifiestosService {
       // Por eso hacemos la conversión aquí,
       // sin eliminar los valores válidos.
       estadoCobroOrigen:
-        house.estadoCobroOrigen !==
-          null &&
-        house.estadoCobroOrigen !==
-          undefined
-          ? String(
-              house.estadoCobroOrigen,
-            )
+        house.estadoCobroOrigen !== null &&
+        house.estadoCobroOrigen !== undefined
+          ? String(house.estadoCobroOrigen)
           : null,
 
-      unidadDestino:
-        this.cleanText(
-          house.unidadDestino,
-        ),
+      unidadDestino: this.cleanText(house.unidadDestino),
     };
   }
 
@@ -603,11 +419,7 @@ export class ManifiestosService {
 
     const paquetes = [];
 
-    for (
-      let numero = 1;
-      numero <= cantidad;
-      numero++
-    ) {
+    for (let numero = 1; numero <= cantidad; numero++) {
       paquetes.push({
         guiaId,
         numero,
@@ -623,13 +435,8 @@ export class ManifiestosService {
   // RESOLVER NUMERO HOUSE
   // ============================================================================
 
-  private resolveNumeroHouse(
-    house: ManifiestoHouse,
-  ): string {
-    const numero =
-      this.cleanText(
-        house.numeroHouse,
-      );
+  private resolveNumeroHouse(house: ManifiestoHouse): string {
+    const numero = this.cleanText(house.numeroHouse);
 
     if (!numero) {
       throw new BadRequestException(
@@ -644,43 +451,26 @@ export class ManifiestosService {
   // RESOLVER BULTOS / PAQUETES
   // ============================================================================
 
-  private resolveCantidadPaquetes(
-    house: ManifiestoHouse,
-  ): number {
-    const bultos =
-      Number(
-        house.bultos ?? 1,
-      );
+  private resolveCantidadPaquetes(house: ManifiestoHouse): number {
+    const bultos = Number(house.bultos ?? 1);
 
-    if (
-      !Number.isFinite(bultos) ||
-      bultos <= 0
-    ) {
+    if (!Number.isFinite(bultos) || bultos <= 0) {
       return 1;
     }
 
-    return Math.floor(
-      bultos,
-    );
+    return Math.floor(bultos);
   }
 
   // ============================================================================
   // VALIDAR MANIFIESTO
   // ============================================================================
 
-  private validateParsedManifest(
-    parsed: ManifiestoParsed,
-  ): void {
+  private validateParsedManifest(parsed: ManifiestoParsed): void {
     if (!parsed) {
-      throw new BadRequestException(
-        'No fue posible leer el manifiesto.',
-      );
+      throw new BadRequestException('No fue posible leer el manifiesto.');
     }
 
-    if (
-      !parsed.rows ||
-      parsed.rows.length === 0
-    ) {
+    if (!parsed.rows || parsed.rows.length === 0) {
       throw new BadRequestException(
         'El manifiesto no contiene registros de House.',
       );
@@ -690,14 +480,11 @@ export class ManifiestosService {
     // HOUSES
     // ------------------------------------------------------------------------
 
-    if (
-      parsed.total.cantidadHouses !==
-      parsed.rows.length
-    ) {
+    if (parsed.total.cantidadHouses !== parsed.rows.length) {
       throw new BadRequestException(
         `La cantidad de Houses no coincide. ` +
-        `Total declarado: ${parsed.total.cantidadHouses}. ` +
-        `Registros encontrados: ${parsed.rows.length}.`,
+          `Total declarado: ${parsed.total.cantidadHouses}. ` +
+          `Registros encontrados: ${parsed.rows.length}.`,
       );
     }
 
@@ -706,24 +493,15 @@ export class ManifiestosService {
     // ------------------------------------------------------------------------
 
     if (
-      parsed.total.pesoTotalKg ===
-        null ||
-      parsed.total.pesoTotalKg ===
-        undefined
+      parsed.total.pesoTotalKg === null ||
+      parsed.total.pesoTotalKg === undefined
     ) {
       throw new BadRequestException(
         'No fue posible determinar el peso total del manifiesto.',
       );
     }
 
-    if (
-      !Number.isFinite(
-        Number(
-          parsed.total
-            .pesoTotalKg,
-        ),
-      )
-    ) {
+    if (!Number.isFinite(Number(parsed.total.pesoTotalKg))) {
       throw new BadRequestException(
         'El peso total del manifiesto no es válido.',
       );
@@ -750,79 +528,49 @@ export class ManifiestosService {
   // HASH SHA-256
   // ============================================================================
 
-  private calculateHash(
-    buffer: Buffer,
-  ): string {
-    return createHash('sha256')
-      .update(buffer)
-      .digest('hex');
+  private calculateHash(buffer: Buffer): string {
+    return createHash('sha256').update(buffer).digest('hex');
   }
 
   // ============================================================================
   // LIMPIAR TEXTO
   // ============================================================================
 
-  private cleanText(
-    value: unknown,
-  ): string | null {
-    if (
-      value === null ||
-      value === undefined
-    ) {
+  private cleanText(value: unknown): string | null {
+    if (value === null || value === undefined) {
       return null;
     }
 
-    const text =
-      String(value).trim();
+    const text = String(value).trim();
 
-    return text.length > 0
-      ? text
-      : null;
+    return text.length > 0 ? text : null;
   }
 
   // ============================================================================
   // MANEJO DE ERRORES
   // ============================================================================
 
-  private handleError(
-    error: unknown,
-  ): never {
+  private handleError(error: unknown): never {
     console.error('');
 
     console.error(
       '============================================================',
     );
 
-    console.error(
-      'ERROR EN MANIFIESTOS SERVICE',
-    );
+    console.error('ERROR EN MANIFIESTOS SERVICE');
 
     console.error(
       '============================================================',
     );
 
-    console.error(
-      'Tipo:',
-      error?.constructor?.name,
-    );
+    console.error('Tipo:', error?.constructor?.name);
 
-    console.error(
-      'Error:',
-      error,
-    );
+    console.error('Error:', error);
 
-    if (
-      error instanceof Error
-    ) {
-      console.error(
-        'Mensaje:',
-        error.message,
-      );
+    if (error instanceof Error) {
+      console.error('Mensaje:', error.message);
 
-      console.error(
-        'Stack:',
-        error.stack,
-      );
+      console.error('Stack:', error.stack);
     }
 
     console.error(
@@ -831,9 +579,7 @@ export class ManifiestosService {
 
     console.error('');
 
-    if (
-      error instanceof BadRequestException
-    ) {
+    if (error instanceof BadRequestException) {
       throw error;
     }
 

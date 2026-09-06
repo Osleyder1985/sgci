@@ -10,9 +10,9 @@
  * y cargar el navegador principal de la aplicación.
  */
 
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer } from "@react-navigation/native";
 
-import { AppNavigator } from './AppNavigator';
+import { AppNavigator } from "./AppNavigator";
 
 /**
  * Navegador raíz de SGCI Mobile.

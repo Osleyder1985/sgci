@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
 
-import { navigation, type NavigationItem } from '@/config/navigation';
+import { navigation, type NavigationItem } from "@/config/navigation";
 
 function NavigationGroup({
   item,
@@ -24,13 +24,13 @@ function NavigationGroup({
 
     return (
       <Link
-        href={item.href ?? '#'}
+        href={item.href ?? "#"}
         className={[
-          'flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition',
+          "flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition",
           active
-            ? 'bg-slate-900 text-white'
-            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
-        ].join(' ')}
+            ? "bg-slate-900 text-white"
+            : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
+        ].join(" ")}
       >
         <span className="mr-3 h-2 w-2 rounded-full bg-current opacity-70" />
         {item.label}
@@ -44,19 +44,19 @@ function NavigationGroup({
         type="button"
         onClick={() => setOpen((value) => !value)}
         className={[
-          'flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold transition',
+          "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold transition",
           hasActiveChild
-            ? 'bg-slate-100 text-slate-950'
-            : 'text-slate-700 hover:bg-slate-100',
-        ].join(' ')}
+            ? "bg-slate-100 text-slate-950"
+            : "text-slate-700 hover:bg-slate-100",
+        ].join(" ")}
       >
         <span>{item.label}</span>
 
         <span
           className={[
-            'text-xs transition-transform',
-            open ? 'rotate-180' : '',
-          ].join(' ')}
+            "text-xs transition-transform",
+            open ? "rotate-180" : "",
+          ].join(" ")}
         >
           ▼
         </span>
@@ -72,13 +72,13 @@ function NavigationGroup({
             return (
               <Link
                 key={child.href}
-                href={child.href ?? '#'}
+                href={child.href ?? "#"}
                 className={[
-                  'block rounded-lg px-3 py-2 text-sm transition',
+                  "block rounded-lg px-3 py-2 text-sm transition",
                   active
-                    ? 'bg-blue-50 font-semibold text-blue-700'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
-                ].join(' ')}
+                    ? "bg-blue-50 font-semibold text-blue-700"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
+                ].join(" ")}
               >
                 {child.label}
               </Link>
@@ -126,9 +126,7 @@ export function Sidebar() {
 
         <div className="border-t border-slate-200 p-4">
           <div className="rounded-xl bg-slate-50 p-4">
-            <div className="text-xs font-semibold text-slate-500">
-              Sistema
-            </div>
+            <div className="text-xs font-semibold text-slate-500">Sistema</div>
 
             <div className="mt-1 text-sm font-semibold text-slate-900">
               SGCI Operaciones

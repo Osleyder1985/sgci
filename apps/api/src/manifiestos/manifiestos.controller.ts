@@ -16,13 +16,9 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 
-import {
-  FileInterceptor,
-} from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-express';
 
-import {
-  ManifiestosService,
-} from './manifiestos.service.js';
+import { ManifiestosService } from './manifiestos.service.js';
 
 /**
  * Archivo recibido mediante multipart/form-data.
@@ -45,9 +41,7 @@ interface UploadedManifestFile {
 
 @Controller('api/guias')
 export class ManifiestosController {
-  constructor(
-    private readonly manifiestosService: ManifiestosService,
-  ) {}
+  constructor(private readonly manifiestosService: ManifiestosService) {}
 
   /**
    * ===========================================================================
@@ -59,12 +53,8 @@ export class ManifiestosController {
    * Analiza el manifiesto sin modificar la base de datos.
    */
   @Post('importar/preview')
-  @UseInterceptors(
-    FileInterceptor('archivo'),
-  )
-  async preview(
-    @UploadedFile() archivo?: UploadedManifestFile,
-  ) {
+  @UseInterceptors(FileInterceptor('archivo'))
+  async preview(@UploadedFile() archivo?: UploadedManifestFile) {
     this.validarArchivo(archivo);
 
     return this.manifiestosService.preview(
@@ -83,12 +73,8 @@ export class ManifiestosController {
    * Importa definitivamente el manifiesto.
    */
   @Post('importar')
-  @UseInterceptors(
-    FileInterceptor('archivo'),
-  )
-  async importar(
-    @UploadedFile() archivo?: UploadedManifestFile,
-  ) {
+  @UseInterceptors(FileInterceptor('archivo'))
+  async importar(@UploadedFile() archivo?: UploadedManifestFile) {
     this.validarArchivo(archivo);
 
     return this.manifiestosService.importar(
@@ -111,13 +97,8 @@ export class ManifiestosController {
       );
     }
 
-    if (
-      !archivo.buffer ||
-      archivo.buffer.length === 0
-    ) {
-      throw new BadRequestException(
-        'El archivo de manifiesto está vacío.',
-      );
+    if (!archivo.buffer || archivo.buffer.length === 0) {
+      throw new BadRequestException('El archivo de manifiesto está vacío.');
     }
   }
 }
