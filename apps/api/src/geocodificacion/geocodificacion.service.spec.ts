@@ -91,9 +91,7 @@ describe('GeocodificacionService', () => {
   });
 
   it('no inventa componentes ausentes al construir consultas', () => {
-    const result = normalizar(
-      'APTO 7, RPTO JUNCO SUR, CIENFUEGOS, CIENFUEGOS',
-    );
+    const result = normalizar('APTO 7, RPTO JUNCO SUR, CIENFUEGOS, CIENFUEGOS');
     const queries = construirConsultas(result, 'CUBA');
 
     expect(queries).toContain(
