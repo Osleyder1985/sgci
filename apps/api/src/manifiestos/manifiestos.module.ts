@@ -13,6 +13,7 @@ import { Module } from '@nestjs/common';
 import { ManifiestosController } from './manifiestos.controller.js';
 import { ManifiestosService } from './manifiestos.service.js';
 import { ManifiestoParser } from './parsers/manifiesto.parser.js';
+import { GeocodificacionService } from './geocodificacion.service.js';
 
 import { PrismaModule } from '../prisma/prisma.module.js';
 
@@ -21,8 +22,8 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 
   controllers: [ManifiestosController],
 
-  providers: [ManifiestosService, ManifiestoParser],
+  providers: [ManifiestosService, ManifiestoParser, GeocodificacionService],
 
-  exports: [ManifiestosService, ManifiestoParser],
+  exports: [ManifiestosService, ManifiestoParser, GeocodificacionService],
 })
 export class ManifiestosModule {}
