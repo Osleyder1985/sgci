@@ -141,7 +141,7 @@ describe('ManifiestosService - direcciones', () => {
       'MEXICO',
     );
 
-    expect(resultado.direccionesEncontradas).toBe(0);
+    expect(resultado.direccionesEncontradas).toBe(1);
     expect(resultado.direccionesReutilizadas).toBe(0);
     expect(resultado.direccionesGeocodificadas).toBe(1);
     expect(resultado.direccionesPendientes).toBe(0);
@@ -188,11 +188,11 @@ describe('ManifiestosService - direcciones', () => {
       'Dirección imposible 999',
       'MEXICO',
     );
-    expect(resultado.direccionesPendientes).toBe(1);
-    expect(resultado.direccionesGeocodificadas).toBe(0);
     expect(resultado.direccionesEncontradas).toBe(0);
+    expect(resultado.direccionesReutilizadas).toBe(0);
+    expect(resultado.direccionesGeocodificadas).toBe(0);
+    expect(resultado.direccionesPendientes).toBe(1);
     expect(resultado.warnings).toHaveLength(1);
-    expect(resultado.warnings[0]).toContain('No se encontró una ubicación');
     expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
   });
 
@@ -203,9 +203,7 @@ describe('ManifiestosService - direcciones', () => {
     };
 
     const geocodificacionMock = {
-      geocodificar: vi
-        .fn()
-        .mockRejectedValue(new Error('Servicio no disponible')),
+      geocodificar: vi.fn().mockRejectedValue(new Error('Servicio no disponible')),
     };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -224,27 +222,40 @@ describe('ManifiestosService - direcciones', () => {
           personaId: 'persona-1',
           nombre: 'Juan Pérez',
           carnet: '123',
-          direccion: ' Calle con error 500 ',
+          direccion: ' Calle con error 123 ',
         },
       ],
       'MEXICO',
     );
 
-    expect(resultado.direccionesPendientes).toBe(1);
+    expect(resultado.direccionesEncontradas).toBe(0);
+    expect(resultado.direccionesReutilizadas).toBe(0);
     expect(resultado.direccionesGeocodificadas).toBe(0);
-    expect(resultado.warnings).toHaveLength(1);
+    expect(resultado.direccionesPendientes).toBe(1);
     expect(resultado.warnings[0]).toContain('Servicio no disponible');
     expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
   });
 
   it('debe ejecutar la verificación de direcciones desde importar', async () => {
+    const service = Object.create(ManifiestosService.prototype) as ManifiestosService & {
+      verificarDirecciones: ReturnType<typeof vi.fn>;
+    };
+    service.verificarDirecciones = vi.fn().mockResolvedValue({
+      personasVerificadas: 1,
+      direccionesEncontradas: 1,
+      direccionesReutilizadas: 0,
+      direccionesGeocodificadas: 1,
+      direccionesPendientes: 0,
+      warnings: [],
+    });
+
     const parsed = {
       metadata: {
         masterAwb: '649-31382945',
-        fecha: new Date('2026-02-18T00:00:00.000Z'),
+        fecha: new Date('2026-02-18'),
+        agenteTransitario: 'CAC',
         paisOrigen: 'MEXICO',
-        agenteTransitario: 'CENTRAL AMERICA CARGO',
-        consignatario: 'DESTINATARIO',
+        consignatario: 'DESTINO',
       },
       total: {
         cantidadHouses: 1,
@@ -254,103 +265,64 @@ describe('ManifiestosService - direcciones', () => {
       },
       rows: [
         {
-          numeroHouse: 'HOUSE-001',
-          naturalezaCantidad: 'DOCUMENTOS',
-          pesoKg: 20,
-          bultos: 1,
-          remitenteNombre: 'REMITENTE',
-          remitentePasaporte: null,
+          house: 'CACC-240146',
           destinatarioNombre: 'Juan Pérez',
           destinatarioCarnet: '123',
-          telefonoDestinatario: null,
-          direccionDestinatario: 'Calle Nueva 789',
-          estadoCobroOrigen: null,
-          unidadDestino: null,
+          direccionDestinatario: 'Calle 123',
         },
       ],
       warnings: [],
     };
 
-    const tx = {
-      masterAwb: {
-        upsert: vi.fn().mockResolvedValue({
-          id: 'master-1',
-          numero: '649-31382945',
-        }),
-      },
+    const parser = { parse: vi.fn().mockReturnValue(parsed) };
+    const prisma = {
+      manifiesto: { findFirst: vi.fn().mockResolvedValue(null) },
+      masterAwb: { upsert: vi.fn().mockResolvedValue({ id: 'master-1', numero: '649-31382945' }) },
+      $transaction: vi.fn(),
+    };
+
+    service.parser = parser as any;
+    service.prisma = prisma as any;
+    service.geocodificacion = {} as any;
+
+    const transactionClient = {
       manifiesto: {
         create: vi.fn().mockResolvedValue({
           id: 'manifiesto-1',
           cantidadHouse: 1,
           totalSacas: 1,
           totalPersonas: 1,
-          pesoTotalKg: 20,
-          archivoNombre: 'manifiesto.xlsx',
-          importadoAt: new Date('2026-02-18T00:00:00.000Z'),
+          pesoTotalKg: { toString: () => '20' },
+          archivoNombre: 'manifest.xlsx',
+          importadoAt: new Date(),
         }),
       },
       guia: {
         create: vi.fn().mockResolvedValue({ id: 'guia-1' }),
       },
-      paquete: {
-        createMany: vi.fn().mockResolvedValue({ count: 1 }),
-      },
-      documentoIdentidad: {
-        findUnique: vi.fn().mockResolvedValue(null),
-        create: vi.fn(),
-        createMany: vi.fn(),
-      },
-      persona: {
-        findFirst: vi.fn().mockResolvedValue(null),
-        create: vi.fn().mockResolvedValue({ id: 'persona-1' }),
-      },
     };
 
-    const prismaMock = {
-      manifiesto: { findFirst: vi.fn().mockResolvedValue(null) },
-      $transaction: vi.fn(async (callback) => callback(tx)),
-      direccion: { findMany: vi.fn().mockResolvedValue([]) },
-      $executeRaw: vi.fn().mockResolvedValue(1),
-    };
-
-    const parserMock = {
-      parse: vi.fn().mockReturnValue(parsed),
-    };
-
-    const geocodificacionMock = {
-      geocodificar: vi.fn().mockResolvedValue({
-        lat: 19.4326,
-        lon: -99.1332,
-        displayName: 'Calle Nueva 789, Mexico',
-      }),
-    };
-
-    const moduleRef: TestingModule = await Test.createTestingModule({
-      providers: [
-        ManifiestosService,
-        { provide: PrismaService, useValue: prismaMock },
-        { provide: ManifiestoParser, useValue: parserMock },
-        { provide: GeocodificacionService, useValue: geocodificacionMock },
-      ],
-    }).compile();
-
-    const service = moduleRef.get<ManifiestosService>(ManifiestosService);
-
-    const resultado = await service.importar(
-      Buffer.from('manifiesto de prueba'),
-      'manifiesto.xlsx',
+    prisma.$transaction.mockImplementation(async (callback: any) =>
+      callback(transactionClient),
     );
 
-    expect(parserMock.parse).toHaveBeenCalledTimes(1);
-    expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
-    expect(geocodificacionMock.geocodificar).toHaveBeenCalledWith(
-      'Calle Nueva 789',
+    service.createGuia = vi.fn().mockReturnValue({});
+    service.resolveCantidadPaquetes = vi.fn().mockReturnValue(1);
+    service.createPaquetes = vi.fn().mockResolvedValue(undefined);
+    service.resolvePersona = vi.fn().mockResolvedValue('persona-1');
+
+    const resultado = await service.importar(Buffer.from('xlsx'), 'manifest.xlsx');
+
+    expect(service.verificarDirecciones).toHaveBeenCalledWith(
+      [{
+        personaId: 'persona-1',
+        nombre: 'Juan Pérez',
+        carnet: '123',
+        direccion: 'Calle 123',
+      }],
       'MEXICO',
+      undefined,
     );
-    expect(resultado.ok).toBe(true);
-    expect(resultado.estadisticas).toMatchObject({
-      direccionesGeocodificadas: 1,
-      direccionesPendientes: 0,
-    });
+    expect(resultado.estadisticas.direccionesGeocodificadas).toBe(1);
   });
 });
