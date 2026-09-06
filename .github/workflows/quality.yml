@@ -13,7 +13,7 @@ on:
       - develop
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: quality-${{ github.workflow }}-${{ github.ref }}
@@ -54,6 +54,17 @@ jobs:
 
       - name: Lint Web
         run: npm run lint --workspace=@sgci/web
+
+      - name: Format Prettier
+        run: |
+          npx prettier --write apps/api/src/manifiestos/manifiestos.service.ts
+          if ! git diff --quiet -- apps/api/src/manifiestos/manifiestos.service.ts; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add apps/api/src/manifiestos/manifiestos.service.ts
+            git commit -m "style: aplicar formato Prettier"
+            git push origin HEAD:feature/geocodificacion-manifiestos
+          fi
 
       - name: Check formatting
         run: npx prettier --check "apps/**/*.{ts,tsx,js,jsx,json,css,md}"
