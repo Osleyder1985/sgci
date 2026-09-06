@@ -1,0 +1,37 @@
+name: SGCI Prettier Debug
+
+on:
+  push:
+    branches:
+      - feat/cuban-address-normalization
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Format target
+        run: npx prettier --write apps/api/src/geocodificacion/geocodificacion.service.ts
+
+      - name: Show formatted diff
+        run: git diff -- apps/api/src/geocodificacion/geocodificacion.service.ts
+
+      - name: Upload formatted file
+        uses: actions/upload-artifact@v4
+        with:
+          name: prettier-geocodificacion
+          path: apps/api/src/geocodificacion/geocodificacion.service.ts
