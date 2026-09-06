@@ -170,7 +170,9 @@ export class GeocodificacionService {
     }
   }
 
-  private normalizarDireccionCubana(direccion: string): DireccionCubanaNormalizada {
+  private normalizarDireccionCubana(
+    direccion: string,
+  ): DireccionCubanaNormalizada {
     const limpia = direccion
       .toUpperCase()
       .replace(/[\r\n]+/g, ' ')
@@ -196,13 +198,17 @@ export class GeocodificacionService {
     for (const componente of principales.slice(1)) {
       this.extraerComponente(componente, resultado);
     }
-    if (resultado.provincia) resultado.provincia = this.limpiarProvincia(resultado.provincia);
+    if (resultado.provincia) {
+      resultado.provincia = this.limpiarProvincia(resultado.provincia);
+    }
 
     resultado.canonica = [
       resultado.calle,
       resultado.numeroCasa,
       resultado.entreCalles,
-      resultado.apartamento ? `APARTAMENTO ${resultado.apartamento}` : undefined,
+      resultado.apartamento
+        ? `APARTAMENTO ${resultado.apartamento}`
+        : undefined,
       resultado.edificio ? `EDIFICIO ${resultado.edificio}` : undefined,
       resultado.reparto ? `REPARTO ${resultado.reparto}` : undefined,
       resultado.municipio,
@@ -214,7 +220,10 @@ export class GeocodificacionService {
     return resultado;
   }
 
-  private extraerMarcadores(texto: string, resultado: DireccionCubanaNormalizada): void {
+  private extraerMarcadores(
+    texto: string,
+    resultado: DireccionCubanaNormalizada,
+  ): void {
     let restante = texto.trim();
 
     const entre = restante.match(/\bE\s*\/\s*(.+)$/i);
@@ -229,7 +238,9 @@ export class GeocodificacionService {
       restante = restante.slice(0, reparto.index).trim();
     }
 
-    const edificio = restante.match(/\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i);
+    const edificio = restante.match(
+      /\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i,
+    );
     if (edificio) {
       resultado.edificio = edificio[1];
       restante = `${restante.slice(0, edificio.index)} ${restante.slice(
@@ -237,7 +248,9 @@ export class GeocodificacionService {
       )}`.trim();
     }
 
-    const apartamento = restante.match(/\b(?:APARTAMENTO|APTO\.?)\s*#?\s*([A-Z0-9-]+)/i);
+    const apartamento = restante.match(
+      /\b(?:APARTAMENTO|APTO\.?)\s*#?\s*([A-Z0-9-]+)/i,
+    );
     if (apartamento) {
       resultado.apartamento = apartamento[1];
       restante = `${restante.slice(0, apartamento.index)} ${restante.slice(
@@ -257,7 +270,10 @@ export class GeocodificacionService {
     resultado.calle = calle && calle !== 'CALLE' ? calle : undefined;
   }
 
-  private extraerComponente(componente: string, resultado: DireccionCubanaNormalizada): void {
+  private extraerComponente(
+    componente: string,
+    resultado: DireccionCubanaNormalizada,
+  ): void {
     const texto = componente.trim();
     if (!texto) return;
 
@@ -269,7 +285,9 @@ export class GeocodificacionService {
       return;
     }
 
-    const edificio = texto.match(/^\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)\s*$/i);
+    const edificio = texto.match(
+      /^\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)\s*$/i,
+    );
     if (edificio) {
       resultado.edificio ??= edificio[1];
       return;
@@ -317,13 +335,18 @@ export class GeocodificacionService {
       .trim();
   }
 
-  private construirConsultas(direccion: DireccionCubanaNormalizada, pais?: string): string[] {
+  private construirConsultas(
+    direccion: DireccionCubanaNormalizada,
+    pais?: string,
+  ): string[] {
     const sufijoPais = pais ? `, ${pais}` : '';
     const completa = [
       direccion.calle,
       direccion.numeroCasa,
       direccion.entreCalles,
-      direccion.apartamento ? `APARTAMENTO ${direccion.apartamento}` : undefined,
+      direccion.apartamento
+        ? `APARTAMENTO ${direccion.apartamento}`
+        : undefined,
       direccion.edificio ? `EDIFICIO ${direccion.edificio}` : undefined,
       direccion.reparto ? `REPARTO ${direccion.reparto}` : undefined,
       direccion.municipio,
@@ -379,7 +402,10 @@ export class GeocodificacionService {
       'GUANTANAMO',
       'ISLA DE LA JUVENTUD',
     ];
-    return /\bCUBA\b/.test(texto) || provincias.some((provincia) => texto.includes(provincia));
+    return (
+      /\bCUBA\b/.test(texto) ||
+      provincias.some((provincia) => texto.includes(provincia))
+    );
   }
 
   private async respetarLimiteSolicitudes(): Promise<void> {
