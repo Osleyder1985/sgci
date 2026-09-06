@@ -2,14 +2,15 @@ name: SGCI Format Once
 
 on:
   push:
-    branches: [fix/format-manifest-import-page]
+    branches:
+      - fix/format-manifest-import-page
 
 permissions:
   contents: write
 
 jobs:
   format:
-    if: github.event.head_commit.message != 'chore: format manifest import page'
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,5 +29,5 @@ jobs:
             exit 0
           fi
           git add apps/web/src/app/operaciones/manifiestos/importar/page.tsx
-          git commit -m "chore: format manifest import page"
+          git commit -m "style(web): format manifest import page"
           git push
