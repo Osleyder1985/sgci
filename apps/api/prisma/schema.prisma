@@ -10,6 +10,10 @@
 //   - Geocodificación.
 //   - Conflictos de identidad.
 //   - Continuidad operativa ante inconsistencias.
+//   - Manifiestos de carga.
+//   - Master AWB.
+//   - House / guías.
+//   - Bultos asociados a cada House.
 //
 // PostgreSQL constituye el motor principal de persistencia.
 // PostGIS proporciona capacidades geográficas y espaciales.
@@ -20,7 +24,6 @@
 // ================================================================================
 
 generator client {
-  // Prisma Client moderno.
   provider = "prisma-client"
   output   = "../src/generated/prisma"
 }
@@ -30,9 +33,6 @@ generator client {
 // ================================================================================
 
 datasource db {
-  // PostgreSQL es el motor de persistencia principal.
-  //
-  // PostGIS funciona como extensión de PostgreSQL.
   provider = "postgresql"
 }
 
@@ -40,13 +40,11 @@ datasource db {
 // ENUMERACIONES
 // ================================================================================
 
-// Tipos de documentos que pueden identificar a una persona.
 enum TipoDocumentoIdentidad {
   CARNET_IDENTIDAD
   PASAPORTE
 }
 
-// Estado de verificación de una identidad.
 enum EstadoIdentidad {
   PENDIENTE_VERIFICACION
   VERIFICADA
@@ -54,7 +52,6 @@ enum EstadoIdentidad {
   RECHAZADA
 }
 
-// Estado del proceso de resolución de un conflicto.
 enum EstadoConflictoIdentidad {
   ABIERTO
   EN_REVISION
@@ -62,7 +59,6 @@ enum EstadoConflictoIdentidad {
   DESCARTADO
 }
 
-// Motivo principal por el cual se detectó el conflicto.
 enum TipoConflictoIdentidad {
   DOCUMENTO_DUPLICADO
   NOMBRES_DIFERENTES
@@ -70,7 +66,6 @@ enum TipoConflictoIdentidad {
   DOCUMENTO_NO_VALIDO
 }
 
-// Estado del proceso de geocodificación de una dirección.
 enum EstadoGeocodificacion {
   PENDIENTE
   EN_PROCESO
@@ -81,25 +76,27 @@ enum EstadoGeocodificacion {
   REQUIERE_REVISION
 }
 
+// Estado del House según el valor recibido desde el manifiesto.
+// Se conserva como texto en Guia para no perder códigos del documento de origen.
+
 // =============================================================================
 // PERSONA
 // =============================================================================
 
-// Representa una persona física dentro del SGCI.
 model Persona {
-  id             String               @id @default(uuid()) @db.Uuid // Identificador interno único.
-  nombres        String // Nombre o nombres de la persona.
-  apellidos      String // Apellidos de la persona.
-  nombreCompleto String // Nombre completo normalizado para búsquedas y comparación.
-  activo         Boolean              @default(true) // Indica si la persona permanece activa dentro del sistema.
-  documentos     DocumentoIdentidad[] // Documentos asociados a la persona.
-  direcciones    Direccion[] // Direcciones asociadas a la persona.
+  id             String               @id @default(uuid()) @db.Uuid
+  nombres        String
+  apellidos      String
+  nombreCompleto String
+  activo         Boolean              @default(true)
+  documentos     DocumentoIdentidad[]
+  direcciones    Direccion[]
 
-  createdAt DateTime @default(now()) // Fecha de creación.
-  updatedAt DateTime @updatedAt // Fecha de última actualización.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  conflictosExistentes ConflictoIdentidad[] @relation("PersonaExistenteConflicto") // Conflictos en los que esta persona participa como identidad existente.
-  conflictosNuevos     ConflictoIdentidad[] @relation("PersonaNuevaConflicto") // Conflictos generados a partir de una identidad nueva o importada.
+  conflictosExistentes ConflictoIdentidad[] @relation("PersonaExistenteConflicto")
+  conflictosNuevos     ConflictoIdentidad[] @relation("PersonaNuevaConflicto")
 
   @@index([nombres])
   @@index([apellidos])
@@ -110,19 +107,18 @@ model Persona {
 // DOCUMENTO DE IDENTIDAD
 // =============================================================================
 
-// Representa un documento asociado a una persona.
 model DocumentoIdentidad {
-  id             String                 @id @default(uuid()) @db.Uuid // Identificador interno único.
+  id             String                 @id @default(uuid()) @db.Uuid
   personaId      String                 @db.Uuid
-  tipo           TipoDocumentoIdentidad // Tipo de documento.
-  numero         String // Valor normalizado del documento.
-  numeroOriginal String? // Valor original recibido durante importación o captura manual.
-  estado         EstadoIdentidad        @default(PENDIENTE_VERIFICACION) // Estado de validación y verificación.
-  esPrincipal    Boolean                @default(false) // Indica si el documento puede utilizarse como identificación principal.
-  verificadoAt   DateTime? // Fecha en que se verificó el documento.
+  tipo           TipoDocumentoIdentidad
+  numero         String
+  numeroOriginal String?
+  estado         EstadoIdentidad        @default(PENDIENTE_VERIFICACION)
+  esPrincipal    Boolean                @default(false)
+  verificadoAt   DateTime?
 
-  createdAt DateTime @default(now()) // Fecha de creación.
-  updatedAt DateTime @updatedAt // Fecha de última actualización.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   persona Persona @relation(fields: [personaId], references: [id], onDelete: Restrict)
 
@@ -135,27 +131,26 @@ model DocumentoIdentidad {
 // DIRECCIÓN
 // =============================================================================
 
-// Representa una dirección asociada a una persona.
 model Direccion {
-  id                    String                               @id @default(uuid()) @db.Uuid // Identificador interno único.
-  personaId             String                               @db.Uuid // Persona propietaria o asociada a la dirección.
-  direccionOriginal     String // Dirección exactamente como fue recibida.
-  calle                 String? // Calle o vía principal.
-  numero                String? // Número de vivienda o inmueble.
-  entreCalles           String? // Entrecalles o referencias entre vías.
-  localidad             String? // Reparto, localidad, barrio o asentamiento.
-  municipio             String? // Municipio.
-  provincia             String? // Provincia.
-  pais                  String? // País.
-  codigoPostal          String? // Código postal.
+  id                    String                               @id @default(uuid()) @db.Uuid
+  personaId             String                               @db.Uuid
+  direccionOriginal     String
+  calle                 String?
+  numero                String?
+  entreCalles           String?
+  localidad             String?
+  municipio             String?
+  provincia             String?
+  pais                  String?
+  codigoPostal          String?
   ubicacion             Unsupported("geography(Point,4326)")
-  estadoGeocodificacion EstadoGeocodificacion                @default(PENDIENTE) // Estado actual de la geocodificación.
-  geocodificadoAt       DateTime? // Fecha de la última geocodificación exitosa.
-  esPrincipal           Boolean                              @default(false) // Indica si constituye la dirección principal.
-  activa                Boolean                              @default(true) // Permite conservar historial de direcciones.
+  estadoGeocodificacion EstadoGeocodificacion                @default(PENDIENTE)
+  geocodificadoAt       DateTime?
+  esPrincipal           Boolean                              @default(false)
+  activa                Boolean                              @default(true)
 
-  createdAt DateTime @default(now()) // Fecha de creación.
-  updatedAt DateTime @updatedAt // Fecha de última actualización.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   persona Persona @relation(fields: [personaId], references: [id], onDelete: Restrict)
 
@@ -169,19 +164,18 @@ model Direccion {
 // CONFLICTO DE IDENTIDAD
 // =============================================================================
 
-// Registra una inconsistencia entre una identidad existente y una nueva identidad recibida.
 model ConflictoIdentidad {
-  id                      String                   @id @default(uuid()) @db.Uuid // Identificador interno único.
-  personaExistenteId      String                   @db.Uuid // Persona existente que ya tenía asociado el documento.
-  personaNuevaId          String                   @db.Uuid // Persona creada temporalmente a partir de la nueva información.
-  tipoDocumento           TipoDocumentoIdentidad // Tipo de documento que originó el conflicto.
-  numeroDocumento         String // Número normalizado del documento en conflicto.
-  numeroDocumentoOriginal String? // Valor original recibido.
-  datosOriginales         Json // Datos originales recibidos durante la importación.
-  tipoConflicto           TipoConflictoIdentidad // Tipo de conflicto detectado.
-  estado                  EstadoConflictoIdentidad @default(ABIERTO) // Estado actual del conflicto.
-  resolucion              String? // Descripción de la resolución realizada.
-  resueltoAt              DateTime? // Fecha de resolución.
+  id                      String                   @id @default(uuid()) @db.Uuid
+  personaExistenteId      String                   @db.Uuid
+  personaNuevaId          String                   @db.Uuid
+  tipoDocumento           TipoDocumentoIdentidad
+  numeroDocumento         String
+  numeroDocumentoOriginal String?
+  datosOriginales        Json
+  tipoConflicto           TipoConflictoIdentidad
+  estado                  EstadoConflictoIdentidad @default(ABIERTO)
+  resolucion              String?
+  resueltoAt              DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -193,4 +187,115 @@ model ConflictoIdentidad {
   @@index([tipoDocumento, numeroDocumento])
   @@index([personaExistenteId])
   @@index([personaNuevaId])
+}
+
+// =============================================================================
+// MASTER AWB
+// =============================================================================
+
+// Documento Master que agrupa uno o varios manifiestos.
+model MasterAwb {
+  id          String      @id @default(uuid()) @db.Uuid
+  numero      String      @unique
+  manifiestos Manifiesto[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([numero])
+}
+
+// =============================================================================
+// MANIFIESTO
+// =============================================================================
+
+// Cabecera del manifiesto importado desde Excel/CSV.
+model Manifiesto {
+  id                 String   @id @default(uuid()) @db.Uuid
+  masterAwbId        String   @db.Uuid
+  agenteTransitario  String
+  fecha              DateTime
+  paisOrigen         String
+  consignatario      String
+  cantidadHouse      Int
+  totalSacas         Int
+  totalPersonas      Int
+
+  // Peso declarado en la fila de total del manifiesto.
+  // NO se debe sumar nuevamente esta fila como si fuera un House.
+  pesoTotalKg        Decimal  @db.Decimal(12, 2)
+
+  archivoNombre      String?
+  archivoHash        String?
+  importadoAt        DateTime @default(now())
+
+  masterAwb MasterAwb @relation(fields: [masterAwbId], references: [id], onDelete: Restrict)
+  guias    Guia[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([masterAwbId])
+  @@index([fecha])
+  @@index([agenteTransitario])
+}
+
+// =============================================================================
+// HOUSE / GUÍA
+// =============================================================================
+
+// Representa cada House del manifiesto.
+model Guia {
+  id                    String   @id @default(uuid()) @db.Uuid
+  manifiestoId          String   @db.Uuid
+  numeroHouse           String
+  naturalezaCantidad    String
+  pesoKg                Decimal  @db.Decimal(12, 2)
+  bultos                Int
+
+  remitenteNombre       String
+  remitentePasaporte    String?
+
+  destinatarioNombre    String
+  destinatarioCarnet    String?
+  telefonoDestinatario  String?
+  direccionDestinatario String?
+
+  // Valor original de la columna "Identificación si el House está COBRADO ó NO COBRADO en origen".
+  estadoCobroOrigen     String?
+
+  unidadDestino         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  manifiesto Manifiesto @relation(fields: [manifiestoId], references: [id], onDelete: Cascade)
+  paquetes   Paquete[]
+
+  @@unique([manifiestoId, numeroHouse])
+  @@index([numeroHouse])
+  @@index([manifiestoId])
+  @@index([destinatarioCarnet])
+  @@index([remitentePasaporte])
+  @@index([unidadDestino])
+}
+
+// =============================================================================
+// PAQUETE / BULTO
+// =============================================================================
+
+// Detalle físico asociado a un House.
+// En el manifiesto actual la columna "Bultos (Cant.)" indica la cantidad de bultos.
+model Paquete {
+  id        String  @id @default(uuid()) @db.Uuid
+  guiaId    String  @db.Uuid
+  numero    Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  guia Guia @relation(fields: [guiaId], references: [id], onDelete: Cascade)
+
+  @@unique([guiaId, numero])
+  @@index([guiaId])
 }
