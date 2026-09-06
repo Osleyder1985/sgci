@@ -5,10 +5,9 @@ describe('GeocodificacionService - manifest address examples', () => {
   const normalizar = (direccion: string) =>
     (
       service as unknown as {
-        normalizarDireccionCubana: (value: string) => Record<
-          string,
-          string | undefined
-        >;
+        normalizarDireccionCubana: (
+          value: string,
+        ) => Record<string, string | undefined>;
       }
     ).normalizarDireccionCubana(direccion);
 
