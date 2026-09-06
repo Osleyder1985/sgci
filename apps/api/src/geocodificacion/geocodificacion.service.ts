@@ -90,7 +90,10 @@ export class GeocodificacionService {
     );
 
     for (const query of this.construirConsultas(normalizada, paisBusqueda)) {
-      const resultado = await this.buscarLocationIq(query, normalizada.canonica);
+      const resultado = await this.buscarLocationIq(
+        query,
+        normalizada.canonica,
+      );
       if (resultado) return resultado;
     }
 
@@ -205,20 +208,21 @@ export class GeocodificacionService {
       resultado.provincia = this.limpiarProvincia(resultado.provincia);
     }
 
-    resultado.canonica = [
-      resultado.calle,
-      resultado.numeroCasa,
-      resultado.entreCalles,
-      resultado.apartamento
-        ? `APARTAMENTO ${resultado.apartamento}`
-        : undefined,
-      resultado.edificio ? `EDIFICIO ${resultado.edificio}` : undefined,
-      resultado.reparto ? `REPARTO ${resultado.reparto}` : undefined,
-      resultado.municipio,
-      resultado.provincia,
-    ]
-      .filter(Boolean)
-      .join(', ') || sinZona;
+    resultado.canonica =
+      [
+        resultado.calle,
+        resultado.numeroCasa,
+        resultado.entreCalles,
+        resultado.apartamento
+          ? `APARTAMENTO ${resultado.apartamento}`
+          : undefined,
+        resultado.edificio ? `EDIFICIO ${resultado.edificio}` : undefined,
+        resultado.reparto ? `REPARTO ${resultado.reparto}` : undefined,
+        resultado.municipio,
+        resultado.provincia,
+      ]
+        .filter(Boolean)
+        .join(', ') || sinZona;
 
     return resultado;
   }
@@ -241,9 +245,7 @@ export class GeocodificacionService {
       restante = restante.slice(0, reparto.index).trim();
     }
 
-    const edificio = restante.match(
-      /\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i,
-    );
+    const edificio = restante.match(/\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i);
     if (edificio) {
       resultado.edificio = edificio[1];
       restante = `${restante.slice(0, edificio.index)} ${restante.slice(
