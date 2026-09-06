@@ -1,0 +1,12 @@
+# Archivos generados automáticamente
+apps/api/src/generated/prisma/**
+
+# Dependencias y artefactos
+node_modules/**
+apps/**/dist/**
+apps/**/.next/**
+apps/**/coverage/**
+
+# Archivos de entorno
+.env
+.env.*
