@@ -236,4 +236,121 @@ describe('ManifiestosService - direcciones', () => {
     expect(resultado.warnings[0]).toContain('Servicio no disponible');
     expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
   });
+
+  it('debe ejecutar la verificación de direcciones desde importar y devolver sus estadísticas', async () => {
+    const parsed = {
+      metadata: {
+        masterAwb: '649-31382945',
+        fecha: new Date('2026-02-18T00:00:00.000Z'),
+        paisOrigen: 'MEXICO',
+        agenteTransitario: 'CENTRAL AMERICA CARGO',
+        consignatario: 'DESTINATARIO',
+      },
+      total: {
+        cantidadHouses: 1,
+        cantidadSacas: 1,
+        cantidadPersonas: 1,
+        pesoTotalKg: 20,
+      },
+      rows: [
+        {
+          numeroHouse: 'HOUSE-001',
+          naturalezaCantidad: 'DOCUMENTOS',
+          pesoKg: 20,
+          bultos: 1,
+          remitenteNombre: 'REMITENTE',
+          remitentePasaporte: null,
+          destinatarioNombre: 'Juan Pérez',
+          destinatarioCarnet: '123',
+          telefonoDestinatario: null,
+          direccionDestinatario: 'Calle Nueva 789',
+          estadoCobroOrigen: null,
+          unidadDestino: null,
+        },
+      ],
+      warnings: [],
+    };
+
+    const tx = {
+      masterAwb: {
+        upsert: vi.fn().mockResolvedValue({ id: 'master-1', numero: '649-31382945' }),
+      },
+      manifiesto: {
+        create: vi.fn().mockResolvedValue({
+          id: 'manifiesto-1',
+          cantidadHouse: 1,
+          totalSacas: 1,
+          totalPersonas: 1,
+          pesoTotalKg: 20,
+          archivoNombre: 'manifiesto.xlsx',
+          importadoAt: new Date('2026-02-18T00:00:00.000Z'),
+        }),
+      },
+      guia: { create: vi.fn().mockResolvedValue({ id: 'guia-1' }) },
+      paquete: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      documentoIdentidad: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), createMany: vi.fn() },
+      persona: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({ id: 'persona-1' }),
+      },
+    };
+
+    const prismaMock = {
+      manifiesto: { findFirst: vi.fn().mockResolvedValue(null) },
+      $transaction: vi.fn(async (callback) => callback(tx)),
+      direccion: { findMany: vi.fn().mockResolvedValue([]) },
+      $executeRaw: vi.fn().mockResolvedValue(1),
+    };
+
+    const parserMock = { parse: vi.fn().mockReturnValue(parsed) };
+    const geocodificacionMock = {
+      geocodificar: vi.fn().mockResolvedValue({
+        lat: 19.4326,
+        lon: -99.1332,
+        displayName: 'Calle Nueva 789, Mexico',
+      }),
+    };
+
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      providers: [
+        ManifiestosService,
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: ManifiestoParser, useValue: parserMock },
+        { provide: GeocodificacionService, useValue: geocodificacionMock },
+      ],
+    }).compile();
+
+    const service = moduleRef.get<ManifiestosService>(ManifiestosService);
+    const resultado = await service.importar(
+      Buffer.from('manifiesto de prueba'),
+      'manifiesto.xlsx',
+    );
+
+    expect(parserMock.parse).toHaveBeenCalledTimes(1);
+    expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+    expect(prismaMock.direccion.findMany).toHaveBeenCalledWith({
+      where: { personaId: 'persona-1', activa: true },
+      select: {
+        id: true,
+        direccionOriginal: true,
+        estadoGeocodificacion: true,
+      },
+    });
+    expect(geocodificacionMock.geocodificar).toHaveBeenCalledWith(
+      'Calle Nueva 789',
+      'MEXICO',
+    );
+    expect(resultado.ok).toBe(true);
+    expect(resultado.estadisticas).toMatchObject({
+      guias: 1,
+      paquetes: 1,
+      personasVerificadas: 1,
+      direccionesEncontradas: 0,
+      direccionesReutilizadas: 0,
+      direccionesGeocodificadas: 1,
+      direccionesPendientes: 0,
+    });
+    expect(resultado.warnings).toEqual([]);
+  });
+
 });
