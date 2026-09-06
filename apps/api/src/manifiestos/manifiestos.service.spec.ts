@@ -237,9 +237,7 @@ describe('ManifiestosService - direcciones', () => {
   });
 
   it('debe ejecutar la verificación de direcciones desde importar', async () => {
-    const service = Object.create(ManifiestosService.prototype) as ManifiestosService & {
-      verificarDirecciones: ReturnType<typeof vi.fn>;
-    };
+    const service = Object.create(ManifiestosService.prototype) as any;
     service.verificarDirecciones = vi.fn().mockResolvedValue({
       personasVerificadas: 1,
       direccionesEncontradas: 1,
