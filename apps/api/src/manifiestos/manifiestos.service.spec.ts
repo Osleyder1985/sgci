@@ -52,4 +52,60 @@ describe('ManifiestosService - direcciones', () => {
     expect(resultado.direccionesGeocodificadas).toBe(0);
     expect(geocodificacionMock.geocodificar).not.toHaveBeenCalled();
   });
+
+  it('debe geocodificar una dirección existente que aún no está geocodificada', async () => {
+    const prismaMock = {
+      direccion: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'direccion-2',
+            direccionOriginal: 'Calle 456 #78',
+            estadoGeocodificacion: 'PENDIENTE',
+          },
+        ]),
+      },
+      $executeRaw: vi.fn().mockResolvedValue(1),
+    };
+
+    const geocodificacionMock = {
+      geocodificar: vi.fn().mockResolvedValue({
+        lat: 19.4326,
+        lon: -99.1332,
+        displayName: 'Calle 456 #78, Mexico',
+      }),
+    };
+
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      providers: [
+        ManifiestosService,
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: ManifiestoParser, useValue: {} },
+        { provide: GeocodificacionService, useValue: geocodificacionMock },
+      ],
+    }).compile();
+
+    const service = moduleRef.get<ManifiestosService>(ManifiestosService);
+
+    const resultado = await (service as any).verificarDirecciones(
+      [
+        {
+          personaId: 'persona-1',
+          nombre: 'Juan Pérez',
+          carnet: '123',
+          direccion: ' calle 456 #78 ',
+        },
+      ],
+      'MEXICO',
+    );
+
+    expect(resultado.direccionesEncontradas).toBe(1);
+    expect(resultado.direccionesReutilizadas).toBe(0);
+    expect(resultado.direccionesGeocodificadas).toBe(1);
+    expect(resultado.direccionesPendientes).toBe(0);
+    expect(geocodificacionMock.geocodificar).toHaveBeenCalledWith(
+      'calle 456 #78',
+      'MEXICO',
+    );
+    expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1);
+  });
 });
