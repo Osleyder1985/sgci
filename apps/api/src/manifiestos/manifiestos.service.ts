@@ -285,9 +285,8 @@ export class ManifiestosService {
     paisOrigen: string | null | undefined,
   ): Promise<ResultadoDirecciones> {
     const resultado: ResultadoDirecciones = {
-      personasVerificadas: new Set(
-        destinatarios.map((item) => item.personaId),
-      ).size,
+      personasVerificadas: new Set(destinatarios.map((item) => item.personaId))
+        .size,
       direccionesEncontradas: 0,
       direccionesReutilizadas: 0,
       direccionesGeocodificadas: 0,
