@@ -33,6 +33,18 @@ describe('GeocodificacionService', () => {
       }
     ).construirConsultas(direccion, pais);
 
+  const detectarCuba = (direccion: string) => {
+    const result = normalizar(direccion);
+    return (
+      service as unknown as {
+        esDireccionCubana: (
+          original: string,
+          value: ReturnType<typeof normalizar>,
+        ) => boolean;
+      }
+    ).esDireccionCubana(direccion, result);
+  };
+
   it('normaliza calle, número, entrecalles, municipio y provincia y elimina Zona', () => {
     const result = normalizar(
       'CALLE VICENTE SOMONTE # 16 E/ AGRAMONTE Y MARTI, GUAIMARO, CAMAGUEY (Zona 4)',
@@ -101,21 +113,15 @@ describe('GeocodificacionService', () => {
   });
 
   it('detecta una dirección cubana aunque el país del manifiesto sea México', () => {
-    const result = normalizar(
-      'CALLE VICENTE SOMONTE # 16 E/ AGRAMONTE Y MARTI, GUAIMARO, CAMAGUEY',
-    );
-    const esCuba = (
-      service as unknown as {
-        esDireccionCubana: (
-          original: string,
-          value: ReturnType<typeof normalizar>,
-        ) => boolean;
-      }
-    ).esDireccionCubana(
-      'CALLE VICENTE SOMONTE # 16 E/ AGRAMONTE Y MARTI, GUAIMARO, CAMAGUEY',
-      result,
-    );
+    const direccion =
+      'CALLE VICENTE SOMONTE # 16 E/ AGRAMONTE Y MARTI, GUAIMARO, CAMAGUEY';
 
-    expect(esCuba).toBe(true);
+    expect(detectarCuba(direccion)).toBe(true);
+  });
+
+  it('no clasifica como cubana una dirección extranjera que menciona Camaguey en la calle', () => {
+    const direccion = 'CAMAGUEY STREET 10, MIAMI, FLORIDA';
+
+    expect(detectarCuba(direccion)).toBe(false);
   });
 });
