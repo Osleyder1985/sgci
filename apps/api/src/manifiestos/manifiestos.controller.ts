@@ -1,39 +1,14 @@
-import {
-  BadRequestException,
-  Controller,
-  Get,
-  NotFoundException,
-  Param,
-  Post,
-  UploadedFile,
-  UseInterceptors,
-} from '@nestjs/common';
+import { BadRequestException, Controller, Get, NotFoundException, Param, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-
 import { ManifiestosDiagnosticoService } from './manifiestos.diagnostico.service.js';
 import { ManifiestosImportacionProgressService } from './manifiestos.importacion.progress.service.js';
 import { ManifiestosService } from './manifiestos.service.js';
 
-interface UploadedManifestFile {
-  fieldname: string;
-  originalname: string;
-  encoding: string;
-  mimetype: string;
-  size: number;
-  destination?: string;
-  filename?: string;
-  path?: string;
-  buffer: Buffer;
-  stream?: NodeJS.ReadableStream;
-}
+interface UploadedManifestFile { fieldname: string; originalname: string; encoding: string; mimetype: string; size: number; destination?: string; filename?: string; path?: string; buffer: Buffer; stream?: NodeJS.ReadableStream; }
 
 @Controller('api/guias')
 export class ManifiestosController {
-  constructor(
-    private readonly manifiestosService: ManifiestosService,
-    private readonly diagnosticoService: ManifiestosDiagnosticoService,
-    private readonly progress: ManifiestosImportacionProgressService,
-  ) {}
+  constructor(private readonly manifiestosService: ManifiestosService, private readonly diagnosticoService: ManifiestosDiagnosticoService, private readonly progress: ManifiestosImportacionProgressService) {}
 
   @Post('importar/preview')
   @UseInterceptors(FileInterceptor('archivo'))
@@ -57,25 +32,14 @@ export class ManifiestosController {
   @UseInterceptors(FileInterceptor('archivo'))
   async importarJob(@UploadedFile() archivo?: UploadedManifestFile) {
     this.validarArchivo(archivo);
-    const preview = await this.manifiestosService.preview(archivo.buffer, archivo.originalname);
-    if (preview.archivo?.duplicado) {
-      throw new BadRequestException('El manifiesto ya fue importado anteriormente.');
-    }
-    const job = this.progress.create(
-      preview.total?.cantidadHouses ?? preview.registros ?? 0,
-      preview.total?.cantidadPersonas ?? 0,
-      preview.direcciones?.total ?? 0,
-    );
-    void this.manifiestosService
-      .importar(archivo.buffer, archivo.originalname, job.jobId)
-      .catch((error) => this.progress.fail(job.jobId, error));
-
-    return {
-      ok: true,
-      jobId: job.jobId,
-      message: 'Importación iniciada.',
-      progress: job,
-    };
+    const [preview, diagnostico] = await Promise.all([
+      this.manifiestosService.preview(archivo.buffer, archivo.originalname),
+      this.diagnosticoService.analizarArchivo(archivo.buffer, archivo.originalname),
+    ]);
+    if (preview.archivo?.duplicado) throw new BadRequestException('El manifiesto ya fue importado anteriormente.');
+    const job = this.progress.create(preview.total?.cantidadHouses ?? preview.registros ?? 0, preview.total?.cantidadPersonas ?? 0, diagnostico.total);
+    void this.manifiestosService.importar(archivo.buffer, archivo.originalname, job.jobId).catch((error) => this.progress.fail(job.jobId, error));
+    return { ok: true, jobId: job.jobId, message: 'Importación iniciada.', progress: job };
   }
 
   @Get('importar/job/:jobId')
@@ -85,12 +49,8 @@ export class ManifiestosController {
     return { ok: true, progress: job };
   }
 
-  private validarArchivo(
-    archivo?: UploadedManifestFile,
-  ): asserts archivo is UploadedManifestFile {
+  private validarArchivo(archivo?: UploadedManifestFile): asserts archivo is UploadedManifestFile {
     if (!archivo) throw new BadRequestException('Debe seleccionar un archivo de manifiesto.');
-    if (!archivo.buffer || archivo.buffer.length === 0) {
-      throw new BadRequestException('El archivo de manifiesto está vacío.');
-    }
+    if (!archivo.buffer || archivo.buffer.length === 0) throw new BadRequestException('El archivo de manifiesto está vacío.');
   }
 }
