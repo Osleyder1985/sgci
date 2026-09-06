@@ -17,24 +17,23 @@ export interface GeocodingResult {
   };
 }
 
-interface GoogleAddressComponent {
-  long_name?: string;
-  types?: string[];
+interface LocationIqAddress {
+  road?: string;
+  house_number?: string;
+  city?: string;
+  town?: string;
+  village?: string;
+  municipality?: string;
+  state?: string;
+  country?: string;
+  postcode?: string;
 }
 
-interface GoogleGeocodingResponse {
-  status?: string;
-  error_message?: string;
-  results?: Array<{
-    formatted_address?: string;
-    geometry?: {
-      location?: {
-        lat?: number;
-        lng?: number;
-      };
-    };
-    address_components?: GoogleAddressComponent[];
-  }>;
+interface LocationIqResult {
+  lat?: number | string;
+  lon?: number | string;
+  display_name?: string;
+  address?: LocationIqAddress;
 }
 
 @Injectable()
@@ -43,12 +42,14 @@ export class GeocodificacionService {
 
   private readonly baseUrl =
     process.env.GEOCODER_BASE_URL?.trim() ||
-    'https://maps.googleapis.com/maps/api/geocode/json';
+    'https://us1.locationiq.com/v1/search';
 
-  private readonly apiKey = process.env.GOOGLE_MAPS_API_KEY?.trim();
+  private readonly apiKey = process.env.LOCATIONIQ_API_KEY?.trim();
 
   private readonly userAgent =
     process.env.GEOCODER_USER_AGENT?.trim() ?? 'SGCI/1.0';
+
+  private lastRequestAt = 0;
 
   async geocodificar(
     direccion: string,
@@ -56,7 +57,7 @@ export class GeocodificacionService {
   ): Promise<GeocodingResult | null> {
     if (!this.apiKey) {
       throw new Error(
-        'GOOGLE_MAPS_API_KEY no está configurada. No se puede geocodificar una dirección nueva.',
+        'LOCATIONIQ_API_KEY no está configurada. No se puede geocodificar una dirección nueva.',
       );
     }
 
@@ -66,14 +67,21 @@ export class GeocodificacionService {
       return null;
     }
 
+    await this.respetarLimiteSolicitudes();
+
     const query = pais?.trim() ? `${texto}, ${pais.trim()}` : texto;
     const url = new URL(this.baseUrl);
 
-    url.searchParams.set('address', query);
     url.searchParams.set('key', this.apiKey);
-    url.searchParams.set('language', 'es');
+    url.searchParams.set('q', query);
+    url.searchParams.set('format', 'json');
+    url.searchParams.set('addressdetails', '1');
+    url.searchParams.set('limit', '1');
+    url.searchParams.set('accept-language', 'es');
 
     try {
+      this.lastRequestAt = Date.now();
+
       const response = await fetch(url, {
         headers: {
           Accept: 'application/json',
@@ -84,47 +92,39 @@ export class GeocodificacionService {
 
       if (!response.ok) {
         throw new Error(
-          `Google Geocoding API respondió HTTP ${response.status}.`,
+          `LocationIQ respondió HTTP ${response.status}.`,
         );
       }
 
-      const result = (await response.json()) as GoogleGeocodingResponse;
+      const result = (await response.json()) as LocationIqResult[];
+      const firstResult = result?.[0];
 
-      if (result.status === 'ZERO_RESULTS') {
+      if (!firstResult) {
         return null;
       }
 
-      if (result.status !== 'OK') {
-        throw new Error(
-          `Google Geocoding API respondió ${result.status ?? 'sin estado'}${
-            result.error_message ? `: ${result.error_message}` : ''
-          }.`,
-        );
-      }
-
-      const firstResult = result.results?.[0];
-      const location = firstResult?.geometry?.location;
-
-      if (!firstResult || !location) {
-        return null;
-      }
-
-      const lat = Number(location.lat);
-      const lon = Number(location.lng);
+      const lat = Number(firstResult.lat);
+      const lon = Number(firstResult.lon);
 
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-        throw new Error('Google Geocoding API devolvió coordenadas inválidas.');
+        throw new Error('LocationIQ devolvió coordenadas inválidas.');
       }
-
-      const address = this.mapAddressComponents(
-        firstResult.address_components ?? [],
-      );
 
       return {
         lat,
         lon,
-        displayName: firstResult.formatted_address ?? texto,
-        address,
+        displayName: firstResult.display_name ?? texto,
+        address: {
+          road: firstResult.address?.road,
+          houseNumber: firstResult.address?.house_number,
+          city: firstResult.address?.city,
+          town: firstResult.address?.town,
+          village: firstResult.address?.village,
+          municipality: firstResult.address?.municipality,
+          state: firstResult.address?.state,
+          country: firstResult.address?.country,
+          postcode: firstResult.address?.postcode,
+        },
       };
     } catch (error) {
       this.logger.warn(
@@ -137,22 +137,12 @@ export class GeocodificacionService {
     }
   }
 
-  private mapAddressComponents(
-    components: GoogleAddressComponent[],
-  ): GeocodingResult['address'] {
-    const find = (type: string) =>
-      components.find((component) => component.types?.includes(type))?.long_name;
+  private async respetarLimiteSolicitudes(): Promise<void> {
+    const milisegundosDesdeUltima = Date.now() - this.lastRequestAt;
+    const espera = Math.max(0, 1000 - milisegundosDesdeUltima);
 
-    return {
-      road: find('route'),
-      houseNumber: find('street_number'),
-      city: find('locality'),
-      town: find('postal_town'),
-      village: find('administrative_area_level_3'),
-      municipality: find('administrative_area_level_2'),
-      state: find('administrative_area_level_1'),
-      country: find('country'),
-      postcode: find('postal_code'),
-    };
+    if (espera > 0) {
+      await new Promise((resolve) => setTimeout(resolve, espera));
+    }
   }
 }
