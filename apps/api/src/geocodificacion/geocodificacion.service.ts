@@ -415,10 +415,7 @@ export class GeocodificacionService {
       'ISLA DE LA JUVENTUD',
     ]);
 
-    return (
-      ultimoComponente === 'CUBA' ||
-      provinciasCubanas.has(provincia)
-    );
+    return ultimoComponente === 'CUBA' || provinciasCubanas.has(provincia);
   }
 
   private async respetarLimiteSolicitudes(): Promise<void> {
