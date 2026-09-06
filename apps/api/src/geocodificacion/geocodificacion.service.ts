@@ -17,6 +17,11 @@ export interface GeocodingResult {
   };
 }
 
+interface GoogleAddressComponent {
+  long_name?: string;
+  types?: string[];
+}
+
 interface GoogleGeocodingResponse {
   status?: string;
   error_message?: string;
@@ -28,10 +33,7 @@ interface GoogleGeocodingResponse {
         lng?: number;
       };
     };
-    address_components?: Array<{
-      long_name?: string;
-      types?: string[];
-    }>;
+    address_components?: GoogleAddressComponent[];
   }>;
 }
 
@@ -136,9 +138,7 @@ export class GeocodificacionService {
   }
 
   private mapAddressComponents(
-    components: NonNullable<
-      GoogleGeocodingResponse['results']
-    >[number]['address_components'],
+    components: GoogleAddressComponent[],
   ): GeocodingResult['address'] {
     const find = (type: string) =>
       components.find((component) => component.types?.includes(type))?.long_name;
