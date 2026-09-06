@@ -13,17 +13,17 @@ import { Module } from '@nestjs/common';
 import { ManifiestosController } from './manifiestos.controller.js';
 import { ManifiestosService } from './manifiestos.service.js';
 import { ManifiestoParser } from './parsers/manifiesto.parser.js';
-import { GeocodificacionService } from './geocodificacion.service.js';
 
+import { GeocodificacionModule } from '../geocodificacion/geocodificacion.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, GeocodificacionModule],
 
   controllers: [ManifiestosController],
 
-  providers: [ManifiestosService, ManifiestoParser, GeocodificacionService],
+  providers: [ManifiestosService, ManifiestoParser],
 
-  exports: [ManifiestosService, ManifiestoParser, GeocodificacionService],
+  exports: [ManifiestosService, ManifiestoParser],
 })
 export class ManifiestosModule {}
