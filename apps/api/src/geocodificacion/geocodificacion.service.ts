@@ -239,13 +239,17 @@ export class GeocodificacionService {
       restante = restante.slice(0, entre.index).trim();
     }
 
-    const reparto = restante.match(/\bRPTO\.?\s+(.+)$/i);
+    const reparto = restante.match(
+      /\bRPTO\.?\s+(.+)$/i,
+    );
     if (reparto) {
       resultado.reparto = reparto[1].trim();
       restante = restante.slice(0, reparto.index).trim();
     }
 
-    const edificio = restante.match(/\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i);
+    const edificio = restante.match(
+      /\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i,
+    );
     if (edificio) {
       resultado.edificio = edificio[1];
       restante = `${restante.slice(0, edificio.index)} ${restante.slice(
