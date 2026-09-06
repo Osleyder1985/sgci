@@ -113,8 +113,7 @@ export class ManifiestosDiagnosticoService {
     }
 
     const total = candidatos.filter((item) => !!item.direccion).length;
-    const cobertura =
-      total > 0 ? Math.round((reutilizables / total) * 100) : 0;
+    const cobertura = total > 0 ? Math.round((reutilizables / total) * 100) : 0;
 
     return {
       total,

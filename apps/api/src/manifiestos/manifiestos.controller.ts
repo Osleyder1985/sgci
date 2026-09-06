@@ -57,10 +57,7 @@ export class ManifiestosController {
     this.validarArchivo(archivo);
 
     const [preview, diagnostico] = await Promise.all([
-      this.manifiestosService.preview(
-        archivo.buffer,
-        archivo.originalname,
-      ),
+      this.manifiestosService.preview(archivo.buffer, archivo.originalname),
       this.diagnosticoService.analizarArchivo(
         archivo.buffer,
         archivo.originalname,
