@@ -2,8 +2,8 @@
 title: "Capítulo 1 — Introducción"
 subtitle: "Sistema de Gestión Contextualmente Inteligente (SGCI)"
 version: "1.0"
-date: "4 de septiembre de 2026"
-status: "Versión consolidada para desarrollo científico y tecnológico"
+date: "5 de septiembre de 2026"
+status: "Versión integral ampliada con mejoras multidisciplinarias integradas"
 ---
 
 # 📘 CAPÍTULO 1 — INTRODUCCIÓN
@@ -27,6 +27,34 @@ status: "Versión consolidada para desarrollo científico y tecnológico"
 | 🧠 **Núcleo científico** | Integración trazable entre contexto, restricciones, requisitos, decisiones, mecanismos, indicadores y evidencias |
 | 💻 **Materialización tecnológica** | Aplicación web, backend y futuras aplicaciones móviles |
 | 📊 **Resultado esperado** | Modelo, metodología y solución tecnológica evaluable |
+
+---
+
+# ⭐ Integración integral de mejoras multidisciplinarias — Versión 1.0
+
+Esta versión toma como **documento maestro** la versión extensa anterior y conserva su contenido. Las mejoras identificadas por el colectivo multidisciplinario no sustituyen ni resumen el contenido existente: se incorporan como ampliaciones científicas, metodológicas, operacionales, económicas, de datos, de validación y de alcance.
+
+Principio de consolidación:
+
+```text
+📘 DOCUMENTO MAESTRO COMPLETO
+        +
+🔬 MEJORAS METODOLÓGICAS
+        +
+🎓 PRECISIÓN DEL APORTE CIENTÍFICO
+        +
+🚚 MEJORAS LOGÍSTICAS Y OPERACIONALES
+        +
+💰 INTEGRACIÓN ECONÓMICA Y FICHA DE COSTO
+        +
+🗄️ TRAZABILIDAD Y CALIDAD DE DATOS
+        +
+📊 EVALUACIÓN Y EVIDENCIA
+        =
+📘 CAPÍTULO 1 INTEGRAL AMPLIADO
+```
+
+Las formulaciones nuevas deben interpretarse como actualización del estado conceptual de la investigación, mientras que la información histórica, tecnológica, metodológica, documental y bibliográfica previamente desarrollada se mantiene para evitar pérdida de contenido.
 
 ---
 
@@ -525,6 +553,1507 @@ Los siguientes documentos complementarios proporcionan detalles técnicos adicio
 - `OPENAPI.yaml` - Especificación OpenAPI 3.0 de la API REST
 
 **Para una navegación completa de toda la documentación, consulte el `README.md` que contiene la guía de lectura por rol y la estructura documental detallada.**
+
+---
+
+
+
+---
+
+# 🧩 AMPLIACIONES INTEGRADAS DEL COLECTIVO MULTIDISCIPLINARIO
+
+Las siguientes ampliaciones incorporan de forma explícita las observaciones del equipo de metodología científica, investigación informática, arquitectura de software, logística, economía y costos, arquitectura de datos, regulación, validación, gestión por procesos y redacción académica. Se conservan íntegramente como parte del Capítulo 1 para complementar, precisar y fortalecer el contenido maestro precedente.
+
+## Integración ampliada — 1.1 Contexto general de la investigación
+
+## 1.1.1 Transformación de la gestión logística
+
+La actividad logística contemporánea depende de la coordinación de múltiples procesos.
+
+En una operación de paquetería internacional y distribución terrestre pueden intervenir simultáneamente:
+
+- organizaciones emisoras;
+- agencias de paquetería;
+- medios de transporte internacional;
+- manifiestos;
+- guías;
+- bultos;
+- remitentes;
+- destinatarios;
+- direcciones;
+- procesos de recepción;
+- información relacionada con trámites aduaneros;
+- almacenes;
+- vehículos;
+- conductores;
+- rutas;
+- viajes;
+- sistemas de seguimiento;
+- procesos de entrega;
+- costos;
+- gastos;
+- ingresos;
+- contratos;
+- conciliaciones;
+- evidencias de cierre.
+
+Estas relaciones pueden representarse de manera simplificada como:
+
+```text
+✈️ / 🚢 TRANSPORTE INTERNACIONAL
+        ↓
+📋 MANIFIESTO
+        ↓
+📄 GUÍAS
+        ↓
+📦 BULTOS
+        ↓
+⚖️ PROCESOS RELACIONADOS CON IMPORTACIÓN
+        ↓
+🏭 RECEPCIÓN
+        ↓
+📦 CLASIFICACIÓN
+        ↓
+🚚 DISTRIBUCIÓN
+        ↓
+🗺️ PLANIFICACIÓN
+        ↓
+🚛 VIAJE
+        ↓
+📡 SEGUIMIENTO
+        ↓
+📍 ENTREGA
+        ↓
+💰 RESULTADO ECONÓMICO
+        ↓
+📁 EVIDENCIA Y CIERRE
+```
+
+La complejidad de esta cadena no depende únicamente del número de actividades. Depende también de las relaciones que deben mantenerse entre ellas.
+
+Un bulto, por ejemplo, puede encontrarse relacionado simultáneamente con:
+
+```text
+📦 BULTO
+   │
+   ├── 📄 GUÍA
+   ├── 📋 MANIFIESTO
+   ├── 👤 REMITENTE
+   ├── 👤 DESTINATARIO
+   ├── 📍 DIRECCIÓN
+   ├── 🚚 OPERACIÓN
+   ├── 🚛 VIAJE
+   ├── 📍 EVENTOS DE ENTREGA
+   └── 💰 INFORMACIÓN ECONÓMICA
+```
+
+Por tanto, la gestión eficiente requiere algo más que registrar datos de forma independiente: requiere preservar relaciones.
+
+## 1.1.2 El contexto operativo cubano
+
+La investigación se desarrolla tomando como referencia una organización cuya actividad se encuentra vinculada principalmente a la recepción y distribución de paquetería destinada a Cuba.
+
+La operación puede incluir cargas procedentes del exterior y recibidas mediante diferentes modalidades de transporte.
+
+```text
+🌍 EXTERIOR
+        ↓
+✈️ AÉREO / 🚢 MARÍTIMO
+        ↓
+📋 DOCUMENTACIÓN DE TRANSPORTE
+        ↓
+🇨🇺 ARRIBO A CUBA
+        ↓
+⚖️ PROCESOS RELACIONADOS CON ADUANA
+        ↓
+🏭 RECEPCIÓN
+        ↓
+🚚 DISTRIBUCIÓN NACIONAL
+```
+
+El contexto cubano introduce condiciones específicas que deben ser consideradas desde el diseño del sistema. Entre ellas pueden encontrarse:
+
+- variabilidad en las condiciones tecnológicas;
+- conectividad no necesariamente permanente;
+- distribución geográfica de los destinatarios;
+- necesidad de relacionar documentación y carga física;
+- requisitos relacionados con identificación de personas;
+- necesidad de conservar evidencia;
+- procesos económicos desarrollados en diferentes monedas o condiciones contractuales;
+- relaciones entre organizaciones nacionales y agencias del exterior;
+- necesidad de determinar costos y resultados económicos de operaciones concretas.
+
+Estas condiciones no deben considerarse únicamente como elementos externos al sistema. Dentro de la propuesta del SGCI constituyen fuentes de requisitos.
+
+```text
+🌍 CONTEXTO
+        ↓
+⚠️ CONDICIÓN
+        ↓
+📋 NECESIDAD
+        ↓
+🧠 DECISIÓN
+        ↓
+⚙️ MECANISMO
+```
+
+## 1.1.3 De la digitalización aislada a la integración
+
+La existencia de herramientas digitales no garantiza, por sí misma, una gestión integrada.
+
+Una organización puede disponer simultáneamente de hojas de cálculo, bases de datos, documentos electrónicos, aplicaciones de mensajería, sistemas GPS, programas contables y archivos físicos.
+
+Sin embargo:
+
+```text
+💻 DIGITALIZACIÓN
+        ≠
+🔗 INTEGRACIÓN
+```
+
+El problema puede surgir cuando la información permanece fragmentada:
+
+```text
+📋 MANIFIESTOS ── Sistema o archivo A
+📦 BULTOS      ── Registro B
+🚚 VIAJES      ── Registro C
+📡 GPS         ── Plataforma D
+💰 COSTOS      ── Hoja E
+📊 INGRESOS    ── Registro F
+```
+
+Cuando estas estructuras no se relacionan adecuadamente, aumenta la dificultad para responder preguntas como:
+
+- ¿qué ocurrió con un bulto determinado?
+- ¿en qué manifiesto se encontraba?
+- ¿qué guía lo identifica?
+- ¿quién era el destinatario?
+- ¿en qué viaje fue transportado?
+- ¿cuándo se produjo la entrega?
+- ¿qué recursos fueron utilizados?
+- ¿qué costo se generó?
+- ¿qué ingreso produjo?
+- ¿cuál fue el resultado económico de su entrega?
+- ¿qué evidencia demuestra el cierre del proceso?
+
+La integración constituye, por tanto, una necesidad organizacional y una oportunidad de investigación.
+
+---
+
+---
+
+## Integración ampliada — 1.2 Situación problemática
+
+## 1.2.1 Fragmentación de la cadena de información
+
+La situación problemática que motiva la investigación se relaciona con la dificultad de gestionar integralmente procesos que generan información en diferentes momentos y niveles de la operación.
+
+El proceso puede comenzar antes de que la organización realice físicamente la distribución:
+
+```text
+📋 MANIFIESTO
+        ↓
+📄 GUÍA
+        ↓
+📦 BULTO
+        ↓
+👤 PERSONAS
+        ↓
+📍 DIRECCIÓN
+```
+
+Posteriormente aparecen procesos operacionales:
+
+```text
+🏭 RECEPCIÓN
+        ↓
+📦 CLASIFICACIÓN
+        ↓
+🚚 ASIGNACIÓN
+        ↓
+🗺️ PLANIFICACIÓN
+        ↓
+🚛 VIAJE
+        ↓
+📡 SEGUIMIENTO
+        ↓
+📍 ENTREGA
+```
+
+Finalmente aparecen procesos económicos y administrativos:
+
+```text
+📍 ENTREGA
+        ↓
+💵 INGRESO
+        +
+💸 COSTO
+        +
+📄 GASTO
+        ↓
+📊 RESULTADO
+        ↓
+🤝 CONCILIACIÓN
+        ↓
+📁 ARCHIVADO
+```
+
+Cuando estas etapas se gestionan como procesos independientes pueden producirse dificultades de coordinación, duplicación, inconsistencias y pérdida de trazabilidad.
+
+## 1.2.2 Fragmentación documental, física y económica
+
+Uno de los principales problemas consiste en la separación entre diferentes dimensiones de una misma operación.
+
+```text
+📄 DIMENSIÓN DOCUMENTAL
+        ≠
+📦 DIMENSIÓN FÍSICA
+        ≠
+🚚 DIMENSIÓN OPERACIONAL
+        ≠
+📍 DIMENSIÓN GEOGRÁFICA
+        ≠
+💰 DIMENSIÓN ECONÓMICA
+```
+
+La existencia de registros separados dificulta reconstruir una operación de manera integral.
+
+Por ejemplo:
+
+```text
+📦 BULTO ENTREGADO
+        ↓
+❓ ¿EN QUÉ VIAJE?
+        ↓
+❓ ¿CON QUÉ RECURSOS?
+        ↓
+❓ ¿CON QUÉ COSTO?
+        ↓
+❓ ¿QUÉ INGRESO GENERÓ?
+        ↓
+❓ ¿CUÁL FUE EL RESULTADO?
+```
+
+La ausencia de estas relaciones limita la capacidad de análisis.
+
+## 1.2.3 Problemas de identificación de personas
+
+La importación o registro manual de información puede generar conflictos relacionados con la identificación de remitentes y destinatarios.
+
+Una persona puede aparecer en una nueva operación con un número de carné de identidad, un número de pasaporte, nombre, apellidos y dirección.
+
+El sistema debe evitar duplicidades injustificadas. Sin embargo, también puede ocurrir:
+
+```text
+👤 PERSONA A
+🪪 IDENTIFICACIÓN X
+        +
+👤 PERSONA B
+🪪 IDENTIFICACIÓN X
+```
+
+En ese momento puede no ser posible determinar inmediatamente cuál de las dos personas posee el documento correcto.
+
+Detener toda la operación podría afectar la continuidad. Ignorar el conflicto podría afectar la integridad de la información.
+
+Por tanto:
+
+```text
+❌ IGNORAR
+        ≠
+🛑 DETENER COMPLETAMENTE
+```
+
+La situación requiere mecanismos de continuidad controlada.
+
+## 1.2.4 Dificultades en la gestión de direcciones
+
+Las direcciones pueden llegar en diferentes formatos. Una dirección de destinatario puede contener:
+
+```text
+CALLE Y NÚMERO,
+ENTRECALLES,
+REPARTO O LOCALIDAD,
+MUNICIPIO,
+PROVINCIA
+```
+
+Cuando una dirección se registra únicamente como texto libre, pueden surgir dificultades para:
+
+- clasificar entregas;
+- identificar municipios;
+- planificar rutas;
+- agrupar destinos;
+- localizar inconsistencias;
+- analizar la distribución territorial.
+
+La información de dirección debe poder conservar tanto su forma original como una estructura que permita su utilización operacional.
+
+## 1.2.5 Separación entre planificación y realidad
+
+La planificación logística representa una decisión y la ejecución representa un hecho.
+
+```text
+🧠 PLANIFICACIÓN
+        ↓
+🗺️ RUTA PROPUESTA
+```
+
+No necesariamente coincide exactamente con:
+
+```text
+🚛 VIAJE REAL
+        ↓
+📡 POSICIONES
+        ↓
+🗺️ RECORRIDO REAL
+```
+
+El sistema debe permitir relacionar:
+
+```text
+🗺️ PLAN
+        ↔
+🚛 EJECUCIÓN
+```
+
+Esto permite analizar desviaciones, tiempos, modificaciones y resultados.
+
+## 1.2.6 Falta de integración económico-operativa
+
+La dimensión económica constituye otro punto crítico.
+
+La organización puede asumir:
+
+- costos directos;
+- costos indirectos;
+- gastos;
+- consumo de recursos;
+- servicios contratados;
+- otros desembolsos.
+
+Al mismo tiempo, la operación puede generar ingresos.
+
+En el caso analizado, existen condiciones contractuales específicas en las que la remuneración depende del peso de los bultos entregados y de la zona de entrega.
+
+```text
+📦 BULTO
+        +
+⚖️ PESO
+        +
+📍 ZONA DE ENTREGA
+        +
+📋 TARIFA CONTRACTUAL
+        ↓
+💵 INGRESO
+```
+
+Mientras tanto:
+
+```text
+🚚 OPERACIÓN
+        +
+⛽ RECURSOS
+        +
+👤 PERSONAL
+        +
+🛠️ SERVICIOS
+        ↓
+💸 COSTOS Y GASTOS
+```
+
+La necesidad central consiste en relacionar ambas dimensiones:
+
+```text
+💵 INGRESOS
+        -
+💸 COSTOS
+        -
+📄 GASTOS
+        =
+📈 RESULTADO
+```
+
+Sin esta relación resulta más difícil determinar el resultado económico de una operación, viaje, manifiesto, guía o conjunto de bultos.
+
+## 1.2.7 Necesidad de trazabilidad integral
+
+La situación problemática puede sintetizarse mediante:
+
+```text
+📋 MANIFIESTO
+        ↓
+📄 GUÍA
+        ↓
+📦 BULTO
+        ↓
+👤 DESTINATARIO
+        ↓
+📍 DIRECCIÓN
+        ↓
+🚚 OPERACIÓN
+        ↓
+🚛 VIAJE
+        ↓
+📡 EVENTOS
+        ↓
+📍 ENTREGA
+        ↓
+💰 RESULTADO
+        ↓
+📁 EVIDENCIA
+```
+
+La dificultad principal no consiste únicamente en disponer de cada dato. Consiste en preservar las relaciones entre ellos.
+
+---
+
+---
+
+## Integración ampliada — 1.3 Brecha de conocimiento y formulación del problema científico
+
+## 1.3.1 Brecha de conocimiento
+
+La situación problemática descrita constituye un problema práctico y organizacional, pero la investigación requiere además identificar el problema de conocimiento que justifica su estudio científico.
+
+En el ámbito de los sistemas de gestión existen enfoques consolidados relacionados con la logística, la trazabilidad, la integración de información, la gestión por procesos, la arquitectura de software y la evaluación de sistemas. Sin embargo, estas dimensiones pueden abordarse de forma separada, sin que necesariamente exista una cadena explícita y verificable que permita relacionar:
+
+```text
+🌍 CONDICIÓN DEL CONTEXTO
+        ↓
+⚠️ RESTRICCIÓN O NECESIDAD
+        ↓
+📋 REQUISITO DERIVADO
+        ↓
+🧠 DECISIÓN ADOPTADA
+        ↓
+⚙️ MECANISMO IMPLEMENTADO
+        ↓
+📊 INDICADOR
+        ↓
+📁 EVIDENCIA
+        ↓
+🔎 EVALUACIÓN
+```
+
+La brecha que orienta esta investigación consiste, por tanto, en la necesidad de disponer de un modelo integrado que permita estudiar de manera trazable cómo las condiciones contextuales influyen en el diseño del sistema y cómo las decisiones y mecanismos derivados pueden posteriormente ser evaluados mediante indicadores y evidencias.
+
+Esta formulación permite diferenciar dos niveles:
+
+```text
+🏢 PROBLEMA PRÁCTICO
+Fragmentación y dificultades de gestión
+
+                ↓
+
+🔬 PROBLEMA DE INVESTIGACIÓN
+Cómo modelar y evaluar explícitamente la relación entre
+contexto, requisitos, decisiones, mecanismos y evidencias.
+```
+
+## 1.3.2 Contradicción científica
+
+A partir de la situación descrita, se identifica una contradicción fundamental.
+
+Por una parte, las organizaciones logísticas requieren integrar información documental, física, operacional, geográfica y económica para gestionar y evaluar adecuadamente sus procesos.
+
+Por otra parte, las condiciones reales del contexto pueden provocar fragmentación, inconsistencias, dificultades de integración y pérdida de trazabilidad.
+
+```text
+🏢 NECESIDAD DE GESTIÓN INTEGRADA
+        ↑
+        │
+        │ CONTRADICCIÓN
+        │
+        ↓
+⚠️ FRAGMENTACIÓN Y RESTRICCIONES CONTEXTUALES
+```
+
+De esta contradicción, articulada con la brecha de conocimiento identificada, se deriva el siguiente problema científico:
+
+> **¿Cómo contribuir al diseño y evaluación de un modelo y su materialización tecnológica para la gestión integrada de procesos logísticos, capaz de relacionar explícita y trazablemente las condiciones y restricciones del contexto con los requisitos derivados, las decisiones de diseño, los mecanismos implementados, los resultados, los indicadores y las evidencias generadas durante el proceso de gestión?**
+
+---
+
+---
+
+## Integración ampliada — 1.4 Preguntas de investigación
+
+Para contribuir a la solución del problema planteado, se establecen las siguientes preguntas:
+
+### Pregunta 1
+
+> ¿Qué condiciones, restricciones y características del contexto deben considerarse para diseñar un sistema de gestión adecuado al proceso objeto de estudio?
+
+### Pregunta 2
+
+> ¿Cómo pueden estructurarse las relaciones entre manifiestos, guías, bultos, personas, direcciones, operaciones, viajes, eventos y entregas?
+
+### Pregunta 3
+
+> ¿Cómo puede preservarse la trazabilidad entre la información documental y el movimiento físico de los bultos?
+
+### Pregunta 4
+
+> ¿Cómo puede integrarse la planificación logística con la ejecución real y la información de seguimiento?
+
+### Pregunta 5
+
+> ¿Cómo pueden gestionarse inconsistencias de información sin comprometer innecesariamente la continuidad de la operación?
+
+### Pregunta 6
+
+> ¿Cómo pueden relacionarse costos, gastos e ingresos con las operaciones y entregas que contribuyeron a generarlos?
+
+### Pregunta 7
+
+> ¿Cómo puede estructurarse una ficha de costo basada en información trazable procedente de los procesos operacionales?
+
+### Pregunta 8
+
+> ¿Qué indicadores y evidencias permiten evaluar el comportamiento y los resultados del sistema?
+
+### Pregunta 9
+
+> ¿En qué medida la integración contextual de las relaciones anteriores puede contribuir a mejorar la capacidad de gestión y evaluación del proceso estudiado?
+
+---
+
+---
+
+## Integración ampliada — 1.5 Justificación de la investigación
+
+La investigación se justifica desde dimensiones organizacionales, operacionales, económicas, informativas y científicas.
+
+## 1.5.1 Justificación organizacional
+
+El SGCI busca proporcionar una estructura integrada para gestionar información generada en diferentes procesos.
+
+```text
+📋 DOCUMENTACIÓN
+        +
+📦 CARGA
+        +
+🚚 OPERACIÓN
+        +
+📡 SEGUIMIENTO
+        +
+💰 ECONOMÍA
+        ↓
+🔗 INFORMACIÓN INTEGRADA
+```
+
+Esto puede facilitar la coordinación entre diferentes actores y áreas de la organización.
+
+## 1.5.2 Justificación operacional
+
+La investigación busca integrar procesos que forman parte de una misma cadena:
+
+```text
+📦 NECESIDAD
+        ↓
+🏭 RECEPCIÓN
+        ↓
+📦 CLASIFICACIÓN
+        ↓
+🚚 DISTRIBUCIÓN
+        ↓
+🗺️ PLANIFICACIÓN
+        ↓
+🚛 VIAJE
+        ↓
+📍 ENTREGA
+```
+
+La integración permite analizar la operación como un proceso continuo.
+
+## 1.5.3 Justificación económica
+
+La gestión económica requiere información relacionada con las operaciones que generan los resultados.
+
+```text
+🚚 OPERACIÓN
+        ↓
+⛽ RECURSOS
+        ↓
+💸 COSTOS Y GASTOS
+```
+
+y:
+
+```text
+📦 ENTREGA
+        ↓
+⚖️ PESO
+        +
+📋 TARIFA
+        ↓
+💵 INGRESO
+```
+
+Estas relaciones pueden contribuir a la construcción de:
+
+- fichas de costo;
+- análisis de rentabilidad;
+- análisis de utilidad;
+- evaluación de operaciones;
+- análisis de ingresos por contrato;
+- conciliación económica.
+
+## 1.5.4 Justificación informativa
+
+La investigación aborda un problema frecuente en sistemas de gestión:
+
+```text
+📄 DATO AISLADO
+        ≠
+🔗 INFORMACIÓN RELACIONADA
+```
+
+La propuesta busca transformar la información en una estructura que conserve:
+
+```text
+📄 DATO
++
+🌍 CONTEXTO
++
+🔗 RELACIÓN
++
+🕒 HISTORIAL
++
+📁 EVIDENCIA
+```
+
+## 1.5.5 Justificación científica
+
+El interés científico no consiste únicamente en desarrollar un sistema informático.
+
+La investigación propone estudiar un modelo en el que puedan establecerse relaciones explícitas entre:
+
+```text
+🌍 CONTEXTO
+        ↓
+⚠️ RESTRICCIÓN
+        ↓
+📋 REQUISITO
+        ↓
+🧠 DECISIÓN
+        ↓
+⚙️ MECANISMO
+        ↓
+📊 RESULTADO
+        ↓
+📁 EVIDENCIA
+```
+
+La investigación permitirá evaluar cómo esta estructura puede contribuir a la adecuación contextual y a la capacidad de analizar las decisiones y sus resultados.
+
+---
+
+## 1.5.6 Diferenciación entre modelo, arquitectura e implementación
+
+Para evitar identificar la contribución científica únicamente con el software resultante, la investigación diferencia tres niveles complementarios:
+
+```text
+🧠 NIVEL 1 — MODELO CONCEPTUAL SGCI
+Define las relaciones y principios que se investigan.
+        ↓
+🏗️ NIVEL 2 — ARQUITECTURA SGCI
+Traduce el modelo en componentes, responsabilidades y mecanismos.
+        ↓
+💻 NIVEL 3 — IMPLEMENTACIÓN SGCI
+Materializa la arquitectura mediante una solución tecnológica.
+```
+
+Por tanto:
+
+```text
+💻 APLICACIÓN INFORMÁTICA
+        ≠
+🔬 TOTALIDAD DE LA CONTRIBUCIÓN CIENTÍFICA
+```
+
+La aplicación constituye el medio de materialización y evaluación de la propuesta, mientras que el objeto conceptual de la investigación se concentra en el modelo de integración contextual y trazable y en la forma de evaluar su comportamiento.
+
+---
+
+---
+
+## Integración ampliada — 1.6 Objetivos de la investigación
+
+## 1.6.1 Objetivo general
+
+> **Diseñar y evaluar un modelo de gestión contextual integrada y su materialización tecnológica, capaz de relacionar trazablemente las condiciones y restricciones del contexto con los requisitos, las decisiones, la información documental, logística, operacional, geográfica y económica, los indicadores y las evidencias de los procesos objeto de estudio, facilitando su gestión, análisis y evaluación.**
+
+## 1.6.2 Objetivos específicos
+
+### OE1 — Caracterizar el contexto
+
+Identificar y analizar las condiciones tecnológicas, organizacionales, operacionales, económicas y normativas que influyen en el funcionamiento del proceso objeto de estudio.
+
+### OE2 — Fundamentar conceptualmente la propuesta
+
+Analizar los fundamentos teóricos, metodológicos y tecnológicos relacionados con sistemas de gestión, logística, transporte, trazabilidad, integración de información, economía y evaluación.
+
+### OE3 — Modelar las relaciones principales
+
+Definir un modelo conceptual que relacione:
+
+- contexto;
+- restricciones;
+- requisitos;
+- decisiones;
+- mecanismos;
+- manifiestos;
+- guías;
+- bultos;
+- personas;
+- direcciones;
+- operaciones;
+- viajes;
+- eventos;
+- resultados;
+- información económica;
+- evidencia.
+
+### OE4 — Diseñar la arquitectura funcional
+
+Diseñar la arquitectura y las capacidades funcionales necesarias para materializar el modelo conceptual del SGCI.
+
+### OE5 — Diseñar el modelo de datos
+
+Definir una estructura de información capaz de preservar las relaciones, estados, eventos, historiales y evidencias generadas durante el ciclo de gestión.
+
+### OE6 — Implementar progresivamente la solución
+
+Desarrollar las capacidades del SGCI de manera incremental de acuerdo con los requisitos y prioridades definidos.
+
+### OE7 — Integrar la dimensión económica
+
+Diseñar mecanismos que permitan relacionar costos, gastos e ingresos con las operaciones y entregas correspondientes.
+
+### OE8 — Diseñar mecanismos de continuidad controlada
+
+Incorporar mecanismos para gestionar inconsistencias y conflictos de información sin detener innecesariamente los procesos operacionales.
+
+### OE9 — Definir mecanismos de evaluación
+
+Establecer indicadores, criterios y evidencias que permitan evaluar el comportamiento del sistema y sus capacidades.
+
+### OE10 — Evaluar la propuesta
+
+Analizar la solución mediante criterios conceptuales, técnicos, funcionales, operacionales y contextuales.
+
+### OE11 — Establecer proposiciones evaluables
+
+Definir relaciones y criterios susceptibles de contrastación mediante los datos y evidencias generados durante la evaluación, sin asumir de manera predeterminada los resultados de la propuesta.
+
+
+---
+
+---
+
+## Integración ampliada — 1.7 Modelo conceptual de la investigación
+
+## 1.7.1 Principio general
+
+La investigación se fundamenta en la transformación progresiva de una condición contextual en elementos concretos del sistema.
+
+```text
+🌍 CONTEXTO
+        ↓
+🔍 OBSERVACIÓN
+        ↓
+⚠️ CONDICIÓN RELEVANTE
+        ↓
+📋 REQUISITO
+        ↓
+🧠 DECISIÓN
+        ↓
+⚙️ MECANISMO
+        ↓
+📊 RESULTADO
+        ↓
+📁 EVIDENCIA
+        ↓
+🔎 EVALUACIÓN
+```
+
+Este modelo permite analizar por qué existe un mecanismo y cómo se evaluará posteriormente.
+
+## 1.7.2 Arquitectura conceptual general
+
+```text
+🌍 CONTEXTO
+        ↓
+⚠️ CONDICIONES Y RESTRICCIONES
+        ↓
+📋 REQUISITOS
+        ↓
+🧠 DECISIONES
+        ↓
+⚙️ ARQUITECTURA Y MECANISMOS
+        ↓
+┌──────────────────────────────────────┐
+│         PROCESOS INTEGRADOS          │
+├──────────────────────────────────────┤
+│ 📋 DOCUMENTACIÓN                     │
+│ 📦 CARGA                             │
+│ 🚚 OPERACIÓN                         │
+│ 📍 UBICACIÓN Y SEGUIMIENTO           │
+│ 💰 ECONOMÍA                          │
+│ 📁 TRAZABILIDAD                      │
+└──────────────────────────────────────┘
+        ↓
+📊 DATOS E INDICADORES
+        ↓
+📁 EVIDENCIA
+        ↓
+🔎 EVALUACIÓN
+        ↓
+🔄 RETROALIMENTACIÓN
+        ↓
+🌍 NUEVO CONTEXTO
+```
+
+## 1.7.3 Cadena logística integrada
+
+Dentro del caso de estudio, una parte fundamental del modelo se organiza alrededor de:
+
+```text
+📋 MANIFIESTO
+        ↓
+📄 GUÍAS
+        ↓
+📦 BULTOS
+        ↓
+👤 DESTINATARIOS
+        ↓
+📍 DIRECCIONES
+        ↓
+🏭 RECEPCIÓN
+        ↓
+📦 CLASIFICACIÓN
+        ↓
+🚚 DISTRIBUCIÓN
+        ↓
+🗺️ PLANIFICACIÓN
+        ↓
+🚛 VIAJE
+        ↓
+📡 SEGUIMIENTO
+        ↓
+📍 ENTREGA
+```
+
+El sistema debe permitir que cada nivel pueda relacionarse con los demás.
+
+## 1.7.4 Diferenciación entre proceso, actividad, evento y estado
+
+Para evitar ambigüedades en el diseño posterior, la investigación diferencia conceptualmente:
+
+```text
+🏢 PROCESO
+Conjunto organizado de actividades orientadas a un resultado.
+        ↓
+⚙️ ACTIVIDAD
+Acción ejecutada dentro de un proceso.
+        ↓
+📡 EVENTO
+Hecho registrable que ocurre durante la actividad.
+        ↓
+🏷️ ESTADO
+Situación vigente de una entidad o proceso en un momento determinado.
+```
+
+Por ejemplo:
+
+```text
+🚚 PROCESO DE ENTREGA        → Proceso
+📦 ENTREGAR BULTO            → Actividad
+📍 ENTREGA CONFIRMADA        → Evento
+✅ ENTREGADO                 → Estado
+```
+
+Esta diferenciación será utilizada en el modelo de procesos, el modelo de datos y la estrategia de trazabilidad.
+
+## 1.7.5 Ciclo de estados del manifiesto
+
+El manifiesto representa una estructura documental y operacional relevante.
+
+```text
+1. CREADO
+        ↓
+2. ENVIADO
+        ↓
+3. ARRIBADO
+        ↓
+4. EN_PROCESO_ADUANA
+        ↓
+5. FACTURADO
+        ↓
+6. RECIBIDO
+        ↓
+7. PROCESO_ENTREGA
+        ↓
+8. ENTREGADO_PARCIAL
+        ↓
+9. ENTREGADO
+        ↓
+10. ARCHIVADO
+```
+
+El estado **ENTREGADO_PARCIAL** representa la situación en la que algunos bultos asociados han sido entregados, mientras otros permanecen pendientes.
+
+El estado **ARCHIVADO** representa el cierre administrativo y económico del proceso, una vez cumplidas las condiciones correspondientes de pago, conciliación y aceptación del cierre entre las partes involucradas.
+
+## 1.7.6 Integración entre logística y economía
+
+El modelo propone que los resultados económicos no sean analizados de manera aislada.
+
+```text
+📦 BULTO
+        ↓
+📄 GUÍA
+        ↓
+📋 MANIFIESTO
+        ↓
+🚚 OPERACIÓN
+        ↓
+⛽ RECURSOS
+        ↓
+💸 COSTOS Y GASTOS
+```
+
+Paralelamente:
+
+```text
+📦 BULTO ENTREGADO
+        +
+⚖️ PESO
+        +
+📍 DESTINO
+        +
+📋 TARIFA CONTRACTUAL
+        ↓
+💵 INGRESO
+```
+
+Ambas dimensiones pueden converger en:
+
+```text
+💵 INGRESOS
+        -
+💸 COSTOS
+        -
+📄 GASTOS
+        =
+📈 RESULTADO
+```
+
+Esta relación constituye la base conceptual para la ficha de costo y el análisis económico.
+
+La ficha de costo no se limita a un único nivel de análisis. El modelo deberá permitir, cuando la información y las reglas de asignación lo justifiquen, analizar costos en diferentes objetos de costo:
+
+```text
+📋 MANIFIESTO
+        ↓
+🚚 OPERACIÓN
+        ↓
+🚛 VIAJE
+        ↓
+📄 GUÍA
+        ↓
+📦 BULTO
+```
+
+Para ello se distinguirán conceptualmente:
+
+- costos directos identificables con un objeto de costo;
+- costos indirectos que requieren reglas de distribución;
+- gastos que deben mantenerse diferenciados según el criterio económico o contable aplicable;
+- ingresos derivados de contratos, tarifas y entregas verificadas.
+
+Las reglas de distribución no deberán asumirse de forma arbitraria. Podrán considerar, según el tipo de recurso y el objeto de análisis, variables como peso, distancia, zona, tiempo, volumen, número de bultos u otros inductores técnicamente justificados.
+
+```text
+💸 RECURSO CONSUMIDO
+        ↓
+🎯 OBJETO DE COSTO
+        ↓
+📐 REGLA DE ASIGNACIÓN
+        ↓
+📊 COSTO ATRIBUIDO
+        ↓
+📁 EVIDENCIA DE CÁLCULO
+```
+
+De este modo, la utilidad o resultado económico podrá analizarse con trazabilidad hacia los eventos y recursos que contribuyeron a generarlo.
+
+## 1.7.7 Continuidad controlada
+
+El modelo incorpora un principio para gestionar conflictos de información.
+
+```text
+🚨 INCONSISTENCIA
+        ↓
+🔍 DETECCIÓN
+        ↓
+📁 REGISTRO DEL CONFLICTO
+        ↓
+🆔 IDENTIFICACIÓN TEMPORAL CONTROLADA
+        ↓
+🚚 CONTINUIDAD OPERACIONAL
+        ↓
+🔎 VERIFICACIÓN
+        ↓
+📁 RESOLUCIÓN
+        ↓
+🕒 HISTORIAL AUDITABLE
+```
+
+Este principio resulta aplicable a conflictos como:
+
+- documentos de identidad duplicados;
+- información contradictoria;
+- errores de importación;
+- problemas de sincronización;
+- datos pendientes de validación.
+
+Además de la continuidad controlada, el modelo reconocerá la necesidad de gestionar excepciones operacionales sin confundirlas con el flujo normal. Entre ellas podrán encontrarse, según el proceso correspondiente:
+
+```text
+⚠️ ENTREGA NO REALIZADA
+🔁 REINTENTO
+↩️ DEVOLUCIÓN
+📦 DAÑO O INCIDENCIA
+❌ RECHAZO
+📍 CORRECCIÓN DE DIRECCIÓN
+🔀 TRANSFERENCIA ENTRE OPERACIONES
+🛑 RETENCIÓN O BLOQUEO CONTROLADO
+```
+
+Estas situaciones deberán registrarse como eventos y decisiones trazables, con reglas de transición y evidencia de su tratamiento.
+
+---
+
+---
+
+## Integración ampliada — 1.8 Alcance y delimitaciones
+
+## 1.8.1 Alcance conceptual
+
+La investigación aborda el diseño de un sistema integrado para relacionar:
+
+- contexto;
+- requisitos;
+- decisiones;
+- documentación;
+- carga;
+- personas;
+- direcciones;
+- procesos logísticos;
+- seguimiento;
+- información económica;
+- evidencia.
+
+El sistema se centra en la capacidad de gestionar y relacionar información. No pretende sustituir a todas las instituciones o sistemas externos.
+
+## 1.8.2 Alcance funcional
+
+El SGCI contempla progresivamente capacidades relacionadas con:
+
+```text
+📋 MANIFIESTOS
+📄 GUÍAS
+📦 BULTOS
+👤 PERSONAS
+📍 DIRECCIONES
+⚖️ INFORMACIÓN RELACIONADA CON IMPORTACIÓN
+🏭 RECEPCIÓN
+📦 CLASIFICACIÓN
+🚚 DISTRIBUCIÓN
+🗺️ PLANIFICACIÓN
+🚛 VIAJES
+📡 GPS
+📍 ENTREGAS
+💰 COSTOS
+📄 GASTOS
+💵 INGRESOS
+📊 FICHAS DE COSTO
+📋 CONTRATOS Y TARIFAS
+🤝 CONCILIACIÓN
+📁 ARCHIVADO
+```
+
+## 1.8.3 Priorización e implementación incremental
+
+El alcance funcional total del SGCI es amplio. Para evitar que la amplitud conceptual se traduzca en una implementación técnicamente inabarcable, la investigación distingue entre:
+
+```text
+🎯 NÚCLEO DE INVESTIGACIÓN
+Relaciones y principios que deben ser estudiados y evaluados.
+        ↓
+⚙️ IMPLEMENTACIÓN PRIORITARIA
+Capacidades necesarias para materializar y validar el núcleo.
+        ↓
+🔮 EVOLUCIÓN FUTURA
+Capacidades que pueden incorporarse progresivamente.
+```
+
+La implementación deberá seguir un principio incremental:
+
+```text
+MVP O NÚCLEO FUNCIONAL
+        ↓
+VERSIÓN INICIAL VALIDABLE
+        ↓
+AMPLIACIÓN POR MÓDULOS
+        ↓
+CAPACIDADES AVANZADAS
+```
+
+La inclusión de una capacidad dentro del alcance conceptual no implica que todas las capacidades deban implementarse con la misma profundidad en la primera versión. La priorización responderá a la relación entre relevancia para el problema de investigación, dependencia funcional, disponibilidad de datos, riesgo técnico y capacidad de validación.
+
+## 1.8.4 Alcance geográfico
+
+El caso de estudio se desarrolla en el contexto de la operación de distribución de paquetería destinada principalmente a Cuba.
+
+El modelo conceptual, sin embargo, puede proporcionar elementos transferibles a otros contextos con características similares.
+
+## 1.8.5 Delimitación respecto a procesos externos
+
+El SGCI puede integrar información procedente de procesos externos.
+
+Sin embargo:
+
+```text
+📥 INFORMACIÓN EXTERNA
+        ≠
+🎛️ CONTROL DIRECTO DEL PROCESO EXTERNO
+```
+
+El sistema no pretende sustituir:
+
+- sistemas de aerolíneas;
+- sistemas navieros;
+- autoridades aduaneras;
+- sistemas bancarios;
+- sistemas institucionales externos.
+
+Puede, cuando sea posible y autorizado, registrar o integrar información relevante.
+
+Asimismo, la investigación diferencia explícitamente:
+
+```text
+⚖️ REQUISITO LEGAL O NORMATIVO
+        ≠
+🏢 REQUISITO OPERATIVO O EMPRESARIAL
+```
+
+Las obligaciones de carácter jurídico, aduanero o regulatorio deberán sustentarse en las disposiciones que sean analizadas en el marco legal y normativo. Las decisiones internas de la organización se documentarán como reglas o requisitos empresariales, evitando presentarlas como obligaciones legales cuando no exista evidencia normativa que las respalde.
+
+## 1.8.6 Delimitación científica
+
+La investigación no parte de resultados predeterminados.
+
+```text
+⚙️ IMPLEMENTACIÓN
+        ↓
+📊 MEDICIÓN
+        ↓
+📁 EVIDENCIA
+        ↓
+🔎 EVALUACIÓN
+        ↓
+📈 RESULTADO
+```
+
+Los resultados concretos deberán determinarse mediante el proceso de evaluación definido para la investigación.
+
+---
+
+---
+
+## Integración ampliada — 1.9 Estrategia general de evaluación
+
+La evaluación constituye parte estructural de la investigación y no una actividad posterior independiente del diseño.
+
+La propuesta será analizada mediante una cadena de evaluación trazable:
+
+```text
+⚙️ CAPACIDAD IMPLEMENTADA
+        ↓
+🧪 ESCENARIO O PRUEBA
+        ↓
+📊 INDICADOR O MEDICIÓN
+        ↓
+📁 EVIDENCIA
+        ↓
+🔎 ANÁLISIS
+        ↓
+📈 CONCLUSIÓN
+```
+
+## 1.11.1 Dimensiones de evaluación
+
+La evaluación podrá considerar, de acuerdo con los objetivos y datos disponibles, las siguientes dimensiones:
+
+```text
+🚚 OPERACIONAL
+⏱️ TIEMPO Y CONTINUIDAD
+🔗 TRAZABILIDAD
+🎯 CALIDAD E INTEGRIDAD DE INFORMACIÓN
+📍 CUMPLIMIENTO DE LA ENTREGA
+💰 ECONÓMICA
+⚠️ GESTIÓN DE EXCEPCIONES
+💻 COMPORTAMIENTO TÉCNICO
+```
+
+## 1.11.2 Criterios y comparabilidad
+
+Cada indicador deberá definir, antes de su interpretación cuando sea posible:
+
+- qué mide;
+- unidad o forma de cálculo;
+- fuente de datos;
+- período o escenario de observación;
+- criterio de comparación;
+- limitaciones de interpretación.
+
+El objetivo no es asumir que la propuesta producirá necesariamente una mejora determinada, sino generar evidencia suficiente para determinar en qué dimensiones, bajo qué condiciones y con qué magnitud se observan sus resultados.
+
+## 1.11.3 Proposiciones evaluables
+
+La investigación podrá analizar proposiciones como las siguientes, que deberán ser operacionalizadas en la metodología de validación:
+
+```text
+MAYOR EXPLICITUD DE LAS RELACIONES
+        ↓
+MAYOR CAPACIDAD PARA RECONSTRUIR LA TRAZABILIDAD
+```
+
+```text
+MAYOR VINCULACIÓN ENTRE OPERACIÓN Y ECONOMÍA
+        ↓
+MAYOR CAPACIDAD PARA ANALIZAR LA FORMACIÓN DEL RESULTADO ECONÓMICO
+```
+
+```text
+GESTIÓN CONTROLADA DE INCONSISTENCIAS
+        ↓
+CONTINUIDAD SIN PÉRDIDA DEL REGISTRO DEL CONFLICTO
+```
+
+Estas relaciones no constituyen resultados predeterminados. Constituyen planteamientos que deberán ser evaluados con indicadores y evidencias.
+
+---
+
+---
+
+## Integración ampliada — 1.10 Contribución teórica y práctica: qué aporta esta investigación al conocimiento
+
+## 1.11.1 Integración contextual explícita
+
+La primera contribución consiste en proponer un modelo en el que el contexto se relaciona explícitamente con el diseño.
+
+```text
+🌍 CONTEXTO
+        ↓
+⚠️ CONDICIÓN
+        ↓
+📋 REQUISITO
+        ↓
+🧠 DECISIÓN
+        ↓
+⚙️ MECANISMO
+```
+
+## 1.11.2 Integración relacional de la cadena logística
+
+La propuesta estudia una estructura que relaciona:
+
+```text
+📋 MANIFIESTO
+        ↓
+📄 GUÍA
+        ↓
+📦 BULTO
+        ↓
+👤 PERSONA
+        ↓
+📍 DIRECCIÓN
+        ↓
+🚚 OPERACIÓN
+        ↓
+📍 ENTREGA
+```
+
+El aporte se encuentra en preservar las relaciones y no solamente centralizar registros.
+
+## 1.11.3 Trazabilidad integral
+
+El SGCI propone integrar:
+
+```text
+📄 TRAZABILIDAD DOCUMENTAL
+        +
+📦 TRAZABILIDAD FÍSICA
+        +
+📍 TRAZABILIDAD GEOGRÁFICA
+        +
+🚚 TRAZABILIDAD OPERACIONAL
+        +
+💰 TRAZABILIDAD ECONÓMICA
+        =
+🔗 TRAZABILIDAD INTEGRAL
+```
+
+## 1.11.4 Integración entre planificación y ejecución
+
+La investigación relaciona:
+
+```text
+🗺️ PLANIFICACIÓN
+        ↔
+🚛 EJECUCIÓN
+```
+
+permitiendo analizar la relación entre decisiones planificadas y eventos reales.
+
+## 1.11.5 Integración económico-operativa
+
+La propuesta relaciona:
+
+```text
+🚚 OPERACIÓN
+        ↓
+💸 COSTOS Y GASTOS
+```
+
+con:
+
+```text
+📦 ENTREGA
+        ↓
+💵 INGRESOS
+```
+
+permitiendo estudiar:
+
+```text
+💵 INGRESO
+-
+💸 COSTO
+-
+📄 GASTO
+=
+📈 RESULTADO
+```
+
+## 1.11.6 Continuidad controlada
+
+El modelo propone gestionar inconsistencias mediante mecanismos que permitan:
+
+```text
+🚨 DETECTAR
+        ↓
+📁 REGISTRAR
+        ↓
+🚚 CONTINUAR DE FORMA CONTROLADA
+        ↓
+🔎 VERIFICAR
+        ↓
+📁 RESOLVER
+```
+
+## 1.11.7 Evidencia verificable
+
+La propuesta distingue entre:
+
+```text
+⚙️ FUNCIÓN IMPLEMENTADA
+```
+
+y:
+
+```text
+📊 FUNCIÓN MEDIDA Y EVALUADA
+```
+
+La evidencia constituye un componente del modelo.
+
+## 1.11.8 Evaluación multidimensional
+
+El SGCI permite considerar resultados desde diferentes dimensiones.
+
+```text
+🚚 OPERACIONAL
++
+💰 ECONÓMICA
++
+📄 DOCUMENTAL
++
+📍 GEOGRÁFICA
++
+📁 TRAZABILIDAD
+        ↓
+📊 EVALUACIÓN INTEGRADA
+```
+
+## 1.10.9 Aporte científico central
+
+El aporte central puede sintetizarse mediante:
+
+```text
+🌍 CONTEXTO
+        ↓
+⚠️ RESTRICCIÓN
+        ↓
+📋 REQUISITO
+        ↓
+🧠 DECISIÓN
+        ↓
+⚙️ MECANISMO
+        ↓
+🚚 OPERACIÓN
+        ↓
+📊 RESULTADO
+        ↓
+📁 EVIDENCIA
+        ↓
+🔎 EVALUACIÓN
+```
+
+El interés científico consiste en estudiar cómo la integración explícita de estas relaciones puede contribuir al diseño y evaluación de sistemas de gestión.
+
+La contribución se plantea en tres resultados diferenciados:
+
+```text
+🧠 RESULTADO CONCEPTUAL
+Modelo de relaciones contextuales, decisionales, operacionales y de evidencia.
+
+🏗️ RESULTADO METODOLÓGICO
+Forma de transformar condiciones contextuales en requisitos, decisiones, mecanismos e indicadores evaluables.
+
+💻 RESULTADO TECNOLÓGICO
+Materialización del modelo mediante el SGCI como caso de aplicación y evaluación.
+```
+
+Esta diferenciación permite valorar la transferibilidad del conocimiento más allá de una tecnología o implementación específica.
+
+---
+
+---
+
+# 🏁 Cierre de la Versión 2.0
+
+El Capítulo 1 queda consolidado como una versión integral ampliada. La investigación distingue explícitamente entre el problema práctico de gestión y el problema científico; entre el modelo conceptual, la arquitectura y la implementación; entre proceso, actividad, evento y estado; y entre disponibilidad de una funcionalidad y evidencia sobre su comportamiento.
+
+La propuesta se orienta a estudiar y materializar un SGCI en el que las relaciones entre contexto, restricciones, requisitos, decisiones, mecanismos, información logística, operación, economía, indicadores y evidencias puedan conservarse y evaluarse de forma trazable.
+
+La presente versión debe utilizarse como documento maestro de trabajo para las siguientes fases, sin considerar eliminada la información histórica, tecnológica, metodológica o documental proveniente de la versión extensa anterior.
+
 
 ---
 
