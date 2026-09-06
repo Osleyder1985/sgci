@@ -33,7 +33,14 @@ describe('ManifiestosService - direcciones', () => {
 
     const service = moduleRef.get<ManifiestosService>(ManifiestosService);
     const resultado = await (service as any).verificarDirecciones(
-      [{ personaId: 'persona-1', nombre: 'Juan Pérez', carnet: '123', direccion: ' calle 123 #45 ' }],
+      [
+        {
+          personaId: 'persona-1',
+          nombre: 'Juan Pérez',
+          carnet: '123',
+          direccion: ' calle 123 #45 ',
+        },
+      ],
       'MEXICO',
     );
 
@@ -47,14 +54,22 @@ describe('ManifiestosService - direcciones', () => {
     const prismaMock = {
       direccion: {
         findMany: vi.fn().mockResolvedValue([
-          { id: 'direccion-2', direccionOriginal: 'Calle 456 #78', estadoGeocodificacion: 'PENDIENTE' },
+          {
+            id: 'direccion-2',
+            direccionOriginal: 'Calle 456 #78',
+            estadoGeocodificacion: 'PENDIENTE',
+          },
         ]),
       },
       $executeRaw: vi.fn().mockResolvedValue(1),
     };
 
     const geocodificacionMock = {
-      geocodificar: vi.fn().mockResolvedValue({ lat: 19.4326, lon: -99.1332, displayName: 'Calle 456 #78, Mexico' }),
+      geocodificar: vi.fn().mockResolvedValue({
+        lat: 19.4326,
+        lon: -99.1332,
+        displayName: 'Calle 456 #78, Mexico',
+      }),
     };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -68,7 +83,14 @@ describe('ManifiestosService - direcciones', () => {
 
     const service = moduleRef.get<ManifiestosService>(ManifiestosService);
     const resultado = await (service as any).verificarDirecciones(
-      [{ personaId: 'persona-1', nombre: 'Juan Pérez', carnet: '123', direccion: ' calle 456 #78 ' }],
+      [
+        {
+          personaId: 'persona-1',
+          nombre: 'Juan Pérez',
+          carnet: '123',
+          direccion: ' calle 456 #78 ',
+        },
+      ],
       'MEXICO',
     );
 
@@ -76,7 +98,10 @@ describe('ManifiestosService - direcciones', () => {
     expect(resultado.direccionesReutilizadas).toBe(0);
     expect(resultado.direccionesGeocodificadas).toBe(1);
     expect(resultado.direccionesPendientes).toBe(0);
-    expect(geocodificacionMock.geocodificar).toHaveBeenCalledWith('calle 456 #78', 'MEXICO');
+    expect(geocodificacionMock.geocodificar).toHaveBeenCalledWith(
+      'calle 456 #78',
+      'MEXICO',
+    );
     expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1);
   });
 
@@ -87,7 +112,11 @@ describe('ManifiestosService - direcciones', () => {
     };
 
     const geocodificacionMock = {
-      geocodificar: vi.fn().mockResolvedValue({ lat: 19.4326, lon: -99.1332, displayName: 'Calle Nueva 789, Mexico' }),
+      geocodificar: vi.fn().mockResolvedValue({
+        lat: 19.4326,
+        lon: -99.1332,
+        displayName: 'Calle Nueva 789, Mexico',
+      }),
     };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -101,7 +130,14 @@ describe('ManifiestosService - direcciones', () => {
 
     const service = moduleRef.get<ManifiestosService>(ManifiestosService);
     const resultado = await (service as any).verificarDirecciones(
-      [{ personaId: 'persona-1', nombre: 'Juan Pérez', carnet: '123', direccion: ' calle nueva 789 ' }],
+      [
+        {
+          personaId: 'persona-1',
+          nombre: 'Juan Pérez',
+          carnet: '123',
+          direccion: ' calle nueva 789 ',
+        },
+      ],
       'MEXICO',
     );
 
@@ -109,7 +145,10 @@ describe('ManifiestosService - direcciones', () => {
     expect(resultado.direccionesReutilizadas).toBe(0);
     expect(resultado.direccionesGeocodificadas).toBe(1);
     expect(resultado.direccionesPendientes).toBe(0);
-    expect(geocodificacionMock.geocodificar).toHaveBeenCalledWith('calle nueva 789', 'MEXICO');
+    expect(geocodificacionMock.geocodificar).toHaveBeenCalledWith(
+      'calle nueva 789',
+      'MEXICO',
+    );
     expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1);
   });
 
@@ -134,11 +173,21 @@ describe('ManifiestosService - direcciones', () => {
 
     const service = moduleRef.get<ManifiestosService>(ManifiestosService);
     const resultado = await (service as any).verificarDirecciones(
-      [{ personaId: 'persona-1', nombre: 'Juan Pérez', carnet: '123', direccion: ' Dirección imposible 999 ' }],
+      [
+        {
+          personaId: 'persona-1',
+          nombre: 'Juan Pérez',
+          carnet: '123',
+          direccion: ' Dirección imposible 999 ',
+        },
+      ],
       'MEXICO',
     );
 
-    expect(geocodificacionMock.geocodificar).toHaveBeenCalledWith('Dirección imposible 999', 'MEXICO');
+    expect(geocodificacionMock.geocodificar).toHaveBeenCalledWith(
+      'Dirección imposible 999',
+      'MEXICO',
+    );
     expect(resultado.direccionesPendientes).toBe(1);
     expect(resultado.direccionesGeocodificadas).toBe(0);
     expect(resultado.direccionesEncontradas).toBe(0);
@@ -154,7 +203,9 @@ describe('ManifiestosService - direcciones', () => {
     };
 
     const geocodificacionMock = {
-      geocodificar: vi.fn().mockRejectedValue(new Error('Servicio no disponible')),
+      geocodificar: vi
+        .fn()
+        .mockRejectedValue(new Error('Servicio no disponible')),
     };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -168,7 +219,14 @@ describe('ManifiestosService - direcciones', () => {
 
     const service = moduleRef.get<ManifiestosService>(ManifiestosService);
     const resultado = await (service as any).verificarDirecciones(
-      [{ personaId: 'persona-1', nombre: 'Juan Pérez', carnet: '123', direccion: ' Calle con error 500 ' }],
+      [
+        {
+          personaId: 'persona-1',
+          nombre: 'Juan Pérez',
+          carnet: '123',
+          direccion: ' Calle con error 500 ',
+        },
+      ],
       'MEXICO',
     );
 
