@@ -1,35 +1,941 @@
 "use client";
 import { ChangeEvent, ReactNode, useEffect, useMemo, useState } from "react";
-interface HousePreview{numeroHouse?:string;house?:string;naturalezaCantidad?:string;pesoKg?:number;bultos?:number;cantidadBultos?:number;remitenteNombre?:string;destinatarioNombre?:string;destinatarioCarnet?:string|null;telefonoDestinatario?:string|null;direccionDestinatario?:string|null;unidadDestino?:string|null;}
-interface PreviewResponse{ok:boolean;mensaje?:string;archivo?:{nombre:string;hash:string;duplicado:boolean};metadata?:{masterAwb?:string|null;fecha?:string|null;agenteTransitario?:string|null;paisOrigen?:string|null;consignatario?:string|null};total?:{cantidadHouses:number;cantidadSacas:number;cantidadPersonas:number;pesoTotalKg:number};registros?:number;casas?:HousePreview[];warnings?:string[];direcciones?:{total:number;encontradas:number;reutilizables:number;pendientesGeocodificacion:number;nuevas:number;sinDireccion:number;cobertura:number;personasConDireccion:number;personasSinDireccion:number;warnings:string[]};}
-interface Progress{jobId:string;stage:"queued"|"parsing"|"creating_guides"|"processing_addresses"|"completed"|"failed";status:"running"|"completed"|"failed";message:string;totalHouses:number;processedHouses:number;totalPeople:number;processedPeople:number;totalAddresses:number;processedAddresses:number;addressesGeocoded:number;addressesReused:number;addressesNotFound:number;addressesReview:number;errors:number;currentAddress:string|null;startedAt:string;updatedAt:string;completedAt:string|null;elapsedMs:number;housesPerMinute:number;etaSeconds:number|null;coverage:number;error:string|null;}
-type Tone="green"|"amber"|"red"|"blue"|"slate";const apiUrl=process.env.NEXT_PUBLIC_API_URL??"http://localhost:3001";
-export default function ImportarManifiestoPage(){const[archivo,setArchivo]=useState<File|null>(null);const[preview,setPreview]=useState<PreviewResponse|null>(null);const[progress,setProgress]=useState<Progress|null>(null);const[loading,setLoading]=useState(false);const[starting,setStarting]=useState(false);const[error,setError]=useState("");const[query,setQuery]=useState("");const[alertsOnly,setAlertsOnly]=useState(false);const[warningsOpen,setWarningsOpen]=useState(false);
-const selectFile=async(e:ChangeEvent<HTMLInputElement>)=>{const file=e.target.files?.[0]??null;setArchivo(file);setPreview(null);setProgress(null);setError("");setQuery("");setAlertsOnly(false);if(file)await loadPreview(file);};
-const loadPreview=async(file:File)=>{setLoading(true);try{const body=new FormData();body.append("archivo",file);const r=await fetch(`${apiUrl}/api/guias/importar/preview`,{method:"POST",body});const d=await r.json().catch(()=>null)as PreviewResponse|null;if(!r.ok||!d?.ok)throw new Error(d?.mensaje??`El servidor respondió HTTP ${r.status}.`);setPreview(d);}catch(e){setError(e instanceof Error?e.message:"No fue posible analizar el manifiesto.");}finally{setLoading(false);}};
-const startImport=async()=>{if(!archivo)return setError("Seleccione un archivo de manifiesto.");setStarting(true);setError("");try{const body=new FormData();body.append("archivo",archivo);const r=await fetch(`${apiUrl}/api/guias/importar/job`,{method:"POST",body});const d=await r.json().catch(()=>null)as{ok?:boolean;jobId?:string;progress?:Progress;message?:string}|null;if(!r.ok||!d?.ok||!d.jobId)throw new Error(d?.message??`No fue posible iniciar la importación (HTTP ${r.status}).`);setProgress(d.progress??null);}catch(e){setError(e instanceof Error?e.message:"No fue posible iniciar la importación.");}finally{setStarting(false);}};
-useEffect(()=>{if(!progress?.jobId||progress.status!=="running")return;const timer=window.setInterval(async()=>{try{const r=await fetch(`${apiUrl}/api/guias/importar/job/${progress.jobId}`,{cache:"no-store"});if(r.ok){const d=await r.json()as{progress:Progress};setProgress(d.progress);}}catch{/* conserva el último estado real */}},900);return()=>window.clearInterval(timer);},[progress?.jobId,progress?.status]);
-const clear=()=>{setArchivo(null);setPreview(null);setProgress(null);setError("");setQuery("");setAlertsOnly(false);const i=document.getElementById("archivo-manifiesto")as HTMLInputElement|null;if(i)i.value="";};
-const houses=useMemo(()=>{const q=query.trim().toLowerCase();return(preview?.casas??[]).filter(h=>{const text=[h.numeroHouse??h.house,h.naturalezaCantidad,h.remitenteNombre,h.destinatarioNombre,h.destinatarioCarnet,h.telefonoDestinatario,h.direccionDestinatario,h.unidadDestino].filter(Boolean).join(" ").toLowerCase();const alert=!h.destinatarioNombre||!h.direccionDestinatario;return(!q||text.includes(q))&&(!alertsOnly||alert);});},[preview?.casas,query,alertsOnly]);
-const warnings=[...(preview?.warnings??[]),...(preview?.direcciones?.warnings??[])];const p=progress;const housePct=p?.totalHouses?Math.round(p.processedHouses/p.totalHouses*100):0;const addressPct=p?.totalAddresses?Math.round(p.processedAddresses/p.totalAddresses*100):0;const resolved=(p?.addressesGeocoded??0)+(p?.addressesReused??0);
-return <main className="min-h-screen bg-[#f4f7fb] pb-16 text-slate-900"><div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8"><header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><a href="/dashboard" className="text-sm font-medium text-slate-500">← Dashboard</a><div className="mt-3 flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-xl text-white">⇧</div><div><h1 className="text-3xl font-black tracking-tight">Centro de Control de Importación</h1><p className="mt-1 text-sm text-slate-500">Validación, ejecución y trazabilidad en tiempo real.</p></div></div></div><div className="flex items-center gap-2 text-xs font-bold text-emerald-700"><span className="h-2 w-2 rounded-full bg-emerald-500"/> API operativa</div></header>
-<section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"><div className="grid lg:grid-cols-[1.2fr_.8fr]"><label htmlFor="archivo-manifiesto" className="flex min-h-[185px] cursor-pointer items-center border-b border-slate-200 p-7 hover:bg-slate-50 lg:border-b-0 lg:border-r"><input id="archivo-manifiesto" type="file" accept=".xlsx,.xls,.csv" onChange={selectFile} className="hidden"/><div className="flex gap-5"><div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-2xl text-white">⌁</div><div><div className="text-xs font-black uppercase tracking-widest text-slate-400">Entrada operacional</div><p className="mt-1 text-xl font-black">Seleccionar manifiesto</p><p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">XLSX, XLS o CSV. La validación comienza automáticamente y la importación se ejecuta como trabajo monitorizado.</p><span className="mt-4 inline-flex rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white">Elegir archivo</span></div></div></label><div className="flex min-h-[185px] flex-col justify-center p-7">{archivo?<><div className="text-xs font-black uppercase tracking-widest text-slate-400">Archivo seleccionado</div><div className="mt-2 break-all text-lg font-black">{archivo.name}</div><div className="mt-1 text-sm text-slate-500">{(archivo.size/1024).toFixed(1)} KB · {archivo.type||"tipo detectado por extensión"}</div><button type="button" onClick={clear} className="mt-5 w-fit rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold">Cambiar / limpiar</button></>:<><div className="text-xs font-black uppercase tracking-widest text-slate-400">Pipeline</div><p className="mt-2 text-base font-bold">Archivo → diagnóstico → ejecución → geocodificación → auditoría</p><p className="mt-2 text-sm leading-6 text-slate-500">La pantalla no inventa progreso: cada indicador proviene del estado real del trabajo.</p></>}</div></div></section>
-{loading&&<Banner tone="blue" title="Analizando manifiesto" text="Leyendo estructura, Houses, personas y diagnóstico de direcciones…" spin/>}{error&&<Banner tone="red" title="Operación detenida" text={error}/>} 
-{preview?.ok&&preview.total&&<><section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5"><Kpi label="Master AWB" value={preview.metadata?.masterAwb??"—"} detail={preview.metadata?.fecha?formatDate(preview.metadata.fecha):"Fecha no detectada"}/><Kpi label="Houses" value={preview.total.cantidadHouses} detail={`${preview.registros??preview.total.cantidadHouses} filas reconocidas`}/><Kpi label="Bultos" value={preview.total.cantidadSacas} detail="Declarados"/><Kpi label="Personas" value={preview.total.cantidadPersonas} detail="Declaradas"/><Kpi label="Peso total" value={`${Number(preview.total.pesoTotalKg).toFixed(2)} kg`} detail="Declarado"/></section>
-<section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex flex-col gap-4 lg:flex-row lg:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-black">Diagnóstico antes de ejecutar</h2><Badge tone={preview.archivo?.duplicado?"amber":"green"}>{preview.archivo?.duplicado?"DUPLICADO":"LISTO"}</Badge></div><p className="mt-1 text-sm text-slate-500">Lectura real del API; aquí todavía no se modifica la base de datos.</p></div><div className="flex flex-wrap gap-2"><Info label="Agente" value={preview.metadata?.agenteTransitario??"—"}/><Info label="Origen" value={preview.metadata?.paisOrigen??"—"}/><Info label="Consignatario" value={preview.metadata?.consignatario??"—"}/></div></div><div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5"><Stage title="Archivo" text="Recibido" done/><Stage title="Parser" text="Estructura válida" done/><Stage title="Personas" text={`${preview.total.cantidadPersonas} declaradas`} done/><Stage title="Direcciones" text={`${preview.direcciones?.total??0} diagnosticadas`} done={!!preview.direcciones}/><Stage title="Geocodificación" text="Se ejecutará al importar" done={false}/></div></section>
-{preview.direcciones&&<section className="mt-6 rounded-3xl bg-slate-950 p-6 text-white shadow-lg"><div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between"><div className="min-w-0 flex-1"><h2 className="text-xl font-black">Inteligencia de direcciones</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">Reutilización, nuevas direcciones y casos que requerirán geocodificación o revisión.</p><div className="mt-5 h-2.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-emerald-400" style={{width:`${preview.direcciones.cobertura}%`}}/></div></div><div className="grid w-full gap-2 sm:grid-cols-2 xl:w-[650px] xl:grid-cols-4"><Dark label="Cobertura" value={`${preview.direcciones.cobertura}%`}/><Dark label="Reutilizables" value={preview.direcciones.reutilizables}/><Dark label="Nuevas" value={preview.direcciones.nuevas}/><Dark label="Pendientes" value={preview.direcciones.pendientesGeocodificacion}/></div></div></section>}
-<section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"><div className="flex flex-col gap-4 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between"><div><h2 className="text-lg font-black">Houses detectados</h2><p className="mt-1 text-sm text-slate-500">{houses.length} de {(preview.casas??[]).length} visibles.</p></div><div className="flex flex-col gap-2 sm:flex-row"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar House, persona, carnet, dirección…" className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm sm:w-80"/><button type="button" onClick={()=>setAlertsOnly(v=>!v)} className={`rounded-xl border px-4 py-2.5 text-sm font-bold ${alertsOnly?"border-amber-300 bg-amber-50 text-amber-800":"border-slate-300"}`}>{alertsOnly?"Solo alertas ✓":"Solo alertas"}</button></div></div><div className="max-h-[560px] overflow-auto"><table className="min-w-[1200px] w-full text-left text-sm"><thead className="sticky top-0 z-10 bg-slate-100 text-[11px] uppercase tracking-wider text-slate-500"><tr>{["House","Naturaleza","Peso","Bultos","Remitente","Destinatario","Identificación","Dirección","Estado","Destino"].map(h=><th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{houses.map((h,i)=>{const incomplete=!h.destinatarioNombre||!h.direccionDestinatario;return <tr key={`${h.numeroHouse??h.house}-${i}`} className="align-top hover:bg-slate-50"><td className="px-4 py-3 font-black">{h.numeroHouse??h.house??"—"}</td><td className="px-4 py-3 text-slate-600">{h.naturalezaCantidad??"—"}</td><td className="px-4 py-3">{Number(h.pesoKg??0).toFixed(2)} kg</td><td className="px-4 py-3">{Number(h.bultos??h.cantidadBultos??0)}</td><td className="min-w-[180px] px-4 py-3">{h.remitenteNombre??"—"}</td><td className="min-w-[180px] px-4 py-3 font-bold">{h.destinatarioNombre??"—"}</td><td className="px-4 py-3">{h.destinatarioCarnet??"—"}</td><td className="min-w-[260px] px-4 py-3 text-slate-600">{h.direccionDestinatario??"—"}</td><td className="px-4 py-3"><Badge tone={incomplete?"amber":"green"}>{incomplete?"REVISAR":"DATOS OK"}</Badge></td><td className="px-4 py-3">{h.unidadDestino??"—"}</td></tr>})}</tbody></table></div></section>
-{warnings.length>0&&<section className="mt-6 overflow-hidden rounded-3xl border border-amber-200 bg-amber-50"><button type="button" onClick={()=>setWarningsOpen(v=>!v)} className="flex w-full items-center justify-between p-5 text-left"><div><div className="font-black text-amber-950">Advertencias y observaciones</div><div className="mt-1 text-sm text-amber-800">{warnings.length} observaciones.</div></div><span className="text-xl">{warningsOpen?"−":"+"}</span></button>{warningsOpen&&<ul className="space-y-2 border-t border-amber-200 px-5 pb-5 pt-4 text-sm text-amber-950">{warnings.map((w,i)=><li key={i}>• {w}</li>)}</ul>}</section>}
-{!p&&<section className="mt-6 rounded-3xl bg-slate-950 p-6 text-white"><div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between"><div><h2 className="text-xl font-black">Ejecutar importación</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">Abriremos un trabajo monitorizado con Houses, personas, direcciones, dirección actual, velocidad, ETA, cobertura y errores reales.</p></div><button type="button" disabled={starting||!!preview.archivo?.duplicado} onClick={startImport} className="min-w-[230px] rounded-2xl bg-white px-6 py-3.5 text-sm font-black text-slate-950 disabled:opacity-50">{starting?"Iniciando…":preview.archivo?.duplicado?"Manifiesto duplicado":"Importar y monitorizar"}</button></div></section>}</>}
-{p&&<LiveImport progress={p} housePct={housePct} addressPct={addressPct} resolved={resolved} onReset={clear}/>}</div></main>}
-function LiveImport({progress:p,housePct,addressPct,resolved,onReset}:{progress:Progress;housePct:number;addressPct:number;resolved:number;onReset:()=>void}){const running=p.status==="running";const title=p.status==="completed"?"Operación completada":p.status==="failed"?"Operación con errores":"Importación en curso";return <section className="mt-6 space-y-5"><div className={`rounded-3xl border p-6 shadow-sm ${p.status==="completed"?"border-emerald-200 bg-emerald-50":p.status==="failed"?"border-red-200 bg-red-50":"border-blue-200 bg-white"}`}><div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><div className="flex items-center gap-3"><span className={`h-3 w-3 rounded-full ${running?"animate-pulse bg-blue-500":p.status==="completed"?"bg-emerald-500":"bg-red-500"}`}/><h2 className="text-2xl font-black">{title}</h2></div><p className="mt-2 text-sm text-slate-600">{p.message}</p></div><Badge tone={p.status==="completed"?"green":p.status==="failed"?"red":"blue"}>{p.stage.replaceAll("_"," ").toUpperCase()}</Badge></div><div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><LiveKpi label="Houses" value={`${p.processedHouses} / ${p.totalHouses}`} sub={`${housePct}%`}/><LiveKpi label="Personas" value={`${p.processedPeople} / ${p.totalPeople}`} sub="únicas verificadas"/><LiveKpi label="Direcciones" value={`${p.processedAddresses} / ${p.totalAddresses}`} sub={`${addressPct}% procesadas`}/><LiveKpi label="Cobertura" value={`${p.coverage}%`} sub={`${resolved} con resultado`}/></div><div className="mt-5 grid gap-4 lg:grid-cols-2"><ProgressBar label="Procesamiento de Houses" pct={housePct}/><ProgressBar label="Procesamiento de direcciones" pct={addressPct}/></div></div><div className="grid gap-5 lg:grid-cols-[1.4fr_.6fr]"><section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h3 className="text-lg font-black">Telemetría de ejecución</h3><div className="mt-5 grid gap-3 sm:grid-cols-2"><LiveKpi label="Velocidad" value={`${p.housesPerMinute.toFixed(1)} Houses/min`} sub="ritmo observado"/><LiveKpi label="Tiempo transcurrido" value={formatDuration(p.elapsedMs)} sub="desde el inicio"/><LiveKpi label="ETA" value={p.etaSeconds==null?"Calculando…":formatDuration(p.etaSeconds*1000)} sub="basada en ritmo real"/><LiveKpi label="Errores / revisión" value={`${p.errors} / ${p.addressesReview}`} sub={`${p.addressesNotFound} no encontradas`}/></div>{p.currentAddress&&<div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-4"><div className="text-[10px] font-black uppercase tracking-widest text-blue-600">Dirección actualmente procesada</div><div className="mt-2 break-words text-sm font-bold text-blue-950">{p.currentAddress}</div></div>}</section><section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h3 className="text-lg font-black">Resultado de direcciones</h3><div className="mt-5 grid grid-cols-2 gap-3"><LiveKpi label="Geocodificadas" value={p.addressesGeocoded} sub="nuevos resultados"/><LiveKpi label="Reutilizadas" value={p.addressesReused} sub="sin nueva consulta"/><LiveKpi label="No encontradas" value={p.addressesNotFound} sub="requieren atención"/><LiveKpi label="Revisión" value={p.addressesReview} sub="casos pendientes"/></div></section></div>{p.error&&<div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-900">{p.error}</div>}{!running&&<div className="flex justify-end"><button type="button" onClick={onReset} className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white">Importar otro manifiesto</button></div>}</section>}
-function Kpi({label,value,detail}:{label:string;value:string|number;detail?:string}){return <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="text-[11px] font-black uppercase tracking-widest text-slate-400">{label}</div><div className="mt-2 break-words text-2xl font-black">{value}</div>{detail&&<div className="mt-1 text-xs text-slate-500">{detail}</div>}</div>}
-function LiveKpi({label,value,sub}:{label:string;value:string|number;sub:string}){return <div className="rounded-2xl bg-slate-50 p-4"><div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</div><div className="mt-1 text-xl font-black">{value}</div><div className="mt-1 text-xs text-slate-500">{sub}</div></div>}
-function ProgressBar({label,pct}:{label:string;pct:number}){return <div><div className="flex justify-between text-xs font-bold text-slate-600"><span>{label}</span><span>{pct}%</span></div><div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-slate-950 transition-all duration-500" style={{width:`${Math.min(100,pct)}%`}}/></div></div>}
-function Dark({label,value}:{label:string;value:string|number}){return <div className="rounded-2xl border border-white/10 bg-white/5 p-4"><div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</div><div className="mt-1 text-xl font-black">{value}</div></div>}
-function Info({label,value}:{label:string;value:string}){return <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"><div className="text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</div><div className="mt-0.5 max-w-[220px] truncate text-xs font-bold">{value}</div></div>}
-function Stage({title,text,done}:{title:string;text:string;done:boolean}){return <div className={`rounded-2xl border p-4 ${done?"border-emerald-200 bg-emerald-50":"border-slate-200 bg-slate-50"}`}><div className="flex items-center gap-3"><div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-black text-white ${done?"bg-emerald-600":"bg-slate-300"}`}>{done?"✓":"·"}</div><div><div className="font-black">{title}</div><div className="text-xs text-slate-500">{text}</div></div></div></div>}
-function Badge({tone,children}:{tone:Tone;children:ReactNode}){const styles=tone==="green"?"bg-emerald-100 text-emerald-800":tone==="amber"?"bg-amber-100 text-amber-800":tone==="red"?"bg-red-100 text-red-800":tone==="blue"?"bg-blue-100 text-blue-800":"bg-slate-100 text-slate-700";return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black tracking-wide ${styles}`}>{children}</span>}
-function Banner({tone,title,text,spin}:{tone:"blue"|"red";title:string;text:string;spin?:boolean}){return <section className={`mt-6 rounded-2xl border p-5 ${tone==="blue"?"border-blue-200 bg-blue-50 text-blue-950":"border-red-200 bg-red-50 text-red-950"}`}><div className="flex gap-3"><div>{spin?<div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"/>:"⚠"}</div><div><div className="font-black">{title}</div><div className="mt-1 text-sm opacity-80">{text}</div></div></div></section>}
-function formatDate(v:string){const d=new Date(v);return Number.isNaN(d.getTime())?v:new Intl.DateTimeFormat("es-ES",{dateStyle:"medium"}).format(d)}
-function formatDuration(ms:number){const s=Math.max(0,Math.round(ms/1000));if(s<60)return `${s}s`;const m=Math.floor(s/60),r=s%60;if(m<60)return `${m}m ${r}s`;return `${Math.floor(m/60)}h ${m%60}m`}
+interface HousePreview {
+  numeroHouse?: string;
+  house?: string;
+  naturalezaCantidad?: string;
+  pesoKg?: number;
+  bultos?: number;
+  cantidadBultos?: number;
+  remitenteNombre?: string;
+  destinatarioNombre?: string;
+  destinatarioCarnet?: string | null;
+  telefonoDestinatario?: string | null;
+  direccionDestinatario?: string | null;
+  unidadDestino?: string | null;
+}
+interface PreviewResponse {
+  ok: boolean;
+  mensaje?: string;
+  archivo?: { nombre: string; hash: string; duplicado: boolean };
+  metadata?: {
+    masterAwb?: string | null;
+    fecha?: string | null;
+    agenteTransitario?: string | null;
+    paisOrigen?: string | null;
+    consignatario?: string | null;
+  };
+  total?: {
+    cantidadHouses: number;
+    cantidadSacas: number;
+    cantidadPersonas: number;
+    pesoTotalKg: number;
+  };
+  registros?: number;
+  casas?: HousePreview[];
+  warnings?: string[];
+  direcciones?: {
+    total: number;
+    encontradas: number;
+    reutilizables: number;
+    pendientesGeocodificacion: number;
+    nuevas: number;
+    sinDireccion: number;
+    cobertura: number;
+    personasConDireccion: number;
+    personasSinDireccion: number;
+    warnings: string[];
+  };
+}
+interface Progress {
+  jobId: string;
+  stage:
+    | "queued"
+    | "parsing"
+    | "creating_guides"
+    | "processing_addresses"
+    | "completed"
+    | "failed";
+  status: "running" | "completed" | "failed";
+  message: string;
+  totalHouses: number;
+  processedHouses: number;
+  totalPeople: number;
+  processedPeople: number;
+  totalAddresses: number;
+  processedAddresses: number;
+  addressesGeocoded: number;
+  addressesReused: number;
+  addressesNotFound: number;
+  addressesReview: number;
+  errors: number;
+  currentAddress: string | null;
+  startedAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+  elapsedMs: number;
+  housesPerMinute: number;
+  etaSeconds: number | null;
+  coverage: number;
+  error: string | null;
+}
+type Tone = "green" | "amber" | "red" | "blue" | "slate";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+export default function ImportarManifiestoPage() {
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [preview, setPreview] = useState<PreviewResponse | null>(null);
+  const [progress, setProgress] = useState<Progress | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [alertsOnly, setAlertsOnly] = useState(false);
+  const [warningsOpen, setWarningsOpen] = useState(false);
+  const selectFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setArchivo(file);
+    setPreview(null);
+    setProgress(null);
+    setError("");
+    setQuery("");
+    setAlertsOnly(false);
+    if (file) await loadPreview(file);
+  };
+  const loadPreview = async (file: File) => {
+    setLoading(true);
+    try {
+      const body = new FormData();
+      body.append("archivo", file);
+      const r = await fetch(`${apiUrl}/api/guias/importar/preview`, {
+        method: "POST",
+        body,
+      });
+      const d = (await r.json().catch(() => null)) as PreviewResponse | null;
+      if (!r.ok || !d?.ok)
+        throw new Error(
+          d?.mensaje ?? `El servidor respondió HTTP ${r.status}.`,
+        );
+      setPreview(d);
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "No fue posible analizar el manifiesto.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+  const startImport = async () => {
+    if (!archivo) return setError("Seleccione un archivo de manifiesto.");
+    setStarting(true);
+    setError("");
+    try {
+      const body = new FormData();
+      body.append("archivo", archivo);
+      const r = await fetch(`${apiUrl}/api/guias/importar/job`, {
+        method: "POST",
+        body,
+      });
+      const d = (await r.json().catch(() => null)) as {
+        ok?: boolean;
+        jobId?: string;
+        progress?: Progress;
+        message?: string;
+      } | null;
+      if (!r.ok || !d?.ok || !d.jobId)
+        throw new Error(
+          d?.message ??
+            `No fue posible iniciar la importación (HTTP ${r.status}).`,
+        );
+      setProgress(d.progress ?? null);
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "No fue posible iniciar la importación.",
+      );
+    } finally {
+      setStarting(false);
+    }
+  };
+  useEffect(() => {
+    if (!progress?.jobId || progress.status !== "running") return;
+    const timer = window.setInterval(async () => {
+      try {
+        const r = await fetch(
+          `${apiUrl}/api/guias/importar/job/${progress.jobId}`,
+          { cache: "no-store" },
+        );
+        if (r.ok) {
+          const d = (await r.json()) as { progress: Progress };
+          setProgress(d.progress);
+        }
+      } catch {
+        /* conserva el último estado real */
+      }
+    }, 900);
+    return () => window.clearInterval(timer);
+  }, [progress?.jobId, progress?.status]);
+  const clear = () => {
+    setArchivo(null);
+    setPreview(null);
+    setProgress(null);
+    setError("");
+    setQuery("");
+    setAlertsOnly(false);
+    const i = document.getElementById(
+      "archivo-manifiesto",
+    ) as HTMLInputElement | null;
+    if (i) i.value = "";
+  };
+  const houses = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (preview?.casas ?? []).filter((h) => {
+      const text = [
+        h.numeroHouse ?? h.house,
+        h.naturalezaCantidad,
+        h.remitenteNombre,
+        h.destinatarioNombre,
+        h.destinatarioCarnet,
+        h.telefonoDestinatario,
+        h.direccionDestinatario,
+        h.unidadDestino,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      const alert = !h.destinatarioNombre || !h.direccionDestinatario;
+      return (!q || text.includes(q)) && (!alertsOnly || alert);
+    });
+  }, [preview?.casas, query, alertsOnly]);
+  const warnings = [
+    ...(preview?.warnings ?? []),
+    ...(preview?.direcciones?.warnings ?? []),
+  ];
+  const p = progress;
+  const housePct = p?.totalHouses
+    ? Math.round((p.processedHouses / p.totalHouses) * 100)
+    : 0;
+  const addressPct = p?.totalAddresses
+    ? Math.round((p.processedAddresses / p.totalAddresses) * 100)
+    : 0;
+  const resolved = (p?.addressesGeocoded ?? 0) + (p?.addressesReused ?? 0);
+  return (
+    <main className="min-h-screen bg-[#f4f7fb] pb-16 text-slate-900">
+      <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
+        <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <a href="/dashboard" className="text-sm font-medium text-slate-500">
+              ← Dashboard
+            </a>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-xl text-white">
+                ⇧
+              </div>
+              <div>
+                <h1 className="text-3xl font-black tracking-tight">
+                  Centro de Control de Importación
+                </h1>
+                <p className="mt-1 text-sm text-slate-500">
+                  Validación, ejecución y trazabilidad en tiempo real.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-bold text-emerald-700">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" /> API
+            operativa
+          </div>
+        </header>
+        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="grid lg:grid-cols-[1.2fr_.8fr]">
+            <label
+              htmlFor="archivo-manifiesto"
+              className="flex min-h-[185px] cursor-pointer items-center border-b border-slate-200 p-7 hover:bg-slate-50 lg:border-b-0 lg:border-r"
+            >
+              <input
+                id="archivo-manifiesto"
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={selectFile}
+                className="hidden"
+              />
+              <div className="flex gap-5">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-2xl text-white">
+                  ⌁
+                </div>
+                <div>
+                  <div className="text-xs font-black uppercase tracking-widest text-slate-400">
+                    Entrada operacional
+                  </div>
+                  <p className="mt-1 text-xl font-black">
+                    Seleccionar manifiesto
+                  </p>
+                  <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">
+                    XLSX, XLS o CSV. La validación comienza automáticamente y la
+                    importación se ejecuta como trabajo monitorizado.
+                  </p>
+                  <span className="mt-4 inline-flex rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white">
+                    Elegir archivo
+                  </span>
+                </div>
+              </div>
+            </label>
+            <div className="flex min-h-[185px] flex-col justify-center p-7">
+              {archivo ? (
+                <>
+                  <div className="text-xs font-black uppercase tracking-widest text-slate-400">
+                    Archivo seleccionado
+                  </div>
+                  <div className="mt-2 break-all text-lg font-black">
+                    {archivo.name}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-500">
+                    {(archivo.size / 1024).toFixed(1)} KB ·{" "}
+                    {archivo.type || "tipo detectado por extensión"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clear}
+                    className="mt-5 w-fit rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold"
+                  >
+                    Cambiar / limpiar
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="text-xs font-black uppercase tracking-widest text-slate-400">
+                    Pipeline
+                  </div>
+                  <p className="mt-2 text-base font-bold">
+                    Archivo → diagnóstico → ejecución → geocodificación →
+                    auditoría
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    La pantalla no inventa progreso: cada indicador proviene del
+                    estado real del trabajo.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+        {loading && (
+          <Banner
+            tone="blue"
+            title="Analizando manifiesto"
+            text="Leyendo estructura, Houses, personas y diagnóstico de direcciones…"
+            spin
+          />
+        )}
+        {error && <Banner tone="red" title="Operación detenida" text={error} />}
+        {preview?.ok && preview.total && (
+          <>
+            <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <Kpi
+                label="Master AWB"
+                value={preview.metadata?.masterAwb ?? "—"}
+                detail={
+                  preview.metadata?.fecha
+                    ? formatDate(preview.metadata.fecha)
+                    : "Fecha no detectada"
+                }
+              />
+              <Kpi
+                label="Houses"
+                value={preview.total.cantidadHouses}
+                detail={`${preview.registros ?? preview.total.cantidadHouses} filas reconocidas`}
+              />
+              <Kpi
+                label="Bultos"
+                value={preview.total.cantidadSacas}
+                detail="Declarados"
+              />
+              <Kpi
+                label="Personas"
+                value={preview.total.cantidadPersonas}
+                detail="Declaradas"
+              />
+              <Kpi
+                label="Peso total"
+                value={`${Number(preview.total.pesoTotalKg).toFixed(2)} kg`}
+                detail="Declarado"
+              />
+            </section>
+            <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-4 lg:flex-row lg:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-xl font-black">
+                      Diagnóstico antes de ejecutar
+                    </h2>
+                    <Badge
+                      tone={preview.archivo?.duplicado ? "amber" : "green"}
+                    >
+                      {preview.archivo?.duplicado ? "DUPLICADO" : "LISTO"}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Lectura real del API; aquí todavía no se modifica la base de
+                    datos.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Info
+                    label="Agente"
+                    value={preview.metadata?.agenteTransitario ?? "—"}
+                  />
+                  <Info
+                    label="Origen"
+                    value={preview.metadata?.paisOrigen ?? "—"}
+                  />
+                  <Info
+                    label="Consignatario"
+                    value={preview.metadata?.consignatario ?? "—"}
+                  />
+                </div>
+              </div>
+              <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                <Stage title="Archivo" text="Recibido" done />
+                <Stage title="Parser" text="Estructura válida" done />
+                <Stage
+                  title="Personas"
+                  text={`${preview.total.cantidadPersonas} declaradas`}
+                  done
+                />
+                <Stage
+                  title="Direcciones"
+                  text={`${preview.direcciones?.total ?? 0} diagnosticadas`}
+                  done={!!preview.direcciones}
+                />
+                <Stage
+                  title="Geocodificación"
+                  text="Se ejecutará al importar"
+                  done={false}
+                />
+              </div>
+            </section>
+            {preview.direcciones && (
+              <section className="mt-6 rounded-3xl bg-slate-950 p-6 text-white shadow-lg">
+                <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-xl font-black">
+                      Inteligencia de direcciones
+                    </h2>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                      Reutilización, nuevas direcciones y casos que requerirán
+                      geocodificación o revisión.
+                    </p>
+                    <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-emerald-400"
+                        style={{ width: `${preview.direcciones.cobertura}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid w-full gap-2 sm:grid-cols-2 xl:w-[650px] xl:grid-cols-4">
+                    <Dark
+                      label="Cobertura"
+                      value={`${preview.direcciones.cobertura}%`}
+                    />
+                    <Dark
+                      label="Reutilizables"
+                      value={preview.direcciones.reutilizables}
+                    />
+                    <Dark label="Nuevas" value={preview.direcciones.nuevas} />
+                    <Dark
+                      label="Pendientes"
+                      value={preview.direcciones.pendientesGeocodificacion}
+                    />
+                  </div>
+                </div>
+              </section>
+            )}
+            <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex flex-col gap-4 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-lg font-black">Houses detectados</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {houses.length} de {(preview.casas ?? []).length} visibles.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Buscar House, persona, carnet, dirección…"
+                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm sm:w-80"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAlertsOnly((v) => !v)}
+                    className={`rounded-xl border px-4 py-2.5 text-sm font-bold ${alertsOnly ? "border-amber-300 bg-amber-50 text-amber-800" : "border-slate-300"}`}
+                  >
+                    {alertsOnly ? "Solo alertas ✓" : "Solo alertas"}
+                  </button>
+                </div>
+              </div>
+              <div className="max-h-[560px] overflow-auto">
+                <table className="min-w-[1200px] w-full text-left text-sm">
+                  <thead className="sticky top-0 z-10 bg-slate-100 text-[11px] uppercase tracking-wider text-slate-500">
+                    <tr>
+                      {[
+                        "House",
+                        "Naturaleza",
+                        "Peso",
+                        "Bultos",
+                        "Remitente",
+                        "Destinatario",
+                        "Identificación",
+                        "Dirección",
+                        "Estado",
+                        "Destino",
+                      ].map((h) => (
+                        <th key={h} className="px-4 py-3">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {houses.map((h, i) => {
+                      const incomplete =
+                        !h.destinatarioNombre || !h.direccionDestinatario;
+                      return (
+                        <tr
+                          key={`${h.numeroHouse ?? h.house}-${i}`}
+                          className="align-top hover:bg-slate-50"
+                        >
+                          <td className="px-4 py-3 font-black">
+                            {h.numeroHouse ?? h.house ?? "—"}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">
+                            {h.naturalezaCantidad ?? "—"}
+                          </td>
+                          <td className="px-4 py-3">
+                            {Number(h.pesoKg ?? 0).toFixed(2)} kg
+                          </td>
+                          <td className="px-4 py-3">
+                            {Number(h.bultos ?? h.cantidadBultos ?? 0)}
+                          </td>
+                          <td className="min-w-[180px] px-4 py-3">
+                            {h.remitenteNombre ?? "—"}
+                          </td>
+                          <td className="min-w-[180px] px-4 py-3 font-bold">
+                            {h.destinatarioNombre ?? "—"}
+                          </td>
+                          <td className="px-4 py-3">
+                            {h.destinatarioCarnet ?? "—"}
+                          </td>
+                          <td className="min-w-[260px] px-4 py-3 text-slate-600">
+                            {h.direccionDestinatario ?? "—"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge tone={incomplete ? "amber" : "green"}>
+                              {incomplete ? "REVISAR" : "DATOS OK"}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            {h.unidadDestino ?? "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            {warnings.length > 0 && (
+              <section className="mt-6 overflow-hidden rounded-3xl border border-amber-200 bg-amber-50">
+                <button
+                  type="button"
+                  onClick={() => setWarningsOpen((v) => !v)}
+                  className="flex w-full items-center justify-between p-5 text-left"
+                >
+                  <div>
+                    <div className="font-black text-amber-950">
+                      Advertencias y observaciones
+                    </div>
+                    <div className="mt-1 text-sm text-amber-800">
+                      {warnings.length} observaciones.
+                    </div>
+                  </div>
+                  <span className="text-xl">{warningsOpen ? "−" : "+"}</span>
+                </button>
+                {warningsOpen && (
+                  <ul className="space-y-2 border-t border-amber-200 px-5 pb-5 pt-4 text-sm text-amber-950">
+                    {warnings.map((w, i) => (
+                      <li key={i}>• {w}</li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
+            {!p && (
+              <section className="mt-6 rounded-3xl bg-slate-950 p-6 text-white">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h2 className="text-xl font-black">Ejecutar importación</h2>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                      Abriremos un trabajo monitorizado con Houses, personas,
+                      direcciones, dirección actual, velocidad, ETA, cobertura y
+                      errores reales.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={starting || !!preview.archivo?.duplicado}
+                    onClick={startImport}
+                    className="min-w-[230px] rounded-2xl bg-white px-6 py-3.5 text-sm font-black text-slate-950 disabled:opacity-50"
+                  >
+                    {starting
+                      ? "Iniciando…"
+                      : preview.archivo?.duplicado
+                        ? "Manifiesto duplicado"
+                        : "Importar y monitorizar"}
+                  </button>
+                </div>
+              </section>
+            )}
+          </>
+        )}
+        {p && (
+          <LiveImport
+            progress={p}
+            housePct={housePct}
+            addressPct={addressPct}
+            resolved={resolved}
+            onReset={clear}
+          />
+        )}
+      </div>
+    </main>
+  );
+}
+function LiveImport({
+  progress: p,
+  housePct,
+  addressPct,
+  resolved,
+  onReset,
+}: {
+  progress: Progress;
+  housePct: number;
+  addressPct: number;
+  resolved: number;
+  onReset: () => void;
+}) {
+  const running = p.status === "running";
+  const title =
+    p.status === "completed"
+      ? "Operación completada"
+      : p.status === "failed"
+        ? "Operación con errores"
+        : "Importación en curso";
+  return (
+    <section className="mt-6 space-y-5">
+      <div
+        className={`rounded-3xl border p-6 shadow-sm ${p.status === "completed" ? "border-emerald-200 bg-emerald-50" : p.status === "failed" ? "border-red-200 bg-red-50" : "border-blue-200 bg-white"}`}
+      >
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <span
+                className={`h-3 w-3 rounded-full ${running ? "animate-pulse bg-blue-500" : p.status === "completed" ? "bg-emerald-500" : "bg-red-500"}`}
+              />
+              <h2 className="text-2xl font-black">{title}</h2>
+            </div>
+            <p className="mt-2 text-sm text-slate-600">{p.message}</p>
+          </div>
+          <Badge
+            tone={
+              p.status === "completed"
+                ? "green"
+                : p.status === "failed"
+                  ? "red"
+                  : "blue"
+            }
+          >
+            {p.stage.replaceAll("_", " ").toUpperCase()}
+          </Badge>
+        </div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <LiveKpi
+            label="Houses"
+            value={`${p.processedHouses} / ${p.totalHouses}`}
+            sub={`${housePct}%`}
+          />
+          <LiveKpi
+            label="Personas"
+            value={`${p.processedPeople} / ${p.totalPeople}`}
+            sub="únicas verificadas"
+          />
+          <LiveKpi
+            label="Direcciones"
+            value={`${p.processedAddresses} / ${p.totalAddresses}`}
+            sub={`${addressPct}% procesadas`}
+          />
+          <LiveKpi
+            label="Cobertura"
+            value={`${p.coverage}%`}
+            sub={`${resolved} con resultado`}
+          />
+        </div>
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <ProgressBar label="Procesamiento de Houses" pct={housePct} />
+          <ProgressBar label="Procesamiento de direcciones" pct={addressPct} />
+        </div>
+      </div>
+      <div className="grid gap-5 lg:grid-cols-[1.4fr_.6fr]">
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-black">Telemetría de ejecución</h3>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <LiveKpi
+              label="Velocidad"
+              value={`${p.housesPerMinute.toFixed(1)} Houses/min`}
+              sub="ritmo observado"
+            />
+            <LiveKpi
+              label="Tiempo transcurrido"
+              value={formatDuration(p.elapsedMs)}
+              sub="desde el inicio"
+            />
+            <LiveKpi
+              label="ETA"
+              value={
+                p.etaSeconds == null
+                  ? "Calculando…"
+                  : formatDuration(p.etaSeconds * 1000)
+              }
+              sub="basada en ritmo real"
+            />
+            <LiveKpi
+              label="Errores / revisión"
+              value={`${p.errors} / ${p.addressesReview}`}
+              sub={`${p.addressesNotFound} no encontradas`}
+            />
+          </div>
+          {p.currentAddress && (
+            <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+              <div className="text-[10px] font-black uppercase tracking-widest text-blue-600">
+                Dirección actualmente procesada
+              </div>
+              <div className="mt-2 break-words text-sm font-bold text-blue-950">
+                {p.currentAddress}
+              </div>
+            </div>
+          )}
+        </section>
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-black">Resultado de direcciones</h3>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <LiveKpi
+              label="Geocodificadas"
+              value={p.addressesGeocoded}
+              sub="nuevos resultados"
+            />
+            <LiveKpi
+              label="Reutilizadas"
+              value={p.addressesReused}
+              sub="sin nueva consulta"
+            />
+            <LiveKpi
+              label="No encontradas"
+              value={p.addressesNotFound}
+              sub="requieren atención"
+            />
+            <LiveKpi
+              label="Revisión"
+              value={p.addressesReview}
+              sub="casos pendientes"
+            />
+          </div>
+        </section>
+      </div>
+      {p.error && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-900">
+          {p.error}
+        </div>
+      )}
+      {!running && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onReset}
+            className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white"
+          >
+            Importar otro manifiesto
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+function Kpi({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string | number;
+  detail?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+        {label}
+      </div>
+      <div className="mt-2 break-words text-2xl font-black">{value}</div>
+      {detail && <div className="mt-1 text-xs text-slate-500">{detail}</div>}
+    </div>
+  );
+}
+function LiveKpi({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string | number;
+  sub: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-slate-50 p-4">
+      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+        {label}
+      </div>
+      <div className="mt-1 text-xl font-black">{value}</div>
+      <div className="mt-1 text-xs text-slate-500">{sub}</div>
+    </div>
+  );
+}
+function ProgressBar({ label, pct }: { label: string; pct: number }) {
+  return (
+    <div>
+      <div className="flex justify-between text-xs font-bold text-slate-600">
+        <span>{label}</span>
+        <span>{pct}%</span>
+      </div>
+      <div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-100">
+        <div
+          className="h-full rounded-full bg-slate-950 transition-all duration-500"
+          style={{ width: `${Math.min(100, pct)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+function Dark({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+        {label}
+      </div>
+      <div className="mt-1 text-xl font-black">{value}</div>
+    </div>
+  );
+}
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+      <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+        {label}
+      </div>
+      <div className="mt-0.5 max-w-[220px] truncate text-xs font-bold">
+        {value}
+      </div>
+    </div>
+  );
+}
+function Stage({
+  title,
+  text,
+  done,
+}: {
+  title: string;
+  text: string;
+  done: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border p-4 ${done ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-black text-white ${done ? "bg-emerald-600" : "bg-slate-300"}`}
+        >
+          {done ? "✓" : "·"}
+        </div>
+        <div>
+          <div className="font-black">{title}</div>
+          <div className="text-xs text-slate-500">{text}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+function Badge({ tone, children }: { tone: Tone; children: ReactNode }) {
+  const styles =
+    tone === "green"
+      ? "bg-emerald-100 text-emerald-800"
+      : tone === "amber"
+        ? "bg-amber-100 text-amber-800"
+        : tone === "red"
+          ? "bg-red-100 text-red-800"
+          : tone === "blue"
+            ? "bg-blue-100 text-blue-800"
+            : "bg-slate-100 text-slate-700";
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black tracking-wide ${styles}`}
+    >
+      {children}
+    </span>
+  );
+}
+function Banner({
+  tone,
+  title,
+  text,
+  spin,
+}: {
+  tone: "blue" | "red";
+  title: string;
+  text: string;
+  spin?: boolean;
+}) {
+  return (
+    <section
+      className={`mt-6 rounded-2xl border p-5 ${tone === "blue" ? "border-blue-200 bg-blue-50 text-blue-950" : "border-red-200 bg-red-50 text-red-950"}`}
+    >
+      <div className="flex gap-3">
+        <div>
+          {spin ? (
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          ) : (
+            "⚠"
+          )}
+        </div>
+        <div>
+          <div className="font-black">{title}</div>
+          <div className="mt-1 text-sm opacity-80">{text}</div>
+        </div>
+      </div>
+    </section>
+  );
+}
+function formatDate(v: string) {
+  const d = new Date(v);
+  return Number.isNaN(d.getTime())
+    ? v
+    : new Intl.DateTimeFormat("es-ES", { dateStyle: "medium" }).format(d);
+}
+function formatDuration(ms: number) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60),
+    r = s % 60;
+  if (m < 60) return `${m}m ${r}s`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+}

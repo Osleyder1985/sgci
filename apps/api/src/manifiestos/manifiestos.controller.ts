@@ -40,7 +40,10 @@ export class ManifiestosController {
     this.validarArchivo(archivo);
     const [preview, diagnostico] = await Promise.all([
       this.manifiestosService.preview(archivo.buffer, archivo.originalname),
-      this.diagnosticoService.analizarArchivo(archivo.buffer, archivo.originalname),
+      this.diagnosticoService.analizarArchivo(
+        archivo.buffer,
+        archivo.originalname,
+      ),
     ]);
     return { ...preview, direcciones: diagnostico };
   }
@@ -49,7 +52,10 @@ export class ManifiestosController {
   @UseInterceptors(FileInterceptor('archivo'))
   async importar(@UploadedFile() archivo?: UploadedManifestFile) {
     this.validarArchivo(archivo);
-    return this.manifiestosService.importar(archivo.buffer, archivo.originalname);
+    return this.manifiestosService.importar(
+      archivo.buffer,
+      archivo.originalname,
+    );
   }
 
   @Post('importar/job')
@@ -58,10 +64,15 @@ export class ManifiestosController {
     this.validarArchivo(archivo);
     const [preview, diagnostico] = await Promise.all([
       this.manifiestosService.preview(archivo.buffer, archivo.originalname),
-      this.diagnosticoService.analizarArchivo(archivo.buffer, archivo.originalname),
+      this.diagnosticoService.analizarArchivo(
+        archivo.buffer,
+        archivo.originalname,
+      ),
     ]);
     if (preview.archivo?.duplicado) {
-      throw new BadRequestException('El manifiesto ya fue importado anteriormente.');
+      throw new BadRequestException(
+        'El manifiesto ya fue importado anteriormente.',
+      );
     }
     const job = this.progress.create(
       preview.total?.cantidadHouses ?? preview.registros ?? 0,
