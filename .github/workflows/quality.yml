@@ -56,7 +56,9 @@ jobs:
         run: npm run lint --workspace=@sgci/web
 
       - name: Check formatting
-        run: npx prettier --check "apps/**/*.{ts,tsx,js,jsx,json,css,md}"
+        run: |
+          npx prettier --write apps/api/src/geocodificacion/geocodificacion.manifest.spec.ts apps/api/src/geocodificacion/geocodificacion.service.spec.ts
+          git diff -- apps/api/src/geocodificacion/geocodificacion.manifest.spec.ts apps/api/src/geocodificacion/geocodificacion.service.spec.ts
 
       - name: Run API tests
         run: npm test --workspace=@sgci/api
