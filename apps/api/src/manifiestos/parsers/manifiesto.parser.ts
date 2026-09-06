@@ -1170,7 +1170,7 @@ export class ManifiestoParser {
     }
 
     // DD/MM/YYYY
-    const match = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+    const match = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
 
     if (match) {
       const day = Number(match[1]);
