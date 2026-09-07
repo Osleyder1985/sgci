@@ -33,8 +33,11 @@ export class CubaTerritorialService {
     if (!texto) return null;
 
     const catalogo = await this.obtenerCatalogo();
-    const provincia = this.buscarUnico(catalogo, (item) =>
-      !item.municipio && this.contieneTerritorio(texto, item.provinciaNormalizada),
+    const provincia = this.buscarUnico(
+      catalogo,
+      (item) =>
+        !item.municipio &&
+        this.contieneTerritorio(texto, item.provinciaNormalizada),
     );
 
     // Municipality/locality can identify the province even when the address
@@ -50,7 +53,10 @@ export class CubaTerritorialService {
     const provinciaNormalizada =
       provincia?.provinciaNormalizada ?? municipio?.provinciaNormalizada;
     if (!provinciaNormalizada) {
-      const localidadSinContexto = this.buscarLocalidadSinContexto(catalogo, texto);
+      const localidadSinContexto = this.buscarLocalidadSinContexto(
+        catalogo,
+        texto,
+      );
       if (!localidadSinContexto) return null;
       return this.resultado(localidadSinContexto);
     }
@@ -59,7 +65,8 @@ export class CubaTerritorialService {
       (item) =>
         item.localidad &&
         item.provinciaNormalizada === provinciaNormalizada &&
-        (!municipio || item.municipioNormalizado === municipio.municipioNormalizado) &&
+        (!municipio ||
+          item.municipioNormalizado === municipio.municipioNormalizado) &&
         this.contieneTerritorio(texto, item.localidadNormalizada!),
     );
     const localidad = this.elegirLocalidad(localidades);
@@ -69,7 +76,8 @@ export class CubaTerritorialService {
       municipio: municipio?.municipio ?? localidad?.municipio,
       localidad: localidad?.localidad,
       provinciaNormalizada,
-      municipioNormalizado: municipio?.municipioNormalizado ?? localidad?.municipioNormalizado,
+      municipioNormalizado:
+        municipio?.municipioNormalizado ?? localidad?.municipioNormalizado,
       localidadNormalizada: localidad?.localidadNormalizada,
       confianza: localidad || municipio ? 'ALTA' : 'MEDIA',
     };
@@ -81,8 +89,8 @@ export class CubaTerritorialService {
   ): TerritorioCatalogo | undefined {
     const matches = catalogo.filter(predicate);
     if (!matches.length) return undefined;
-    return matches.sort((a, b) =>
-      this.longitudTerritorio(b) - this.longitudTerritorio(a),
+    return matches.sort(
+      (a, b) => this.longitudTerritorio(b) - this.longitudTerritorio(a),
     )[0];
   }
 
@@ -91,7 +99,10 @@ export class CubaTerritorialService {
     provincia?: TerritorioCatalogo,
   ): TerritorioCatalogo | undefined {
     const scoped = provincia
-      ? matches.filter((item) => item.provinciaNormalizada === provincia.provinciaNormalizada)
+      ? matches.filter(
+          (item) =>
+            item.provinciaNormalizada === provincia.provinciaNormalizada,
+        )
       : matches;
     if (!scoped.length) return undefined;
 
@@ -109,7 +120,9 @@ export class CubaTerritorialService {
     )[0];
   }
 
-  private elegirLocalidad(matches: TerritorioCatalogo[]): TerritorioCatalogo | undefined {
+  private elegirLocalidad(
+    matches: TerritorioCatalogo[],
+  ): TerritorioCatalogo | undefined {
     if (!matches.length) return undefined;
     return matches.sort(
       (a, b) => this.longitudTerritorio(b) - this.longitudTerritorio(a),
@@ -122,7 +135,8 @@ export class CubaTerritorialService {
   ): TerritorioCatalogo | undefined {
     const matches = catalogo.filter(
       (item) =>
-        item.localidad && this.contieneTerritorio(texto, item.localidadNormalizada!),
+        item.localidad &&
+        this.contieneTerritorio(texto, item.localidadNormalizada!),
     );
     const distinct = new Map(
       matches.map((item) => [
@@ -164,13 +178,23 @@ export class CubaTerritorialService {
       FROM "CatalogoProvinciaCubana" WHERE "activo" = true
     `;
     const municipios = await this.prisma.$queryRaw<
-      Array<{ id: number; nombre: string; nombreNormalizado: string; provinciaId: number }>
+      Array<{
+        id: number;
+        nombre: string;
+        nombreNormalizado: string;
+        provinciaId: number;
+      }>
     >`
       SELECT "id", "nombre", "nombreNormalizado", "provinciaId"
       FROM "CatalogoMunicipioCubano" WHERE "activo" = true
     `;
     const localidades = await this.prisma.$queryRaw<
-      Array<{ id: number; nombre: string; nombreNormalizado: string; municipioId: number }>
+      Array<{
+        id: number;
+        nombre: string;
+        nombreNormalizado: string;
+        municipioId: number;
+      }>
     >`
       SELECT "id", "nombre", "nombreNormalizado", "municipioId"
       FROM "CatalogoLocalidadCubana" WHERE "activo" = true
@@ -268,7 +292,9 @@ export class CubaTerritorialService {
 
   private contieneTerritorio(texto: string, territorio: string): boolean {
     if (!territorio) return false;
-    const patron = new RegExp(`(?:^| )${this.escapeRegex(territorio)}(?: |$)`);
+    const patron = new RegExp(
+      `(?:^| )${this.escapeRegex(territorio)}(?: |$)`,
+    );
     return patron.test(texto);
   }
 
