@@ -63,7 +63,11 @@ export class CubaTerritorialService {
         !item.consejoPopular &&
         this.contieneTerritorio(texto, item.municipioNormalizado!),
     );
-    const municipio = this.elegirMunicipio(municipioCoincidencias, provincia);
+    const municipio = this.elegirMunicipio(
+      municipioCoincidencias,
+      provincia,
+      texto,
+    );
 
     const consejoCoincidencias = catalogo.filter(
       (item) =>
@@ -74,11 +78,9 @@ export class CubaTerritorialService {
       consejoCoincidencias,
       provincia,
       municipio,
+      texto,
     );
-    const municipioPorConsejo = consejoPopular?.municipio
-      ? consejoPopular
-      : undefined;
-    const municipioResuelto = municipio ?? municipioPorConsejo;
+    const municipioResuelto = municipio ?? consejoPopular;
 
     const provinciaNormalizada =
       provincia?.provinciaNormalizada ??
@@ -143,7 +145,8 @@ export class CubaTerritorialService {
 
   private elegirMunicipio(
     matches: TerritorioCatalogo[],
-    provincia?: TerritorioCatalogo,
+    provincia: TerritorioCatalogo | undefined,
+    texto: string,
   ): TerritorioCatalogo | undefined {
     const scoped = provincia
       ? matches.filter(
@@ -160,9 +163,8 @@ export class CubaTerritorialService {
       ]),
     );
     if (!provincia && distinct.size > 1) return undefined;
-    if (!provincia && [...distinct.values()].some((item) => this.tieneContextoExtranjeroEnMunicipio(item))) {
-      return undefined;
-    }
+    if (!provincia && this.tieneContextoExtranjero(texto)) return undefined;
+
     return [...distinct.values()].sort(
       (a, b) => this.longitudTerritorio(b) - this.longitudTerritorio(a),
     )[0];
@@ -170,8 +172,9 @@ export class CubaTerritorialService {
 
   private elegirConsejo(
     matches: TerritorioCatalogo[],
-    provincia?: TerritorioCatalogo,
-    municipio?: TerritorioCatalogo,
+    provincia: TerritorioCatalogo | undefined,
+    municipio: TerritorioCatalogo | undefined,
+    texto: string,
   ): TerritorioCatalogo | undefined {
     let scoped = matches;
     if (provincia) {
@@ -192,9 +195,8 @@ export class CubaTerritorialService {
       ]),
     );
     if (distinct.size !== 1) return undefined;
-    const item = [...distinct.values()][0];
-    if (!provincia && this.tieneContextoExtranjeroEnMunicipio(item)) return undefined;
-    return item;
+    if (!provincia && this.tieneContextoExtranjero(texto)) return undefined;
+    return [...distinct.values()][0];
   }
 
   private elegirLocalidad(
@@ -208,8 +210,9 @@ export class CubaTerritorialService {
       ]),
     );
     const municipios = new Set(
-      [...distinct.values()].map((item) =>
-        `${item.provinciaNormalizada}:${item.municipioNormalizado}`,
+      [...distinct.values()].map(
+        (item) =>
+          `${item.provinciaNormalizada}:${item.municipioNormalizado}`,
       ),
     );
     if (municipios.size > 1) return undefined;
@@ -267,10 +270,6 @@ export class CubaTerritorialService {
     return [...CONTEXTOS_EXTRANJEROS].some((contexto) =>
       this.contieneTerritorio(texto, contexto),
     );
-  }
-
-  private tieneContextoExtranjeroEnMunicipio(item: TerritorioCatalogo): boolean {
-    return item.municipio === undefined && item.consejoPopular === undefined;
   }
 
   private async obtenerCatalogo(): Promise<TerritorioCatalogo[]> {
