@@ -74,7 +74,7 @@ export class ManifiestosController {
         'El manifiesto ya fue importado anteriormente.',
       );
     }
-    const job = this.progress.create(
+    const job = await this.progress.create(
       preview.total?.cantidadHouses ?? preview.registros ?? 0,
       preview.total?.cantidadPersonas ?? 0,
       diagnostico.total,
@@ -93,8 +93,8 @@ export class ManifiestosController {
   }
 
   @Get('importar/job/:jobId')
-  getImportProgress(@Param('jobId') jobId: string) {
-    const job = this.progress.get(jobId);
+  async getImportProgress(@Param('jobId') jobId: string) {
+    const job = await this.progress.get(jobId);
     if (!job) {
       throw new NotFoundException(
         'No existe el trabajo de importación solicitado.',
