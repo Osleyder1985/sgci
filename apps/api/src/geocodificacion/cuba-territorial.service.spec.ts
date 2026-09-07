@@ -73,37 +73,31 @@ describe('CubaTerritorialService', () => {
     },
   };
 
-  it(
-    'resuelve municipio y provincia desde el tramo territorial de la dirección',
-    async () => {
-      const service = new CubaTerritorialService(prisma as never);
+  it('resuelve municipio y provincia desde el tramo territorial de la dirección', async () => {
+    const service = new CubaTerritorialService(prisma as never);
 
-      await expect(
-        service.resolver(
-          'CALLE 35 REPARTO ZAMORA # 12207 E/ 120 Y 120 A, MARIANAO, LA HABANA',
-        ),
-      ).resolves.toMatchObject({
-        provincia: 'La Habana',
-        municipio: 'Marianao',
-        confianza: 'ALTA',
-      });
-    },
-  );
+    await expect(
+      service.resolver(
+        'CALLE 35 REPARTO ZAMORA # 12207 E/ 120 Y 120 A, MARIANAO, LA HABANA',
+      ),
+    ).resolves.toMatchObject({
+      provincia: 'La Habana',
+      municipio: 'Marianao',
+      confianza: 'ALTA',
+    });
+  });
 
-  it(
-    'resuelve un municipio aunque la provincia no aparezca al final',
-    async () => {
-      const service = new CubaTerritorialService(prisma as never);
+  it('resuelve un municipio aunque la provincia no aparezca al final', async () => {
+    const service = new CubaTerritorialService(prisma as never);
 
-      await expect(
-        service.resolver('CALLE 51 # 123, MARIANAO'),
-      ).resolves.toMatchObject({
-        provincia: 'La Habana',
-        municipio: 'Marianao',
-        confianza: 'ALTA',
-      });
-    },
-  );
+    await expect(
+      service.resolver('CALLE 51 # 123, MARIANAO'),
+    ).resolves.toMatchObject({
+      provincia: 'La Habana',
+      municipio: 'Marianao',
+      confianza: 'ALTA',
+    });
+  });
 
   it('resuelve una localidad y hereda municipio y provincia', async () => {
     const service = new CubaTerritorialService(prisma as never);
@@ -118,30 +112,22 @@ describe('CubaTerritorialService', () => {
     });
   });
 
-  it(
-    'resuelve un consejo popular y hereda municipio y provincia',
-    async () => {
-      const service = new CubaTerritorialService(prisma as never);
+  it('resuelve un consejo popular y hereda municipio y provincia', async () => {
+    const service = new CubaTerritorialService(prisma as never);
 
-      await expect(
-        service.resolver('CENTRO, POGOLOTTI'),
-      ).resolves.toMatchObject({
-        provincia: 'La Habana',
-        municipio: 'Marianao',
-        consejoPopular: 'Pogolotti',
-        confianza: 'ALTA',
-      });
-    },
-  );
+    await expect(service.resolver('CENTRO, POGOLOTTI')).resolves.toMatchObject({
+      provincia: 'La Habana',
+      municipio: 'Marianao',
+      consejoPopular: 'Pogolotti',
+      confianza: 'ALTA',
+    });
+  });
 
-  it(
-    'no confunde un municipio cubano que aparece en una dirección extranjera',
-    async () => {
-      const service = new CubaTerritorialService(prisma as never);
+  it('no confunde un municipio cubano que aparece en una dirección extranjera', async () => {
+    const service = new CubaTerritorialService(prisma as never);
 
-      await expect(
-        service.resolver('CAMAGUEY STREET 10, MIAMI, FLORIDA'),
-      ).resolves.toBeNull();
-    },
-  );
+    await expect(
+      service.resolver('CAMAGUEY STREET 10, MIAMI, FLORIDA'),
+    ).resolves.toBeNull();
+  });
 });

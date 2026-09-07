@@ -179,14 +179,12 @@ export class CubaTerritorialService {
     let scoped = matches;
     if (provincia) {
       scoped = scoped.filter(
-        (item) =>
-          item.provinciaNormalizada === provincia.provinciaNormalizada,
+        (item) => item.provinciaNormalizada === provincia.provinciaNormalizada,
       );
     }
     if (municipio) {
       scoped = scoped.filter(
-        (item) =>
-          item.municipioNormalizado === municipio.municipioNormalizado,
+        (item) => item.municipioNormalizado === municipio.municipioNormalizado,
       );
     }
     const distinct = new Map(
@@ -212,8 +210,7 @@ export class CubaTerritorialService {
     );
     const municipios = new Set(
       [...distinct.values()].map(
-        (item) =>
-          `${item.provinciaNormalizada}:${item.municipioNormalizado}`,
+        (item) => `${item.provinciaNormalizada}:${item.municipioNormalizado}`,
       ),
     );
     if (municipios.size > 1) return undefined;
