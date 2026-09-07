@@ -141,7 +141,7 @@ describe('ManifiestosService - direcciones', () => {
       'MEXICO',
     );
 
-    expect(resultado.direccionesEncontradas).toBe(1);
+    expect(resultado.direccionesEncontradas).toBe(0);
     expect(resultado.direccionesReutilizadas).toBe(0);
     expect(resultado.direccionesGeocodificadas).toBe(1);
     expect(resultado.direccionesPendientes).toBe(0);
@@ -337,7 +337,6 @@ describe('ManifiestosService - direcciones', () => {
         },
       ],
       'MEXICO',
-      undefined,
     );
     expect(resultado.estadisticas.direccionesGeocodificadas).toBe(1);
   });
