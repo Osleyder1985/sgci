@@ -21,7 +21,6 @@ import { ManifiestoParser } from './parsers/manifiesto.parser.js';
       provide: ManifiestosImportacionProgressService,
       useClass: ManifiestosImportacionProgressDisplayService,
     },
-    ManifiestosImportacionProgressDisplayService,
     ManifiestosImportacionEscalableService,
     ManifiestosImportacionSourceService,
     ManifiestosImportacionWorker,
