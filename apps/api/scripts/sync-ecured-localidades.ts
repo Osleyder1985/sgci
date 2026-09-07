@@ -3,7 +3,7 @@ import 'dotenv/config';
 import { Pool } from 'pg';
 
 import {
-  ECURED_CUBA_PROVINCES,
+  ECURED_CUBA_SYNC_PROVINCES,
   ecuredLocalidadesUrl,
   normalizarTerritorio,
   parsearPaginaEcured,
@@ -64,7 +64,7 @@ async function main(): Promise<void> {
       >['consejosPopulares'];
     }> = [];
 
-    for (const provincia of ECURED_CUBA_PROVINCES) {
+    for (const provincia of ECURED_CUBA_SYNC_PROVINCES) {
       const provinciaDb = provinciaPorNormalizado.get(
         normalizarTerritorio(provincia),
       );
