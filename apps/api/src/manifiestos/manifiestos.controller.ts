@@ -42,7 +42,10 @@ export class ManifiestosController {
     this.validarArchivo(archivo);
     const [preview, diagnostico] = await Promise.all([
       this.manifiestosService.preview(archivo.buffer, archivo.originalname),
-      this.diagnosticoService.analizarArchivo(archivo.buffer, archivo.originalname),
+      this.diagnosticoService.analizarArchivo(
+        archivo.buffer,
+        archivo.originalname,
+      ),
     ]);
     return { ...preview, direcciones: diagnostico };
   }
@@ -51,7 +54,10 @@ export class ManifiestosController {
   @UseInterceptors(FileInterceptor('archivo'))
   async importar(@UploadedFile() archivo?: UploadedManifestFile) {
     this.validarArchivo(archivo);
-    return this.manifiestosService.importar(archivo.buffer, archivo.originalname);
+    return this.manifiestosService.importar(
+      archivo.buffer,
+      archivo.originalname,
+    );
   }
 
   @Post('importar/job')
@@ -60,17 +66,26 @@ export class ManifiestosController {
     this.validarArchivo(archivo);
     const [preview, diagnostico] = await Promise.all([
       this.manifiestosService.preview(archivo.buffer, archivo.originalname),
-      this.diagnosticoService.analizarArchivo(archivo.buffer, archivo.originalname),
+      this.diagnosticoService.analizarArchivo(
+        archivo.buffer,
+        archivo.originalname,
+      ),
     ]);
     if (preview.archivo?.duplicado) {
-      throw new BadRequestException('El manifiesto ya fue importado anteriormente.');
+      throw new BadRequestException(
+        'El manifiesto ya fue importado anteriormente.',
+      );
     }
     const job = await this.progress.create(
       preview.total?.cantidadHouses ?? preview.registros ?? 0,
       preview.total?.cantidadPersonas ?? 0,
       diagnostico.total,
     );
-    void this.scalableImport.importar(archivo.buffer, archivo.originalname, job.jobId);
+    void this.scalableImport.importar(
+      archivo.buffer,
+      archivo.originalname,
+      job.jobId,
+    );
     return {
       ok: true,
       jobId: job.jobId,
@@ -83,13 +98,23 @@ export class ManifiestosController {
   async getImportProgress(@Param('jobId') jobId: string) {
     const job = await this.progress.get(jobId);
     if (!job) {
-      throw new NotFoundException('No existe el trabajo de importación solicitado.');
+      throw new NotFoundException(
+        'No existe el trabajo de importación solicitado.',
+      );
     }
     return { ok: true, progress: job };
   }
 
-  private validarArchivo(archivo?: UploadedManifestFile): asserts archivo is UploadedManifestFile {
-    if (!archivo) throw new BadRequestException('Debe seleccionar un archivo de manifiesto.');
-    if (!archivo.buffer || archivo.buffer.length === 0) throw new BadRequestException('El archivo de manifiesto está vacío.');
+  private validarArchivo(
+    archivo?: UploadedManifestFile,
+  ): asserts archivo is UploadedManifestFile {
+    if (!archivo) {
+      throw new BadRequestException(
+        'Debe seleccionar un archivo de manifiesto.',
+      );
+    }
+    if (!archivo.buffer || archivo.buffer.length === 0) {
+      throw new BadRequestException('El archivo de manifiesto está vacío.');
+    }
   }
 }
