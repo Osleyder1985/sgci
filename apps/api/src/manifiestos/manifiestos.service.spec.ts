@@ -196,50 +196,47 @@ describe('ManifiestosService - direcciones', () => {
     expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
   });
 
-  it(
-    'debe dejar la dirección pendiente y registrar un warning cuando el geocodificador falla',
-    async () => {
-      const prismaMock = {
-        direccion: { findMany: vi.fn().mockResolvedValue([]) },
-        $executeRaw: vi.fn(),
-      };
+  it('debe dejar la dirección pendiente y registrar un warning cuando el geocodificador falla', async () => {
+    const prismaMock = {
+      direccion: { findMany: vi.fn().mockResolvedValue([]) },
+      $executeRaw: vi.fn(),
+    };
 
-      const geocodificacionMock = {
-        geocodificar: vi
-          .fn()
-          .mockRejectedValue(new Error('Servicio no disponible')),
-      };
+    const geocodificacionMock = {
+      geocodificar: vi
+        .fn()
+        .mockRejectedValue(new Error('Servicio no disponible')),
+    };
 
-      const moduleRef: TestingModule = await Test.createTestingModule({
-        providers: [
-          ManifiestosService,
-          { provide: PrismaService, useValue: prismaMock },
-          { provide: ManifiestoParser, useValue: {} },
-          { provide: GeocodificacionService, useValue: geocodificacionMock },
-        ],
-      }).compile();
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      providers: [
+        ManifiestosService,
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: ManifiestoParser, useValue: {} },
+        { provide: GeocodificacionService, useValue: geocodificacionMock },
+      ],
+    }).compile();
 
-      const service = moduleRef.get<ManifiestosService>(ManifiestosService);
-      const resultado = await (service as any).verificarDirecciones(
-        [
-          {
-            personaId: 'persona-1',
-            nombre: 'Juan Pérez',
-            carnet: '123',
-            direccion: ' Calle con error 123 ',
-          },
-        ],
-        'MEXICO',
-      );
+    const service = moduleRef.get<ManifiestosService>(ManifiestosService);
+    const resultado = await (service as any).verificarDirecciones(
+      [
+        {
+          personaId: 'persona-1',
+          nombre: 'Juan Pérez',
+          carnet: '123',
+          direccion: ' Calle con error 123 ',
+        },
+      ],
+      'MEXICO',
+    );
 
-      expect(resultado.direccionesEncontradas).toBe(0);
-      expect(resultado.direccionesReutilizadas).toBe(0);
-      expect(resultado.direccionesGeocodificadas).toBe(0);
-      expect(resultado.direccionesPendientes).toBe(1);
-      expect(resultado.warnings[0]).toContain('Servicio no disponible');
-      expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
-    },
-  );
+    expect(resultado.direccionesEncontradas).toBe(0);
+    expect(resultado.direccionesReutilizadas).toBe(0);
+    expect(resultado.direccionesGeocodificadas).toBe(0);
+    expect(resultado.direccionesPendientes).toBe(1);
+    expect(resultado.warnings[0]).toContain('Servicio no disponible');
+    expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
+  });
 
   it('debe ejecutar la verificación de direcciones desde importar', async () => {
     const service: any = Object.create(ManifiestosService.prototype);
@@ -319,7 +316,10 @@ describe('ManifiestosService - direcciones', () => {
     service.createPaquetes = vi.fn().mockResolvedValue(undefined);
     service.resolvePersona = vi.fn().mockResolvedValue('persona-1');
 
-    const resultado = await service.importar(Buffer.from('xlsx'), 'manifest.xlsx');
+    const resultado = await service.importar(
+      Buffer.from('xlsx'),
+      'manifest.xlsx',
+    );
 
     expect(service.verificarDirecciones).toHaveBeenCalledWith(
       [
