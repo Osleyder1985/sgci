@@ -53,7 +53,7 @@ export class CubaTerritorialService {
       (item) =>
         !item.municipio &&
         !item.consejoPopular &&
-        this.contieneTerritorio(texto, item.provinciaNormalizada),
+        this.contieneTerritorio(texto, item.provinciaNormalizado),
     );
 
     const municipioCoincidencias = catalogo.filter(
@@ -151,14 +151,14 @@ export class CubaTerritorialService {
     const scoped = provincia
       ? matches.filter(
           (item) =>
-            item.provinciaNormalizada === provincia.provinciaNormalizada,
+            item.provinciaNormalizado === provincia.provinciaNormalizado,
         )
       : matches;
     if (!scoped.length) return undefined;
 
     const distinct = new Map(
       scoped.map((item) => [
-        `${item.provinciaNormalizada}:${item.municipioNormalizado}`,
+        `${item.provinciaNormalizado}:${item.municipioNormalizado}`,
         item,
       ]),
     );
@@ -180,7 +180,7 @@ export class CubaTerritorialService {
     if (provincia) {
       scoped = scoped.filter(
         (item) =>
-          item.provinciaNormalizada === provincia.provinciaNormalizada,
+          item.provinciaNormalizado === provincia.provinciaNormalizado,
       );
     }
     if (municipio) {
@@ -191,7 +191,7 @@ export class CubaTerritorialService {
     }
     const distinct = new Map(
       scoped.map((item) => [
-        `${item.provinciaNormalizada}:${item.municipioNormalizado}:${item.consejoPopularNormalizado}`,
+        `${item.provinciaNormalizado}:${item.municipioNormalizado}:${item.consejoPopularNormalizado}`,
         item,
       ]),
     );
@@ -206,14 +206,14 @@ export class CubaTerritorialService {
     if (!matches.length) return undefined;
     const distinct = new Map(
       matches.map((item) => [
-        `${item.provinciaNormalizada}:${item.municipioNormalizado}:${item.localidadNormalizada}`,
+        `${item.provinciaNormalizado}:${item.municipioNormalizado}:${item.localidadNormalizado}`,
         item,
       ]),
     );
     const municipios = new Set(
       [...distinct.values()].map(
         (item) =>
-          `${item.provinciaNormalizada}:${item.municipioNormalizado}`,
+          `${item.provinciaNormalizado}:${item.municipioNormalizado}`,
       ),
     );
     if (municipios.size > 1) return undefined;
@@ -233,7 +233,7 @@ export class CubaTerritorialService {
     );
     const distinct = new Map(
       matches.map((item) => [
-        `${item.provinciaNormalizada}:${item.municipioNormalizado}:${item.localidadNormalizada}`,
+        `${item.provinciaNormalizado}:${item.municipioNormalizado}:${item.localidadNormalizado}`,
         item,
       ]),
     );
@@ -346,7 +346,8 @@ export class CubaTerritorialService {
 
     for (const localidad of localidades) {
       const municipio = municipioPorId.get(localidad.municipioId);
-      const provincia = municipio && provinciaPorId.get(municipio.provinciaId);
+      const provincia =
+        municipio && provinciaPorId.get(municipio.provinciaId);
       if (!municipio || !provincia) continue;
       catalogo.push({
         provincia: provincia.nombre,
@@ -360,7 +361,8 @@ export class CubaTerritorialService {
 
     for (const consejo of consejosPopulares) {
       const municipio = municipioPorId.get(consejo.municipioId);
-      const provincia = municipio && provinciaPorId.get(municipio.provinciaId);
+      const provincia =
+        municipio && provinciaPorId.get(municipio.provinciaId);
       if (!municipio || !provincia) continue;
       catalogo.push({
         provincia: provincia.nombre,
