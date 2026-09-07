@@ -63,7 +63,10 @@ describe('GeocodificacionService', () => {
   ) =>
     (
       service as unknown as {
-        esResultadoCompatible: (result: typeof resultado, expected: typeof esperado) => boolean;
+        esResultadoCompatible: (
+          result: typeof resultado,
+          expected: typeof esperado,
+        ) => boolean;
       }
     ).esResultadoCompatible(resultado, esperado);
 
