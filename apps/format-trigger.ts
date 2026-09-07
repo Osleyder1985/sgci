@@ -1,1 +1,1 @@
-const trigger={foo:"bar"}
+const trigger = { foo: "bar" };
