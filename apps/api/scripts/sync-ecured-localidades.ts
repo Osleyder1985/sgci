@@ -7,7 +7,7 @@ import {
   ecuredLocalidadesUrl,
   normalizarTerritorio,
   parsearPaginaEcured,
-} from '../src/geocodificacion/ecured-cuba.catalog.ts';
+} from '../src/geocodificacion/ecured-cuba.catalog.js';
 
 const MUNICIPIO_ALIASES: Record<string, string> = {
   'HABANA DEL ESTE': 'LA HABANA DEL ESTE',
