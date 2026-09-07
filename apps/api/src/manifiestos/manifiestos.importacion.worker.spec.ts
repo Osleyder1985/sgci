@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ManifiestosImportacionWorker } from './manifiestos.importacion.worker.js';
+import {
+  ManifiestosImportacionWorker,
+} from './manifiestos.importacion.worker.js';
 
 function createWorker() {
   const prisma = { $queryRaw: vi.fn() };
@@ -88,21 +90,24 @@ describe('ManifiestosImportacionWorker durable execution', () => {
     expect((worker as any).activeJobs.size).toBe(0);
   });
 
-  it('keeps a completed import completed when source cleanup fails', async () => {
-    const { worker, progress, source, importer } = createWorker();
-    progress.get.mockResolvedValue({ status: 'completed' });
-    source.delete.mockRejectedValue(new Error('cleanup failed'));
-    importer.importar.mockResolvedValue(undefined);
+  it(
+    'keeps a completed import completed when source cleanup fails',
+    async () => {
+      const { worker, progress, source, importer } = createWorker();
+      progress.get.mockResolvedValue({ status: 'completed' });
+      source.delete.mockRejectedValue(new Error('cleanup failed'));
+      importer.importar.mockResolvedValue(undefined);
 
-    await expect(
-      (worker as any).execute(
-        'job-1',
-        Buffer.from('xlsx'),
-        'manifest.xlsx',
-      ),
-    ).resolves.toBeUndefined();
+      await expect(
+        (worker as any).execute(
+          'job-1',
+          Buffer.from('xlsx'),
+          'manifest.xlsx',
+        ),
+      ).resolves.toBeUndefined();
 
-    expect(progress.fail).not.toHaveBeenCalled();
-    expect((worker as any).activeJobs.size).toBe(0);
-  });
+      expect(progress.fail).not.toHaveBeenCalled();
+      expect((worker as any).activeJobs.size).toBe(0);
+    },
+  );
 });
