@@ -4,6 +4,7 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 import { ManifiestosController } from './manifiestos.controller.js';
 import { ManifiestosDiagnosticoService } from './manifiestos.diagnostico.service.js';
 import { ManifiestosImportacionProgressService } from './manifiestos.importacion.progress.service.js';
+import { ManifiestosImportacionEscalableService } from './manifiestos.importacion.escalable.service.js';
 import { ManifiestosService } from './manifiestos.service.js';
 import { ManifiestoParser } from './parsers/manifiesto.parser.js';
 
@@ -14,12 +15,14 @@ import { ManifiestoParser } from './parsers/manifiesto.parser.js';
     ManifiestosService,
     ManifiestosDiagnosticoService,
     ManifiestosImportacionProgressService,
+    ManifiestosImportacionEscalableService,
     ManifiestoParser,
   ],
   exports: [
     ManifiestosService,
     ManifiestoParser,
     ManifiestosImportacionProgressService,
+    ManifiestosImportacionEscalableService,
   ],
 })
 export class ManifiestosModule {}
