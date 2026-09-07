@@ -236,10 +236,7 @@ export class ManifiestosImportacionProgressService {
     `;
   }
 
-  private enqueue(
-    jobId: string,
-    operation: () => Promise<void>,
-  ): Promise<void> {
+  private enqueue(jobId: string, operation: () => Promise<void>): Promise<void> {
     const previous = this.queues.get(jobId) ?? Promise.resolve();
     const next = previous
       .catch(() => undefined)
