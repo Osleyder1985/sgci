@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ECURED_CUBA_PROVINCES,
+  ECURED_CUBA_SYNC_PROVINCES,
   ecuredLocalidadesUrl,
   extraerTablaTerritorial,
   normalizarTerritorio,
@@ -11,6 +12,7 @@ import {
 describe('EcuRed Cuba territorial catalog', () => {
   it('builds canonical locality URLs for all 16 territorial divisions', () => {
     expect(ECURED_CUBA_PROVINCES).toHaveLength(16);
+    expect(ECURED_CUBA_SYNC_PROVINCES).toHaveLength(15);
     expect(ecuredLocalidadesUrl('Artemisa')).toBe(
       'https://www.ecured.cu/Localidades_de_Artemisa',
     );
@@ -52,6 +54,23 @@ describe('EcuRed Cuba territorial catalog', () => {
       ],
       consejosPopulares: [{ municipio: 'Artemisa', valores: ['Centro'] }],
     });
+  });
+
+  it('accepts EcuRed alternate heading "Localidades Municipales"', () => {
+    const html = `
+      <h2><span class="mw-headline">Consejos Populares</span></h2>
+      <table><tr><th>Municipio</th><th>Consejos Populares</th></tr>
+        <tr><td>Bayamo</td><td><a href="#">Camilo Cienfuegos</a></td></tr>
+      </table>
+      <h2><span class="mw-headline">Localidades Municipales</span></h2>
+      <table><tr><th>Municipios</th><th>Localidades</th></tr>
+        <tr><td><a href="#">Bayamo</a></td><td><a href="#">Bayamo</a></td></tr>
+      </table>
+    `;
+
+    expect(parsearPaginaEcured('Granma', html).localidades).toEqual([
+      { municipio: 'Bayamo', valores: ['Bayamo'] },
+    ]);
   });
 
   it('does not fall back to an unrelated table', () => {
