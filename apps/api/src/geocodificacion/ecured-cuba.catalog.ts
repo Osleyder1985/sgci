@@ -17,6 +17,11 @@ export const ECURED_CUBA_PROVINCES = [
   'Isla de la Juventud',
 ] as const;
 
+/** EcuRed has no reliable locality page for Isla de la Juventud. */
+export const ECURED_CUBA_SYNC_PROVINCES = ECURED_CUBA_PROVINCES.filter(
+  (provincia) => provincia !== 'Isla de la Juventud',
+);
+
 export interface EcuredTerritoryRow {
   municipio: string;
   valores: string[];
@@ -118,13 +123,22 @@ function localizarHeading(
   html: string,
   seccion: 'Localidades' | 'Consejos Populares',
 ): { end: number } | null {
-  const escaped = seccion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const patron = new RegExp(
-    `<span\\b[^>]*class=["'][^"']*\\bmw-headline\\b[^"']*["'][^>]*>\\s*${escaped}\\s*<\\/span>`,
-    'i',
-  );
-  const match = patron.exec(html);
-  return match ? { end: match.index + match[0].length } : null;
+  const nombres =
+    seccion === 'Localidades'
+      ? ['Localidades', 'Localidades Municipales']
+      : ['Consejos Populares'];
+
+  for (const nombre of nombres) {
+    const escaped = nombre.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const patron = new RegExp(
+      `<span\\b[^>]*class=["'][^"']*\\bmw-headline\\b[^"']*["'][^>]*>\\s*${escaped}\\s*<\\/span>`,
+      'i',
+    );
+    const match = patron.exec(html);
+    if (match) return { end: match.index + match[0].length };
+  }
+
+  return null;
 }
 
 function seleccionarTablaTerritorial(
