@@ -11,7 +11,7 @@ describe('ManifiestosImportacionEscalableService - rollback', () => {
     const cleanupTx = {
       manifiesto: {
         delete: vi.fn().mockResolvedValue(undefined),
-        count: vi.fn(),
+        count: vi.fn().mockResolvedValue(0),
       },
       masterAwb: { delete: vi.fn().mockResolvedValue(undefined) },
       guia: { deleteMany: vi.fn() },
