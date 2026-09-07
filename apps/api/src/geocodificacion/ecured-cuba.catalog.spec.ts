@@ -11,10 +11,18 @@ import {
 describe('EcuRed Cuba territorial catalog', () => {
   it('builds canonical locality URLs for all 16 territorial divisions', () => {
     expect(ECURED_CUBA_PROVINCES).toHaveLength(16);
-    expect(ecuredLocalidadesUrl('Artemisa')).toBe('https://www.ecured.cu/Localidades_de_Artemisa');
-    expect(ecuredLocalidadesUrl('Camagüey')).toBe('https://www.ecured.cu/Localidades_de_Camag%C3%BCey');
-    expect(ecuredLocalidadesUrl('La Habana')).toBe('https://www.ecured.cu/Localidades_de_La_Habana');
-    expect(ecuredLocalidadesUrl('Pinar del Río')).toBe('https://www.ecured.cu/Localidades_de_Pinar_del_R%C3%ADo');
+    expect(ecuredLocalidadesUrl('Artemisa')).toBe(
+      'https://www.ecured.cu/Localidades_de_Artemisa',
+    );
+    expect(ecuredLocalidadesUrl('Camagüey')).toBe(
+      'https://www.ecured.cu/Localidades_de_Camag%C3%BCey',
+    );
+    expect(ecuredLocalidadesUrl('La Habana')).toBe(
+      'https://www.ecured.cu/Localidades_de_La_Habana',
+    );
+    expect(ecuredLocalidadesUrl('Pinar del Río')).toBe(
+      'https://www.ecured.cu/Localidades_de_Pinar_del_R%C3%ADo',
+    );
   });
 
   it('normalizes accents, non-breaking spaces and separators', () => {
@@ -39,7 +47,9 @@ describe('EcuRed Cuba territorial catalog', () => {
     expect(parsearPaginaEcured('Artemisa', html)).toEqual({
       provincia: 'Artemisa',
       url: 'https://www.ecured.cu/Localidades_de_Artemisa',
-      localidades: [{ municipio: 'Artemisa', valores: ['Portugués', 'Majana'] }],
+      localidades: [
+        { municipio: 'Artemisa', valores: ['Portugués', 'Majana'] },
+      ],
       consejosPopulares: [{ municipio: 'Artemisa', valores: ['Centro'] }],
     });
   });
