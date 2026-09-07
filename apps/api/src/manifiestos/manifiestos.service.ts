@@ -87,7 +87,7 @@ export class ManifiestosService {
   async importar(buffer: Buffer, originalname: string, jobId?: string) {
     try {
       if (jobId)
-        this.progress?.update(jobId, {
+        await this.progress?.update(jobId, {
           stage: 'parsing',
           message: 'Analizando y validando el manifiesto.',
         });
@@ -96,7 +96,7 @@ export class ManifiestosService {
       this.validateParsedManifest(parsed);
 
       if (jobId)
-        this.progress?.update(jobId, {
+        await this.progress?.update(jobId, {
           stage: 'creating_guides',
           message: 'Creando guías, paquetes y resolviendo personas.',
           totalHouses: parsed.rows.length,
@@ -173,7 +173,7 @@ export class ManifiestosService {
               destinatarios.push({ personaId, nombre, carnet, direccion });
             }
             if (jobId)
-              this.progress?.update(jobId, {
+              await this.progress?.update(jobId, {
                 processedHouses: index + 1,
                 processedPeople: new Set(
                   destinatarios.map((item) => item.personaId),
@@ -193,7 +193,7 @@ export class ManifiestosService {
       );
 
       if (jobId)
-        this.progress?.update(jobId, {
+        await this.progress?.update(jobId, {
           stage: 'processing_addresses',
           message: 'Procesando y geocodificando direcciones.',
           processedHouses: parsed.rows.length,
@@ -229,10 +229,10 @@ export class ManifiestosService {
         warnings: [...parsed.warnings, ...direcciones.warnings],
       };
 
-      if (jobId) this.progress?.complete(jobId);
+      if (jobId) await this.progress?.complete(jobId);
       return response;
     } catch (error) {
-      if (jobId) this.progress?.fail(jobId, error);
+      if (jobId) await this.progress?.fail(jobId, error);
       this.handleError(error);
     }
   }
@@ -325,7 +325,7 @@ export class ManifiestosService {
       });
 
     if (jobId)
-      this.progress?.update(jobId, {
+      await this.progress?.update(jobId, {
         totalAddresses: direcciones.length,
         processedAddresses: 0,
         message: `Preparando ${direcciones.length} direcciones.`,
@@ -334,7 +334,7 @@ export class ManifiestosService {
     for (const [index, destinatario] of direcciones.entries()) {
       const direccion = destinatario.direccion!.trim();
       if (jobId)
-        this.progress?.update(jobId, {
+        await this.progress?.update(jobId, {
           processedAddresses: index,
           currentAddress: direccion,
           message: `Procesando dirección ${index + 1} de ${direcciones.length}.`,
@@ -358,7 +358,7 @@ export class ManifiestosService {
           resultado.direccionesEncontradas++;
           resultado.direccionesReutilizadas++;
           if (jobId)
-            this.progress?.update(jobId, {
+            await this.progress?.update(jobId, {
               processedAddresses: index + 1,
               addressesReused: resultado.direccionesReutilizadas,
               currentAddress: direccion,
@@ -376,7 +376,7 @@ export class ManifiestosService {
             `No se encontró una ubicación para la dirección de ${destinatario.nombre}: ${direccion}`,
           );
           if (jobId)
-            this.progress?.update(jobId, {
+            await this.progress?.update(jobId, {
               processedAddresses: index + 1,
               addressesNotFound: resultado.direccionesPendientes,
               addressesReview: resultado.direccionesPendientes,
@@ -402,7 +402,7 @@ export class ManifiestosService {
         resultado.direccionesEncontradas++;
         resultado.direccionesGeocodificadas++;
         if (jobId)
-          this.progress?.update(jobId, {
+          await this.progress?.update(jobId, {
             processedAddresses: index + 1,
             addressesGeocoded: resultado.direccionesGeocodificadas,
             currentAddress: direccion,
@@ -413,11 +413,11 @@ export class ManifiestosService {
           `No se pudo procesar la dirección de ${destinatario.nombre}: ${error instanceof Error ? error.message : String(error)}`,
         );
         if (jobId)
-          this.progress?.update(jobId, {
+          await this.progress?.update(jobId, {
             processedAddresses: index + 1,
             addressesNotFound: resultado.direccionesPendientes,
             addressesReview: resultado.direccionesPendientes,
-            errors: (this.progress?.get(jobId)?.errors ?? 0) + 1,
+            errors: (await this.progress?.get(jobId))?.errors ?? 0 + 1,
             currentAddress: direccion,
           });
       }
@@ -524,29 +524,24 @@ export class ManifiestosService {
   private cleanText(value: unknown): string | null {
     if (value === null || value === undefined) return null;
     const text = String(value).trim();
-    return text.length > 0 ? text : null;
+    return text || null;
   }
 
   private normalizeIdentity(value: unknown): string {
     return String(value ?? '')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .toUpperCase();
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '');
   }
 
   private identityKey(nombre: string, carnet: string | null): string {
-    return `${this.normalizeIdentity(carnet)}|${this.normalizeIdentity(nombre)}`;
+    return `${this.normalizeIdentity(nombre)}|${this.normalizeIdentity(carnet)}`;
   }
 
   private handleError(error: unknown): never {
-    console.error('ERROR EN MANIFIESTOS SERVICE', error);
     if (error instanceof BadRequestException) throw error;
-    throw new BadRequestException(
-      error instanceof Error
-        ? error.message
-        : 'Error procesando el manifiesto.',
-    );
+    if (error instanceof Error) throw new BadRequestException(error.message);
+    throw new BadRequestException(String(error));
   }
 }
