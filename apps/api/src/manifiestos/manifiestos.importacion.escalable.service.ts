@@ -141,7 +141,9 @@ export class ManifiestosImportacionEscalableService {
 
       for (const [index, house] of parsed.rows.entries()) {
         const result = await this.prisma.$transaction(async (tx) => {
-          const guia = await tx.guia.create({ data: this.createGuia(manifiesto.id, house) });
+          const guia = await tx.guia.create({
+            data: this.createGuia(manifiesto.id, house),
+          });
           const cantidad = this.resolveCantidadPaquetes(house);
 
           if (cantidad > 0) {
@@ -173,7 +175,12 @@ export class ManifiestosImportacionEscalableService {
             return {
               guiaId: guia.id,
               personaId: cachedPersonaId,
-              destinatario: { personaId: cachedPersonaId, nombre, carnet, direccion },
+              destinatario: {
+                personaId: cachedPersonaId,
+                nombre,
+                carnet,
+                direccion,
+              },
               createdPersonaId: null,
               createdDocumentoId: null,
             } satisfies HouseResult;
@@ -183,14 +190,23 @@ export class ManifiestosImportacionEscalableService {
           return {
             guiaId: guia.id,
             personaId: persona.personaId,
-            destinatario: { personaId: persona.personaId, nombre, carnet, direccion },
+            destinatario: {
+              personaId: persona.personaId,
+              nombre,
+              carnet,
+              direccion,
+            },
             createdPersonaId: persona.createdPersonaId,
             createdDocumentoId: persona.createdDocumentoId,
           } satisfies HouseResult;
         });
 
-        if (result.createdPersonaId) rollback.createdPersonaIds.add(result.createdPersonaId);
-        if (result.createdDocumentoId) rollback.createdDocumentoIds.add(result.createdDocumentoId);
+        if (result.createdPersonaId) {
+          rollback.createdPersonaIds.add(result.createdPersonaId);
+        }
+        if (result.createdDocumentoId) {
+          rollback.createdDocumentoIds.add(result.createdDocumentoId);
+        }
         if (result.personaId && result.destinatario) {
           personasCache.set(
             this.identityKey(result.destinatario.nombre, result.destinatario.carnet),
@@ -257,7 +273,17 @@ export class ManifiestosImportacionEscalableService {
   }
 
   private async cleanupFailedImport(ctx: ImportRollbackContext) {
-    if (!ctx.manifiestoId && !ctx.masterAwbId && !ctx.createdPersonaIds.size && !ctx.createdDocumentoIds.size && !ctx.createdDireccionIds.size && !ctx.modifiedDirections.size && !ctx.modifiedDocumentPrincipal.size) return;
+    if (
+      !ctx.manifiestoId &&
+      !ctx.masterAwbId &&
+      !ctx.createdPersonaIds.size &&
+      !ctx.createdDocumentoIds.size &&
+      !ctx.createdDireccionIds.size &&
+      !ctx.modifiedDirections.size &&
+      !ctx.modifiedDocumentPrincipal.size
+    ) {
+      return;
+    }
 
     try {
       await this.prisma.$transaction(async (tx) => {
@@ -275,14 +301,21 @@ export class ManifiestosImportacionEscalableService {
         }
 
         for (const [id, esPrincipal] of ctx.modifiedDocumentPrincipal) {
-          await tx.documentoIdentidad.update({ where: { id }, data: { esPrincipal } });
+          await tx.documentoIdentidad.update({
+            where: { id },
+            data: { esPrincipal },
+          });
         }
 
         if (ctx.createdDireccionIds.size) {
-          await tx.direccion.deleteMany({ where: { id: { in: [...ctx.createdDireccionIds] } } });
+          await tx.direccion.deleteMany({
+            where: { id: { in: [...ctx.createdDireccionIds] } },
+          });
         }
         if (ctx.createdDocumentoIds.size) {
-          await tx.documentoIdentidad.deleteMany({ where: { id: { in: [...ctx.createdDocumentoIds] } } });
+          await tx.documentoIdentidad.deleteMany({
+            where: { id: { in: [...ctx.createdDocumentoIds] } },
+          });
         }
 
         for (const personaId of ctx.createdPersonaIds) {
@@ -303,8 +336,12 @@ export class ManifiestosImportacionEscalableService {
         }
 
         if (ctx.masterAwbCreated && ctx.masterAwbId) {
-          const manifiestos = await tx.manifiesto.count({ where: { masterAwbId: ctx.masterAwbId } });
-          if (manifiestos === 0) await tx.masterAwb.delete({ where: { id: ctx.masterAwbId } });
+          const manifiestos = await tx.manifiesto.count({
+            where: { masterAwbId: ctx.masterAwbId },
+          });
+          if (manifiestos === 0) {
+            await tx.masterAwb.delete({ where: { id: ctx.masterAwbId } });
+          }
         }
       });
     } catch {
@@ -325,12 +362,20 @@ export class ManifiestosImportacionEscalableService {
         where: { tipo_numero: { tipo: 'CARNET_IDENTIDAD', numero } },
         select: { personaId: true },
       });
-      if (documento) return { personaId: documento.personaId, createdPersonaId: null, createdDocumentoId: null };
+      if (documento) {
+        return {
+          personaId: documento.personaId,
+          createdPersonaId: null,
+          createdDocumentoId: null,
+        };
+      }
     }
 
     const personaExistente = nombre
       ? await tx.persona.findFirst({
-          where: { nombreCompleto: { equals: nombre.trim(), mode: 'insensitive' } },
+          where: {
+            nombreCompleto: { equals: nombre.trim(), mode: 'insensitive' },
+          },
           select: { id: true },
         })
       : null;
@@ -341,7 +386,9 @@ export class ManifiestosImportacionEscalableService {
           where: { personaId: personaExistente.id, esPrincipal: true },
           select: { id: true, esPrincipal: true },
         });
-        for (const principal of principales) rollback.modifiedDocumentPrincipal.set(principal.id, principal.esPrincipal);
+        for (const principal of principales) {
+          rollback.modifiedDocumentPrincipal.set(principal.id, principal.esPrincipal);
+        }
         if (principales.length) {
           await tx.documentoIdentidad.updateMany({
             where: { personaId: personaExistente.id, esPrincipal: true },
@@ -360,9 +407,17 @@ export class ManifiestosImportacionEscalableService {
           select: { id: true },
         });
         rollback.createdDocumentoIds.add(documento.id);
-        return { personaId: personaExistente.id, createdPersonaId: null, createdDocumentoId: documento.id };
+        return {
+          personaId: personaExistente.id,
+          createdPersonaId: null,
+          createdDocumentoId: documento.id,
+        };
       }
-      return { personaId: personaExistente.id, createdPersonaId: null, createdDocumentoId: null };
+      return {
+        personaId: personaExistente.id,
+        createdPersonaId: null,
+        createdDocumentoId: null,
+      };
     }
 
     const persona = await tx.persona.create({
@@ -391,7 +446,11 @@ export class ManifiestosImportacionEscalableService {
       rollback.createdDocumentoIds.add(documento.id);
     }
 
-    return { personaId: persona.id, createdPersonaId: persona.id, createdDocumentoId: documentoId };
+    return {
+      personaId: persona.id,
+      createdPersonaId: persona.id,
+      createdDocumentoId: documentoId,
+    };
   }
 
   private async verificarDirecciones(
@@ -446,36 +505,60 @@ export class ManifiestosImportacionEscalableService {
           },
         });
         const existente = existentes.find(
-          (item) => this.normalizeIdentity(item.direccionOriginal) === this.normalizeIdentity(direccion),
+          (item) =>
+            this.normalizeIdentity(item.direccionOriginal) ===
+            this.normalizeIdentity(direccion),
         );
 
         if (existente?.estadoGeocodificacion === 'GEOCODIFICADA') {
           resultado.direccionesEncontradas++;
           resultado.direccionesReutilizadas++;
-          await this.progress?.update(jobId, { processedAddresses: index + 1, addressesReused: resultado.direccionesReutilizadas, currentAddress: direccion });
+          await this.progress?.update(jobId, {
+            processedAddresses: index + 1,
+            addressesReused: resultado.direccionesReutilizadas,
+            currentAddress: direccion,
+          });
           continue;
         }
 
-        const geocodificada = await this.geocodificacion.geocodificar(direccion, paisOrigen);
+        const geocodificada = await this.geocodificacion.geocodificar(
+          direccion,
+          paisOrigen,
+        );
 
         if (!geocodificada) {
           resultado.direccionesPendientes++;
-          resultado.warnings.push(`No se encontró una ubicación para la dirección de ${destinatario.nombre}: ${direccion}`);
+          resultado.warnings.push(
+            `No se encontró una ubicación para la dirección de ${destinatario.nombre}: ${direccion}`,
+          );
           const current = await this.progress?.get(jobId);
-          await this.progress?.update(jobId, { processedAddresses: index + 1, addressesNotFound: (current?.addressesNotFound ?? 0) + 1, currentAddress: direccion });
+          await this.progress?.update(jobId, {
+            processedAddresses: index + 1,
+            addressesNotFound: (current?.addressesNotFound ?? 0) + 1,
+            currentAddress: direccion,
+          });
           continue;
         }
 
         if (existente) {
           if (!rollback.modifiedDirections.has(existente.id)) {
-            const location = await this.prisma.$queryRaw<Array<{ lat: number | null; lon: number | null }>>`
+            const location = await this.prisma.$queryRaw<
+              Array<{ lat: number | null; lon: number | null }>
+            >`
               SELECT ST_Y("ubicacion"::geometry) AS lat, ST_X("ubicacion"::geometry) AS lon
               FROM "Direccion" WHERE "id" = ${existente.id}::uuid
             `;
             const lat = location[0]?.lat;
             const lon = location[0]?.lon;
-            if (lat === null || lat === undefined || lon === null || lon === undefined) {
-              throw new Error(`La dirección ${existente.id} no contiene una geometría válida para rollback.`);
+            if (
+              lat === null ||
+              lat === undefined ||
+              lon === null ||
+              lon === undefined
+            ) {
+              throw new Error(
+                `La dirección ${existente.id} no contiene una geometría válida para rollback.`,
+              );
             }
             rollback.modifiedDirections.set(existente.id, {
               id: existente.id,
@@ -512,12 +595,23 @@ export class ManifiestosImportacionEscalableService {
 
         resultado.direccionesEncontradas++;
         resultado.direccionesGeocodificadas++;
-        await this.progress?.update(jobId, { processedAddresses: index + 1, addressesGeocoded: resultado.direccionesGeocodificadas, currentAddress: direccion });
+        await this.progress?.update(jobId, {
+          processedAddresses: index + 1,
+          addressesGeocoded: resultado.direccionesGeocodificadas,
+          currentAddress: direccion,
+        });
       } catch (error) {
         resultado.direccionesPendientes++;
-        resultado.warnings.push(`No se pudo procesar la dirección de ${destinatario.nombre}: ${error instanceof Error ? error.message : String(error)}`);
+        resultado.warnings.push(
+          `No se pudo procesar la dirección de ${destinatario.nombre}: ${error instanceof Error ? error.message : String(error)}`,
+        );
         const current = await this.progress?.get(jobId);
-        await this.progress?.update(jobId, { processedAddresses: index + 1, addressesReview: (current?.addressesReview ?? 0) + 1, errors: (current?.errors ?? 0) + 1, currentAddress: direccion });
+        await this.progress?.update(jobId, {
+          processedAddresses: index + 1,
+          addressesReview: (current?.addressesReview ?? 0) + 1,
+          errors: (current?.errors ?? 0) + 1,
+          currentAddress: direccion,
+        });
       }
     }
 
@@ -537,14 +631,21 @@ export class ManifiestosImportacionEscalableService {
       destinatarioCarnet: this.cleanText(house.destinatarioCarnet),
       telefonoDestinatario: this.cleanText(house.telefonoDestinatario),
       direccionDestinatario: this.cleanText(house.direccionDestinatario),
-      estadoCobroOrigen: house.estadoCobroOrigen !== null && house.estadoCobroOrigen !== undefined ? String(house.estadoCobroOrigen) : null,
+      estadoCobroOrigen:
+        house.estadoCobroOrigen !== null && house.estadoCobroOrigen !== undefined
+          ? String(house.estadoCobroOrigen)
+          : null,
       unidadDestino: this.cleanText(house.unidadDestino),
     };
   }
 
   private resolveNumeroHouse(house: ManifiestoHouse): string {
     const numero = this.cleanText(house.numeroHouse);
-    if (!numero) throw new BadRequestException('Se encontró una fila de House sin número de House.');
+    if (!numero) {
+      throw new BadRequestException(
+        'Se encontró una fila de House sin número de House.',
+      );
+    }
     return numero;
   }
 
@@ -555,13 +656,27 @@ export class ManifiestosImportacionEscalableService {
   }
 
   private validateParsedManifest(parsed: ManifiestoParsed): void {
-    if (!parsed) throw new BadRequestException('No fue posible leer el manifiesto.');
-    if (!parsed.rows?.length) throw new BadRequestException('El manifiesto no contiene registros de House.');
-    if (parsed.total.cantidadHouses !== parsed.rows.length) {
-      throw new BadRequestException(`La cantidad de Houses no coincide. Total declarado: ${parsed.total.cantidadHouses}. Registros encontrados: ${parsed.rows.length}.`);
+    if (!parsed) {
+      throw new BadRequestException('No fue posible leer el manifiesto.');
     }
-    if (parsed.total.pesoTotalKg === null || parsed.total.pesoTotalKg === undefined || !Number.isFinite(Number(parsed.total.pesoTotalKg))) {
-      throw new BadRequestException('El peso total del manifiesto no es válido.');
+    if (!parsed.rows?.length) {
+      throw new BadRequestException(
+        'El manifiesto no contiene registros de House.',
+      );
+    }
+    if (parsed.total.cantidadHouses !== parsed.rows.length) {
+      throw new BadRequestException(
+        `La cantidad de Houses no coincide. Total declarado: ${parsed.total.cantidadHouses}. Registros encontrados: ${parsed.rows.length}.`,
+      );
+    }
+    if (
+      parsed.total.pesoTotalKg === null ||
+      parsed.total.pesoTotalKg === undefined ||
+      !Number.isFinite(Number(parsed.total.pesoTotalKg))
+    ) {
+      throw new BadRequestException(
+        'El peso total del manifiesto no es válido.',
+      );
     }
   }
 
