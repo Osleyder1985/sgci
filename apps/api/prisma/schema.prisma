@@ -238,10 +238,25 @@ model ManifiestoImportacionJob {
   workerId            String?
   heartbeatAt         DateTime?
   leaseUntil          DateTime?
+  source              ManifiestoImportacionSource?
   @@index([status])
   @@index([updatedAt])
   @@index([startedAt])
   @@index([resultManifiestoId])
   @@index([leaseUntil])
   @@index([status, leaseUntil])
+}
+
+model ManifiestoImportacionSource {
+  id           String                  @id @default(uuid()) @db.Uuid
+  jobId        String                  @unique @db.Uuid
+  originalname String
+  mimetype     String
+  size         Int
+  sha256       String
+  content      Bytes
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  job          ManifiestoImportacionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  @@index([sha256])
 }
