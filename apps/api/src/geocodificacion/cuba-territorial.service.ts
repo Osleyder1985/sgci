@@ -206,14 +206,14 @@ export class CubaTerritorialService {
     if (!matches.length) return undefined;
     const distinct = new Map(
       matches.map((item) => [
-        `${item.provinciaNormalizado}:${item.municipioNormalizado}:${item.localidadNormalizado}`,
+        `${item.provinciaNormalizada}:${item.municipioNormalizado}:${item.localidadNormalizada}`,
         item,
       ]),
     );
     const municipios = new Set(
       [...distinct.values()].map(
         (item) =>
-          `${item.provinciaNormalizado}:${item.municipioNormalizado}`,
+          `${item.provinciaNormalizada}:${item.municipioNormalizado}`,
       ),
     );
     if (municipios.size > 1) return undefined;
@@ -427,8 +427,15 @@ export class CubaTerritorialService {
 
   private contieneTerritorio(texto: string, territorio: string): boolean {
     if (!territorio) return false;
-    const patron = new RegExp(`(?:^| )${this.escapeRegex(territorio)}(?: |$)`);
-    return patron.test(texto);
+
+    const tokensTexto = texto.split(' ');
+    const tokensTerritorio = territorio.split(' ');
+
+    return tokensTexto.some((_, index) =>
+      tokensTerritorio.every(
+        (token, offset) => tokensTexto[index + offset] === token,
+      ),
+    );
   }
 
   private normalizar(valor: string): string {
@@ -439,9 +446,5 @@ export class CubaTerritorialService {
       .replace(/[^A-Z0-9]+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
-  }
-
-  private escapeRegex(valor: string): string {
-    return valor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }
