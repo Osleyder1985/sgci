@@ -180,6 +180,46 @@ export class ManifiestosImportacionProgressService {
     return this.enqueue(jobId, async () => {
       const current = await this.get(jobId);
       if (!current || current.status !== 'running') return;
+
+      let durableResult = result ?? current.result;
+      if (!durableResult) {
+        const rows = await this.prisma.$queryRaw<Array<{
+          id: string;
+          masterAwb: string;
+          guias: bigint;
+          paquetes: bigint;
+          personas: number;
+          pesoTotalKg: string;
+        }>>`
+          SELECT
+            m."id" AS "id",
+            awb."numero" AS "masterAwb",
+            (SELECT COUNT(*) FROM "Guia" g WHERE g."manifiestoId" = m."id") AS "guias",
+            (SELECT COUNT(*) FROM "Paquete" p INNER JOIN "Guia" g ON g."id" = p."guiaId" WHERE g."manifiestoId" = m."id") AS "paquetes",
+            m."totalPersonas" AS "personas",
+            m."pesoTotalKg"::text AS "pesoTotalKg"
+          FROM "Manifiesto" m
+          INNER JOIN "MasterAwb" awb ON awb."id" = m."masterAwbId"
+          WHERE m."createdAt" >= ${new Date(current.startedAt)}
+            AND m."cantidadHouse" = ${current.totalHouses}
+            AND m."totalPersonas" = ${current.totalPeople}
+          ORDER BY m."createdAt" DESC
+          LIMIT 1
+        `;
+        const row = rows[0];
+        if (row) {
+          durableResult = {
+            manifiestoId: row.id,
+            masterAwb: row.masterAwb,
+            guias: Number(row.guias),
+            paquetes: Number(row.paquetes),
+            personas: row.personas,
+            pesoTotalKg: row.pesoTotalKg,
+            warnings: current.addressesNotFound + current.addressesReview + current.errors,
+          };
+        }
+      }
+
       await this.persist({
         ...current,
         stage: 'completed',
@@ -188,7 +228,7 @@ export class ManifiestosImportacionProgressService {
         completedAt: new Date().toISOString(),
         currentAddress: null,
         error: null,
-        result: result ?? current.result,
+        result: durableResult,
       });
     });
   }
