@@ -71,34 +71,35 @@ export function extraerTablaTerritorial(
   html: string,
   seccion: 'Localidades' | 'Consejos Populares',
 ): EcuredTerritoryRow[] {
-  const encabezado = new RegExp(
-    `<span[^>]*class=["']mw-headline["'][^>]*>${seccion}<\\/span>`,
-    'i',
-  ).exec(html);
+  const heading = localizarHeading(html, seccion);
+  if (!heading) return [];
 
-  if (!encabezado) return [];
+  const siguienteHeading = /<span\b[^>]*class=["'][^"']*mw-headline[^"']*["'][^>]*>/gi;
+  siguienteHeading.lastIndex = heading.end;
+  const siguiente = siguienteHeading.exec(html);
+  const limite = siguiente?.index ?? html.length;
+  const bloque = html.slice(heading.end, limite);
 
-  const resto = html.slice(encabezado.index + encabezado[0].length);
-  const tabla = /<table\b[\s\S]*?<\/table>/i.exec(resto)?.[0];
+  const tablas = [...bloque.matchAll(/<table\b[\s\S]*?<\/table>/gi)].map(
+    (match) => match[0],
+  );
+  if (!tablas.length) return [];
+
+  const tabla = seleccionarTablaTerritorial(tablas, seccion);
   if (!tabla) return [];
 
   const filas: EcuredTerritoryRow[] = [];
-  const patronFila = /<tr\b[\s\S]*?<\/tr>/gi;
-  let fila: RegExpExecArray | null;
-
-  while ((fila = patronFila.exec(tabla))) {
-    const celdas = [...fila[0].matchAll(/<td\b[\s\S]*?<\/td>/gi)].map(
+  for (const filaMatch of tabla.matchAll(/<tr\b[\s\S]*?<\/tr>/gi)) {
+    const celdas = [...filaMatch[0].matchAll(/<(?:td|th)\b[\s\S]*?<\/(?:td|th)>/gi)].map(
       (match) => match[0],
     );
-
     if (celdas.length < 2) continue;
 
     const municipio = extraerEnlaces(celdas[0])[0] ?? extraerTextoHtml(celdas[0]);
     const valores = extraerEnlaces(celdas[1]);
+    if (!municipio || !valores.length) continue;
 
-    if (municipio && valores.length) {
-      filas.push({ municipio, valores: [...new Set(valores)] });
-    }
+    filas.push({ municipio, valores: [...new Set(valores)] });
   }
 
   return filas;
@@ -114,6 +115,38 @@ export function parsearPaginaEcured(
     localidades: extraerTablaTerritorial(html, 'Localidades'),
     consejosPopulares: extraerTablaTerritorial(html, 'Consejos Populares'),
   };
+}
+
+function localizarHeading(
+  html: string,
+  seccion: 'Localidades' | 'Consejos Populares',
+): { end: number } | null {
+  const escaped = seccion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const patron = new RegExp(
+    `<span\\b[^>]*class=["'][^"']*\\bmw-headline\\b[^"']*["'][^>]*>\\s*${escaped}\\s*<\\/span>`,
+    'i',
+  );
+  const match = patron.exec(html);
+  return match ? { end: match.index + match[0].length } : null;
+}
+
+function seleccionarTablaTerritorial(
+  tablas: string[],
+  seccion: 'Localidades' | 'Consejos Populares',
+): string | null {
+  const encabezadosEsperados =
+    seccion === 'Localidades'
+      ? ['Municipio', 'Localidades']
+      : ['Municipio', 'Consejos Populares'];
+
+  return (
+    tablas.find((tabla) => {
+      const texto = normalizarTerritorio(extraerTextoHtml(tabla));
+      return encabezadosEsperados.every((encabezado) =>
+        texto.includes(normalizarTerritorio(encabezado)),
+      );
+    }) ?? tablas[0] ?? null
+  );
 }
 
 function decodeHtmlEntities(valor: string): string {
