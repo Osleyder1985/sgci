@@ -160,7 +160,10 @@ export class ManifiestosImportacionProgressService implements OnModuleInit {
     };
   }
 
-  async claim(jobId: string, leaseSeconds = DEFAULT_LEASE_SECONDS): Promise<boolean> {
+  async claim(
+    jobId: string,
+    leaseSeconds = DEFAULT_LEASE_SECONDS,
+  ): Promise<boolean> {
     const leaseUntil = new Date(Date.now() + leaseSeconds * 1000);
     const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
       UPDATE "ManifiestoImportacionJob"
@@ -253,16 +256,19 @@ export class ManifiestosImportacionProgressService implements OnModuleInit {
         );
       }
 
-      await this.persist({
-        ...current,
-        stage: 'completed',
-        status: 'completed',
-        message,
-        completedAt: new Date().toISOString(),
-        currentAddress: null,
-        error: null,
-        result,
-      }, true);
+      await this.persist(
+        {
+          ...current,
+          stage: 'completed',
+          status: 'completed',
+          message,
+          completedAt: new Date().toISOString(),
+          currentAddress: null,
+          error: null,
+          result,
+        },
+        true,
+      );
     });
   }
 
@@ -270,16 +276,19 @@ export class ManifiestosImportacionProgressService implements OnModuleInit {
     return this.enqueue(jobId, async () => {
       const current = await this.get(jobId);
       if (!current || current.status !== 'running') return;
-      await this.persist({
-        ...current,
-        stage: 'failed',
-        status: 'failed',
-        message: 'La importación terminó con errores.',
-        completedAt: new Date().toISOString(),
-        errors: current.errors + 1,
-        error: error instanceof Error ? error.message : String(error),
-        currentAddress: null,
-      }, true);
+      await this.persist(
+        {
+          ...current,
+          stage: 'failed',
+          status: 'failed',
+          message: 'La importación terminó con errores.',
+          completedAt: new Date().toISOString(),
+          errors: current.errors + 1,
+          error: error instanceof Error ? error.message : String(error),
+          currentAddress: null,
+        },
+        true,
+      );
     });
   }
 
