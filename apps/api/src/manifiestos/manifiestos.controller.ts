@@ -12,6 +12,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ManifiestosDiagnosticoService } from './manifiestos.diagnostico.service.js';
 import { ManifiestosImportacionProgressService } from './manifiestos.importacion.progress.service.js';
 import { ManifiestosImportacionEscalableService } from './manifiestos.importacion.escalable.service.js';
+import { ManifiestosImportacionSourceService } from './manifiestos.importacion.source.service.js';
 import { ManifiestosService } from './manifiestos.service.js';
 
 interface UploadedManifestFile {
@@ -34,6 +35,7 @@ export class ManifiestosController {
     private readonly diagnosticoService: ManifiestosDiagnosticoService,
     private readonly scalableImport: ManifiestosImportacionEscalableService,
     private readonly progress: ManifiestosImportacionProgressService,
+    private readonly source: ManifiestosImportacionSourceService,
   ) {}
 
   @Post('importar/preview')
@@ -76,21 +78,32 @@ export class ManifiestosController {
         'El manifiesto ya fue importado anteriormente.',
       );
     }
+
     const job = await this.progress.create(
       preview.total?.cantidadHouses ?? preview.registros ?? 0,
       preview.total?.cantidadPersonas ?? 0,
       diagnostico.total,
     );
-    void this.scalableImport.importar(
-      archivo.buffer,
-      archivo.originalname,
-      job.jobId,
-    );
+
+    try {
+      await this.source.save(
+        job.jobId,
+        archivo.buffer,
+        archivo.originalname,
+        archivo.mimetype,
+      );
+    } catch (error) {
+      await this.progress.fail(job.jobId, error);
+      throw new BadRequestException(
+        'No se pudo persistir la fuente del manifiesto para ejecución durable.',
+      );
+    }
+
     return {
       ok: true,
       jobId: job.jobId,
-      message: 'Importación iniciada.',
-      progress: job,
+      message: 'Importación encolada para ejecución durable.',
+      progress: (await this.progress.get(job.jobId)) ?? job,
     };
   }
 

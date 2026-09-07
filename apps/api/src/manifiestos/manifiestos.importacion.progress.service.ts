@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 export type ImportJobStage =
@@ -80,16 +80,41 @@ type JobRow = {
   resultPersonas: number | null;
   resultPesoTotalKg: string | null;
   resultWarnings: number | null;
+  attempt: number;
+  workerId: string | null;
+  heartbeatAt: Date | null;
+  leaseUntil: Date | null;
 };
 
+const DEFAULT_LEASE_SECONDS = 90;
+
+export class ImportJobLeaseLostError extends Error {
+  constructor(jobId: string) {
+    super(
+      `El worker perdió el lease del job ${jobId}. La ejecución debe detenerse y ejecutar rollback.`,
+    );
+    this.name = 'ImportJobLeaseLostError';
+  }
+}
+
 @Injectable()
-export class ManifiestosImportacionProgressService {
+export class ManifiestosImportacionProgressService implements OnModuleInit {
   private readonly logger = new Logger(
     ManifiestosImportacionProgressService.name,
   );
   private readonly queues = new Map<string, Promise<void>>();
+  private readonly workerId = randomUUID();
 
   constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit(): Promise<void> {
+    const recovered = await this.recoverExpiredJobs();
+    if (recovered > 0) {
+      this.logger.warn(
+        `Se marcaron ${recovered} job(s) como fallidos porque su worker perdió el lease.`,
+      );
+    }
+  }
 
   async create(
     totalHouses: number,
@@ -105,14 +130,14 @@ export class ManifiestosImportacionProgressService {
         "totalAddresses", "processedAddresses", "addressesGeocoded", "addressesReused",
         "addressesNotFound", "addressesReview", "errors", "currentAddress",
         "startedAt", "updatedAt", "completedAt", "elapsedMs", "housesPerMinute",
-        "etaSeconds", "coverage", "error"
+        "etaSeconds", "coverage", "error", "attempt", "workerId", "heartbeatAt", "leaseUntil"
       ) VALUES (
         ${jobId}::uuid, 'queued', 'running', 'Importación en cola.',
         ${totalHouses}, 0, ${totalPeople}, 0,
         ${totalAddresses}, 0, 0, 0,
         0, 0, 0, NULL,
         ${now}, ${now}, NULL, 0, 0,
-        NULL, 0, NULL
+        NULL, 0, NULL, 0, NULL, NULL, NULL
       )
     `;
     return {
@@ -144,20 +169,86 @@ export class ManifiestosImportacionProgressService {
     };
   }
 
+  async claim(
+    jobId: string,
+    leaseSeconds = DEFAULT_LEASE_SECONDS,
+  ): Promise<boolean> {
+    const leaseUntil = new Date(Date.now() + leaseSeconds * 1000);
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      UPDATE "ManifiestoImportacionJob"
+      SET "stage" = 'parsing',
+          "workerId" = ${this.workerId},
+          "heartbeatAt" = CURRENT_TIMESTAMP,
+          "leaseUntil" = ${leaseUntil},
+          "attempt" = "attempt" + 1,
+          "updatedAt" = CURRENT_TIMESTAMP
+      WHERE "id" = ${jobId}::uuid
+        AND "status" = 'running'
+        AND "stage" = 'queued'
+        AND ("leaseUntil" IS NULL OR "leaseUntil" < CURRENT_TIMESTAMP)
+      RETURNING "id"
+    `;
+    return rows.length === 1;
+  }
+
+  async heartbeat(
+    jobId: string,
+    leaseSeconds = DEFAULT_LEASE_SECONDS,
+  ): Promise<boolean> {
+    const leaseUntil = new Date(Date.now() + leaseSeconds * 1000);
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      UPDATE "ManifiestoImportacionJob"
+      SET "heartbeatAt" = CURRENT_TIMESTAMP,
+          "leaseUntil" = ${leaseUntil},
+          "updatedAt" = CURRENT_TIMESTAMP
+      WHERE "id" = ${jobId}::uuid
+        AND "status" = 'running'
+        AND "workerId" = ${this.workerId}
+        AND "leaseUntil" >= CURRENT_TIMESTAMP
+      RETURNING "id"
+    `;
+    return rows.length === 1;
+  }
+
+  async recoverExpiredJobs(): Promise<number> {
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      UPDATE "ManifiestoImportacionJob"
+      SET "status" = 'failed',
+          "stage" = 'failed',
+          "message" = 'El worker perdió el lease de ejecución.',
+          "error" = 'La ejecución fue interrumpida antes de completar el job. Se requiere reintento desde la fuente original.',
+          "completedAt" = CURRENT_TIMESTAMP,
+          "updatedAt" = CURRENT_TIMESTAMP,
+          "heartbeatAt" = NULL,
+          "leaseUntil" = NULL,
+          "workerId" = NULL,
+          "errors" = "errors" + 1
+      WHERE "status" = 'running'
+        AND "stage" <> 'queued'
+        AND "leaseUntil" IS NOT NULL
+        AND "leaseUntil" < CURRENT_TIMESTAMP
+      RETURNING "id"
+    `;
+    return rows.length;
+  }
+
   async get(jobId: string): Promise<ImportJobProgress | null> {
     const rows = await this.prisma.$queryRaw<JobRow[]>`
       SELECT * FROM "ManifiestoImportacionJob" WHERE "id" = ${jobId}::uuid LIMIT 1
     `;
     const row = rows[0];
     if (!row) return null;
-
     return this.toProgress(row);
   }
 
   update(jobId: string, patch: Partial<ImportJobProgress>): Promise<void> {
     return this.enqueue(jobId, async () => {
       const current = await this.get(jobId);
-      if (!current || current.status !== 'running') return;
+      if (!current || current.status !== 'running') {
+        throw new ImportJobLeaseLostError(jobId);
+      }
+      const owned = await this.heartbeat(jobId);
+      if (!owned) throw new ImportJobLeaseLostError(jobId);
       await this.persist({ ...current, ...patch });
     });
   }
@@ -169,24 +260,31 @@ export class ManifiestosImportacionProgressService {
   ): Promise<void> {
     return this.enqueue(jobId, async () => {
       const current = await this.get(jobId);
-      if (!current || current.status !== 'running') return;
-
+      if (!current || current.status !== 'running') {
+        throw new ImportJobLeaseLostError(jobId);
+      }
       if (!result) {
         throw new Error(
           'No se puede completar el job de importación sin el resultado durable de la importación.',
         );
       }
+      const owned = await this.heartbeat(jobId);
+      if (!owned) throw new ImportJobLeaseLostError(jobId);
 
-      await this.persist({
-        ...current,
-        stage: 'completed',
-        status: 'completed',
-        message,
-        completedAt: new Date().toISOString(),
-        currentAddress: null,
-        error: null,
-        result,
-      });
+      const affected = await this.persist(
+        {
+          ...current,
+          stage: 'completed',
+          status: 'completed',
+          message,
+          completedAt: new Date().toISOString(),
+          currentAddress: null,
+          error: null,
+          result,
+        },
+        true,
+      );
+      if (affected !== 1) throw new ImportJobLeaseLostError(jobId);
     });
   }
 
@@ -194,20 +292,26 @@ export class ManifiestosImportacionProgressService {
     return this.enqueue(jobId, async () => {
       const current = await this.get(jobId);
       if (!current || current.status !== 'running') return;
-      await this.persist({
-        ...current,
-        stage: 'failed',
-        status: 'failed',
-        message: 'La importación terminó con errores.',
-        completedAt: new Date().toISOString(),
-        errors: current.errors + 1,
-        error: error instanceof Error ? error.message : String(error),
-        currentAddress: null,
-      });
+      await this.persist(
+        {
+          ...current,
+          stage: 'failed',
+          status: 'failed',
+          message: 'La importación terminó con errores.',
+          completedAt: new Date().toISOString(),
+          errors: current.errors + 1,
+          error: error instanceof Error ? error.message : String(error),
+          currentAddress: null,
+        },
+        true,
+      );
     });
   }
 
-  private async persist(input: ImportJobProgress): Promise<void> {
+  private async persist(
+    input: ImportJobProgress,
+    terminal = false,
+  ): Promise<number> {
     const job = { ...input };
     const started = Date.parse(job.startedAt);
     const end = job.completedAt ? Date.parse(job.completedAt) : Date.now();
@@ -239,7 +343,7 @@ export class ManifiestosImportacionProgressService {
         ? Math.round((resolved / job.totalAddresses) * 1000) / 10
         : 0;
 
-    await this.prisma.$executeRaw`
+    return this.prisma.$executeRaw`
       UPDATE "ManifiestoImportacionJob"
       SET "stage" = ${job.stage}, "status" = ${job.status}, "message" = ${job.message},
           "totalHouses" = ${job.totalHouses}, "processedHouses" = ${job.processedHouses},
@@ -258,8 +362,13 @@ export class ManifiestosImportacionProgressService {
           "resultPaquetes" = ${job.result?.paquetes ?? null},
           "resultPersonas" = ${job.result?.personas ?? null},
           "resultPesoTotalKg" = ${job.result?.pesoTotalKg ?? null},
-          "resultWarnings" = ${job.result?.warnings ?? null}
+          "resultWarnings" = ${job.result?.warnings ?? null},
+          "heartbeatAt" = ${terminal ? null : new Date()},
+          "leaseUntil" = ${terminal ? null : new Date(Date.now() + DEFAULT_LEASE_SECONDS * 1000)},
+          "workerId" = ${terminal ? null : this.workerId}
       WHERE "id" = ${job.jobId}::uuid
+        AND "status" = 'running'
+        AND "workerId" = ${this.workerId}
     `;
   }
 
