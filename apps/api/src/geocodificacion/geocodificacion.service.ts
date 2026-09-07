@@ -313,9 +313,7 @@ export class GeocodificacionService {
       restante = restante.slice(0, reparto.index).trim();
     }
 
-    const edificio = restante.match(
-      /\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i,
-    );
+    const edificio = restante.match(/\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i);
     if (edificio) {
       resultado.edificio = edificio[1];
       restante = `${restante.slice(0, edificio.index)} ${restante.slice(
@@ -464,23 +462,24 @@ export class GeocodificacionService {
         .trim();
 
     const provincia = normalizarTexto(normalizada.provincia ?? '');
-    const ultimoComponente = normalizarTexto(
-      original.split(',').at(-1) ?? '',
-    );
+    const ultimoComponente = normalizarTexto(original.split(',').at(-1) ?? '');
     const municipio = normalizarTexto(normalizada.municipio ?? '');
-    const tieneMarcadorCubano = /\bE\s*\/|\bRPTO\.?|\bEDIF(?:ICIO)?\.?|\bAPTO\.?|\bAPARTAMENTO\b|#/.test(
-      normalizarTexto(original),
-    );
+    const tieneMarcadorCubano =
+      /\bE\s*\/|\bRPTO\.?|\bEDIF(?:ICIO)?\.?|\bAPTO\.?|\bAPARTAMENTO\b|#/.test(
+        normalizarTexto(original),
+      );
 
     return (
       ultimoComponente === 'CUBA' ||
-      (this.esProvinciaCubana(provincia) &&
-        Boolean(municipio) &&
-        tieneMarcadorCubano)
+      this.esProvinciaCubana(provincia) ||
+      this.esProvinciaCubana(municipio) ||
+      tieneMarcadorCubano
     );
   }
 
-  private esProvinciaCubana(provincia: string): boolean {
+  private esProvinciaCubana(valor?: string): boolean {
+    if (!valor) return false;
+
     const provinciasCubanas = new Set([
       'PINAR DEL RIO',
       'ARTEMISA',
@@ -500,14 +499,13 @@ export class GeocodificacionService {
       'ISLA DE LA JUVENTUD',
     ]);
 
-    return provinciasCubanas.has(provincia);
+    return provinciasCubanas.has(valor);
   }
 
   private async respetarLimiteSolicitudes(): Promise<void> {
-    const espera = Math.max(0, 1000 - (Date.now() - this.lastRequestAt));
-
-    if (espera > 0) {
-      await new Promise((resolve) => setTimeout(resolve, espera));
+    const delay = Math.max(0, 1000 - (Date.now() - this.lastRequestAt));
+    if (delay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 }
