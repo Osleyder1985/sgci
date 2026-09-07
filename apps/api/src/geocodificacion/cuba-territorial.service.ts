@@ -346,8 +346,7 @@ export class CubaTerritorialService {
 
     for (const localidad of localidades) {
       const municipio = municipioPorId.get(localidad.municipioId);
-      const provincia =
-        municipio && provinciaPorId.get(municipio.provinciaId);
+      const provincia = municipio && provinciaPorId.get(municipio.provinciaId);
       if (!municipio || !provincia) continue;
       catalogo.push({
         provincia: provincia.nombre,
