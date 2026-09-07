@@ -1,9 +1,8 @@
 name: Format PR #8
 
 on:
-  push:
-    branches:
-      - feat/manifest-import-control-center-v2
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
