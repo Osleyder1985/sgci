@@ -199,9 +199,8 @@ export class ManifiestosImportacionEscalableService {
 
         await this.progress?.update(jobId, {
           processedHouses: index + 1,
-          processedPeople: new Set(
-            destinatarios.map((item) => item.personaId),
-          ).size,
+          processedPeople: new Set(destinatarios.map((item) => item.personaId))
+            .size,
           message: `House ${index + 1} de ${parsed.rows.length} completado.`,
         });
       }
