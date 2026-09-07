@@ -2,18 +2,6 @@
 // SGCI - Sistema de Gestión Contextual Integrado
 //
 // Modelo de datos principal.
-//
-// Dominio actual:
-//   - Personas.
-//   - Documentos de identidad.
-//   - Direcciones.
-//   - Geocodificación.
-//   - Conflictos de identidad.
-//   - Continuidad operativa ante inconsistencias.
-//   - Manifiestos de carga.
-//   - Master AWB.
-//   - House / guías.
-//   - Bultos asociados a cada House.
 // ================================================================================
 
 generator client {
@@ -180,7 +168,7 @@ model Guia {
   id                    String   @id @default(uuid()) @db.Uuid
   manifiestoId          String   @db.Uuid
   numeroHouse           String
-  naturalezaCantidad    String
+  naturezaCantidad      String
   pesoKg                Decimal  @db.Decimal(12, 2)
   bultos                Int
   remitenteNombre       String
@@ -239,7 +227,15 @@ model ManifiestoImportacionJob {
   etaSeconds          Int?
   coverage            Float
   error               String?
+  resultManifiestoId  String?  @db.Uuid
+  resultMasterAwb    String?
+  resultGuias        Int?
+  resultPaquetes     Int?
+  resultPersonas     Int?
+  resultPesoTotalKg  String?
+  resultWarnings     Int?
   @@index([status])
   @@index([updatedAt])
   @@index([startedAt])
+  @@index([resultManifiestoId])
 }
