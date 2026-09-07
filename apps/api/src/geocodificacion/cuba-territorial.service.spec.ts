@@ -32,6 +32,12 @@ describe('CubaTerritorialService', () => {
             nombre: 'Guáimaro',
             nombreNormalizado: 'GUAIMARO',
           },
+          {
+            id: 4,
+            provinciaId: 2,
+            nombre: 'Camagüey',
+            nombreNormalizado: 'CAMAGUEY',
+          },
         ];
       }
 
@@ -48,6 +54,17 @@ describe('CubaTerritorialService', () => {
             municipioId: 2,
             nombre: 'Vedado',
             nombreNormalizado: 'VEDADO',
+          },
+        ];
+      }
+
+      if (sql.includes('CatalogoConsejoPopularCubano')) {
+        return [
+          {
+            id: 20,
+            municipioId: 1,
+            nombre: 'Pogolotti',
+            nombreNormalizado: 'POGOLOTTI',
           },
         ];
       }
@@ -95,7 +112,20 @@ describe('CubaTerritorialService', () => {
     });
   });
 
-  it('no confunde un municipio cubano que aparece en el nombre de una calle extranjera', async () => {
+  it('resuelve un consejo popular y hereda municipio y provincia', async () => {
+    const service = new CubaTerritorialService(prisma as never);
+
+    await expect(
+      service.resolver('CENTRO, POGOLOTTI'),
+    ).resolves.toMatchObject({
+      provincia: 'La Habana',
+      municipio: 'Marianao',
+      consejoPopular: 'Pogolotti',
+      confianza: 'ALTA',
+    });
+  });
+
+  it('no confunde un municipio cubano que aparece en una dirección extranjera', async () => {
     const service = new CubaTerritorialService(prisma as never);
 
     await expect(
