@@ -28,35 +28,48 @@ export class CubaTerritorialService {
     const componentes = direccion
       .split(',')
       .map((componente) => this.normalizar(componente))
-      .filter(Boolean)
-      .slice(-4);
+      .filter(Boolean);
 
     if (!componentes.length) return null;
 
-    const textoTerritorial = componentes.join(' ');
     const catalogo = await this.obtenerCatalogo();
-    const coincidencias = catalogo
-      .filter((item) =>
-        this.contieneTerritorio(
-          textoTerritorial,
-          item.municipioNormalizado ?? item.provinciaNormalizada,
-        ),
+    const ultimoComponente = componentes.at(-1) ?? '';
+
+    const provincias = catalogo.filter(
+      (item) =>
+        !item.municipio &&
+        this.contieneTerritorio(ultimoComponente, item.provinciaNormalizada),
+    );
+
+    if (!provincias.length) return null;
+
+    const provincia = provincias.sort(
+      (a, b) =>
+        b.provinciaNormalizada.length - a.provinciaNormalizada.length,
+    )[0];
+
+    const colaMunicipal = componentes.slice(-3).join(' ');
+    const municipios = catalogo
+      .filter(
+        (item) =>
+          item.municipio &&
+          item.provinciaNormalizada === provincia.provinciaNormalizada &&
+          this.contieneTerritorio(colaMunicipal, item.municipioNormalizado!),
       )
       .sort(
         (a, b) =>
-          (b.municipioNormalizado ?? b.provinciaNormalizada).length -
-          (a.municipioNormalizado ?? a.provinciaNormalizada).length,
+          (b.municipioNormalizado ?? '').length -
+          (a.municipioNormalizado ?? '').length,
       );
 
-    const mejor = coincidencias[0];
-    if (!mejor) return null;
+    const municipio = municipios[0];
 
     return {
-      provincia: mejor.provincia,
-      municipio: mejor.municipio,
-      provinciaNormalizada: mejor.provinciaNormalizada,
-      municipioNormalizado: mejor.municipioNormalizado,
-      confianza: mejor.municipio ? 'ALTA' : 'MEDIA',
+      provincia: provincia.provincia,
+      municipio: municipio?.municipio,
+      provinciaNormalizada: provincia.provinciaNormalizada,
+      municipioNormalizado: municipio?.municipioNormalizado,
+      confianza: municipio ? 'ALTA' : 'MEDIA',
     };
   }
 
@@ -145,8 +158,6 @@ export class CubaTerritorialService {
         catalogo.push({
           provincia: provincia.nombre,
           provinciaNormalizada: provincia.nombreNormalizado,
-          municipio: undefined,
-          municipioNormalizado: alias.valorNormalizado,
         });
       }
     }
