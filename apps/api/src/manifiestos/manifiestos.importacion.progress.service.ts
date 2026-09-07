@@ -88,6 +88,15 @@ type JobRow = {
 
 const DEFAULT_LEASE_SECONDS = 90;
 
+export class ImportJobLeaseLostError extends Error {
+  constructor(jobId: string) {
+    super(
+      `El worker perdió el lease del job ${jobId}. La ejecución debe detenerse y ejecutar rollback.`,
+    );
+    this.name = 'ImportJobLeaseLostError';
+  }
+}
+
 @Injectable()
 export class ManifiestosImportacionProgressService implements OnModuleInit {
   private readonly logger = new Logger(
@@ -235,9 +244,11 @@ export class ManifiestosImportacionProgressService implements OnModuleInit {
   update(jobId: string, patch: Partial<ImportJobProgress>): Promise<void> {
     return this.enqueue(jobId, async () => {
       const current = await this.get(jobId);
-      if (!current || current.status !== 'running') return;
+      if (!current || current.status !== 'running') {
+        throw new ImportJobLeaseLostError(jobId);
+      }
       const owned = await this.heartbeat(jobId);
-      if (!owned) return;
+      if (!owned) throw new ImportJobLeaseLostError(jobId);
       await this.persist({ ...current, ...patch });
     });
   }
@@ -249,14 +260,18 @@ export class ManifiestosImportacionProgressService implements OnModuleInit {
   ): Promise<void> {
     return this.enqueue(jobId, async () => {
       const current = await this.get(jobId);
-      if (!current || current.status !== 'running') return;
+      if (!current || current.status !== 'running') {
+        throw new ImportJobLeaseLostError(jobId);
+      }
       if (!result) {
         throw new Error(
           'No se puede completar el job de importación sin el resultado durable de la importación.',
         );
       }
+      const owned = await this.heartbeat(jobId);
+      if (!owned) throw new ImportJobLeaseLostError(jobId);
 
-      await this.persist(
+      const affected = await this.persist(
         {
           ...current,
           stage: 'completed',
@@ -269,6 +284,7 @@ export class ManifiestosImportacionProgressService implements OnModuleInit {
         },
         true,
       );
+      if (affected !== 1) throw new ImportJobLeaseLostError(jobId);
     });
   }
 
@@ -295,7 +311,7 @@ export class ManifiestosImportacionProgressService implements OnModuleInit {
   private async persist(
     input: ImportJobProgress,
     terminal = false,
-  ): Promise<void> {
+  ): Promise<number> {
     const job = { ...input };
     const started = Date.parse(job.startedAt);
     const end = job.completedAt ? Date.parse(job.completedAt) : Date.now();
@@ -327,7 +343,7 @@ export class ManifiestosImportacionProgressService implements OnModuleInit {
         ? Math.round((resolved / job.totalAddresses) * 1000) / 10
         : 0;
 
-    await this.prisma.$executeRaw`
+    return this.prisma.$executeRaw`
       UPDATE "ManifiestoImportacionJob"
       SET "stage" = ${job.stage}, "status" = ${job.status}, "message" = ${job.message},
           "totalHouses" = ${job.totalHouses}, "processedHouses" = ${job.processedHouses},
