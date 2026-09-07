@@ -93,7 +93,16 @@ export class ManifiestosImportacionWorker
       await this.importer.importar(buffer, originalname, jobId);
       const final = await this.progress.get(jobId);
       if (final?.status === 'completed') {
-        await this.source.delete(jobId);
+        try {
+          await this.source.delete(jobId);
+        } catch (cleanupError) {
+          this.logger.error(
+            `La importación del job ${jobId} quedó completada, pero no se pudo eliminar su fuente persistida.`,
+            cleanupError instanceof Error
+              ? cleanupError.stack
+              : String(cleanupError),
+          );
+        }
       }
     } catch (error) {
       this.logger.error(
