@@ -203,9 +203,7 @@ describe('ManifiestosService - direcciones', () => {
     };
 
     const geocodificacionMock = {
-      geocodificar: vi
-        .fn()
-        .mockRejectedValue(new Error('Servicio no disponible')),
+      geocodificar: vi.fn().mockRejectedValue(new Error('Servicio no disponible')),
     };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -278,9 +276,10 @@ describe('ManifiestosService - direcciones', () => {
     const prisma = {
       manifiesto: { findFirst: vi.fn().mockResolvedValue(null) },
       masterAwb: {
-        upsert: vi
-          .fn()
-          .mockResolvedValue({ id: 'master-1', numero: '649-31382945' }),
+        upsert: vi.fn().mockResolvedValue({
+          id: 'master-1',
+          numero: '649-31382945',
+        }),
       },
       $transaction: vi.fn(),
     };
