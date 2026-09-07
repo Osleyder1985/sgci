@@ -5,6 +5,7 @@ import {
   ECURED_CUBA_SYNC_PROVINCES,
   ecuredLocalidadesUrl,
   extraerTablaTerritorial,
+  extraerTextoHtml,
   normalizarTerritorio,
   parsearPaginaEcured,
 } from './ecured-cuba.catalog.js';
@@ -31,6 +32,12 @@ describe('EcuRed Cuba territorial catalog', () => {
     expect(normalizarTerritorio('Sancti Spíritus')).toBe('SANCTI SPIRITUS');
     expect(normalizarTerritorio('Ciego de Ávila')).toBe('CIEGO DE AVILA');
     expect(normalizarTerritorio('\u00a0 La-Habana  ')).toBe('LA HABANA');
+  });
+
+  it('decodes HTML entities without double-unescaping', () => {
+    expect(extraerTextoHtml('&amp;quot;')).toBe('&quot;');
+    expect(extraerTextoHtml('&#38;quot;')).toBe('&quot;');
+    expect(extraerTextoHtml('&quot; &amp; &#39;')).toBe('" & \'');
   });
 
   it('parses the locality and popular-council sections independently', () => {
