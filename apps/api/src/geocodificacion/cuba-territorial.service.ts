@@ -47,6 +47,13 @@ export class CubaTerritorialService {
     const texto = this.normalizar(direccion);
     if (!texto) return null;
 
+    if (
+      this.tieneContextoExtranjero(texto) &&
+      !this.contieneTerritorio(texto, 'CUBA')
+    ) {
+      return null;
+    }
+
     const catalogo = await this.obtenerCatalogo();
     const provincia = this.buscarUnico(
       catalogo,
