@@ -94,8 +94,8 @@ export class ManifiestosImportacionProgressService {
         NULL, 0, NULL
       )
     `;
-    return this.toProgress({
-      id: jobId,
+    return {
+      jobId,
       stage: 'queued',
       status: 'running',
       message: 'Importación en cola.',
@@ -111,15 +111,15 @@ export class ManifiestosImportacionProgressService {
       addressesReview: 0,
       errors: 0,
       currentAddress: null,
-      startedAt: now,
-      updatedAt: now,
+      startedAt: now.toISOString(),
+      updatedAt: now.toISOString(),
       completedAt: null,
       elapsedMs: 0,
       housesPerMinute: 0,
       etaSeconds: null,
       coverage: 0,
       error: null,
-    });
+    };
   }
 
   async get(jobId: string): Promise<ImportJobProgress | null> {
@@ -133,67 +133,7 @@ export class ManifiestosImportacionProgressService {
     return this.enqueue(jobId, async () => {
       const current = await this.get(jobId);
       if (!current) return;
-
-      const job = { ...current, ...patch };
-      const started = Date.parse(job.startedAt);
-      const end = job.completedAt ? Date.parse(job.completedAt) : Date.now();
-      job.elapsedMs = Math.max(0, end - started);
-
-      const minutes = job.elapsedMs / 60000;
-      job.housesPerMinute =
-        minutes > 0
-          ? Math.round((job.processedHouses / minutes) * 10) / 10
-          : 0;
-
-      if (
-        job.status === 'running' &&
-        job.totalHouses > 0 &&
-        job.processedHouses > 0
-      ) {
-        job.etaSeconds = Math.max(
-          0,
-          Math.round(
-            ((job.totalHouses - job.processedHouses) / job.processedHouses) *
-              (job.elapsedMs / 1000),
-          ),
-        );
-      } else {
-        job.etaSeconds = job.status === 'completed' ? 0 : null;
-      }
-
-      const resolved = job.addressesGeocoded + job.addressesReused;
-      job.coverage =
-        job.totalAddresses > 0
-          ? Math.round((resolved / job.totalAddresses) * 1000) / 10
-          : 0;
-
-      await this.prisma.$executeRaw`
-        UPDATE "ManifiestoImportacionJob"
-        SET
-          "stage" = ${job.stage},
-          "status" = ${job.status},
-          "message" = ${job.message},
-          "totalHouses" = ${job.totalHouses},
-          "processedHouses" = ${job.processedHouses},
-          "totalPeople" = ${job.totalPeople},
-          "processedPeople" = ${job.processedPeople},
-          "totalAddresses" = ${job.totalAddresses},
-          "processedAddresses" = ${job.processedAddresses},
-          "addressesGeocoded" = ${job.addressesGeocoded},
-          "addressesReused" = ${job.addressesReused},
-          "addressesNotFound" = ${job.addressesNotFound},
-          "addressesReview" = ${job.addressesReview},
-          "errors" = ${job.errors},
-          "currentAddress" = ${job.currentAddress},
-          "updatedAt" = CURRENT_TIMESTAMP,
-          "completedAt" = ${job.completedAt ? new Date(job.completedAt) : null},
-          "elapsedMs" = ${job.elapsedMs},
-          "housesPerMinute" = ${job.housesPerMinute},
-          "etaSeconds" = ${job.etaSeconds},
-          "coverage" = ${job.coverage},
-          "error" = ${job.error}
-        WHERE "id" = ${jobId}::uuid
-      `;
+      await this.persist({ ...current, ...patch });
     });
   }
 
@@ -201,13 +141,18 @@ export class ManifiestosImportacionProgressService {
     jobId: string,
     message = 'Manifiesto importado correctamente.',
   ): Promise<void> {
-    return this.update(jobId, {
-      stage: 'completed',
-      status: 'completed',
-      message,
-      completedAt: new Date().toISOString(),
-      currentAddress: null,
-      error: null,
+    return this.enqueue(jobId, async () => {
+      const current = await this.get(jobId);
+      if (!current) return;
+      await this.persist({
+        ...current,
+        stage: 'completed',
+        status: 'completed',
+        message,
+        completedAt: new Date().toISOString(),
+        currentAddress: null,
+        error: null,
+      });
     });
   }
 
@@ -215,7 +160,8 @@ export class ManifiestosImportacionProgressService {
     return this.enqueue(jobId, async () => {
       const current = await this.get(jobId);
       if (!current) return;
-      await this.update(jobId, {
+      await this.persist({
+        ...current,
         stage: 'failed',
         status: 'failed',
         message: 'La importación terminó con errores.',
@@ -225,6 +171,69 @@ export class ManifiestosImportacionProgressService {
         currentAddress: null,
       });
     });
+  }
+
+  private async persist(input: ImportJobProgress): Promise<void> {
+    const job = { ...input };
+    const started = Date.parse(job.startedAt);
+    const end = job.completedAt ? Date.parse(job.completedAt) : Date.now();
+    job.elapsedMs = Math.max(0, end - started);
+
+    const minutes = job.elapsedMs / 60000;
+    job.housesPerMinute =
+      minutes > 0
+        ? Math.round((job.processedHouses / minutes) * 10) / 10
+        : 0;
+
+    if (
+      job.status === 'running' &&
+      job.totalHouses > 0 &&
+      job.processedHouses > 0
+    ) {
+      job.etaSeconds = Math.max(
+        0,
+        Math.round(
+          ((job.totalHouses - job.processedHouses) / job.processedHouses) *
+            (job.elapsedMs / 1000),
+        ),
+      );
+    } else {
+      job.etaSeconds = job.status === 'completed' ? 0 : null;
+    }
+
+    const resolved = job.addressesGeocoded + job.addressesReused;
+    job.coverage =
+      job.totalAddresses > 0
+        ? Math.round((resolved / job.totalAddresses) * 1000) / 10
+        : 0;
+
+    await this.prisma.$executeRaw`
+      UPDATE "ManifiestoImportacionJob"
+      SET
+        "stage" = ${job.stage},
+        "status" = ${job.status},
+        "message" = ${job.message},
+        "totalHouses" = ${job.totalHouses},
+        "processedHouses" = ${job.processedHouses},
+        "totalPeople" = ${job.totalPeople},
+        "processedPeople" = ${job.processedPeople},
+        "totalAddresses" = ${job.totalAddresses},
+        "processedAddresses" = ${job.processedAddresses},
+        "addressesGeocoded" = ${job.addressesGeocoded},
+        "addressesReused" = ${job.addressesReused},
+        "addressesNotFound" = ${job.addressesNotFound},
+        "addressesReview" = ${job.addressesReview},
+        "errors" = ${job.errors},
+        "currentAddress" = ${job.currentAddress},
+        "updatedAt" = CURRENT_TIMESTAMP,
+        "completedAt" = ${job.completedAt ? new Date(job.completedAt) : null},
+        "elapsedMs" = ${job.elapsedMs},
+        "housesPerMinute" = ${job.housesPerMinute},
+        "etaSeconds" = ${job.etaSeconds},
+        "coverage" = ${job.coverage},
+        "error" = ${job.error}
+      WHERE "id" = ${job.jobId}::uuid
+    `;
   }
 
   private enqueue(jobId: string, operation: () => Promise<void>): Promise<void> {
