@@ -15,11 +15,15 @@ Definir el contrato mínimo de durabilidad para los trabajos de `Importar Manifi
 7. Al completar o fallar, el lease se libera y el worker deja de ser propietario.
 8. Un job cuyo lease haya expirado debe detectarse y dejar de aparecer como ejecución activa.
 9. El estado persistente del job es la fuente de verdad; la memoria del proceso no puede ser la única fuente de estado.
-10. La implementación actual no debe afirmar reanudación automática después de un crash mientras el archivo fuente siga existiendo únicamente en memoria HTTP. Para reanudar realmente, el archivo o una referencia durable al archivo debe persistirse antes del claim.
+10. La fuente XLSX del job debe persistirse antes de responder al request HTTP, de forma que la ejecución pueda desacoplarse del request.
+11. El resultado debe persistirse antes de limpiar la fuente XLSX.
+12. Un fallo al limpiar la fuente después de una importación completada no debe convertir el job en `failed`; debe quedar registrado para observabilidad y permitir limpieza posterior.
 
 ## Estado actual
 
-Esta fase introduce `attempt`, `workerId`, `heartbeatAt` y `leaseUntil`, además de claim atómico y recuperación de leases expirados. El siguiente paso arquitectónico es desacoplar la ejecución del request HTTP mediante almacenamiento durable de la fuente y un worker que pueda reclamar jobs pendientes después de un reinicio.
+Esta fase implementa `attempt`, `workerId`, `heartbeatAt` y `leaseUntil`, claim atómico, recuperación de leases expirados, persistencia durable de la fuente XLSX y ejecución mediante worker desacoplado del request HTTP.
+
+La reanudación automática después de un crash todavía no forma parte del contrato: los jobs cuyo lease expira se marcan como fallidos y la fuente durable permanece asociada al job para permitir una estrategia explícita de reintento posterior.
 
 ## Principio
 
