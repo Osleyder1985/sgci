@@ -74,7 +74,8 @@ export function extraerTablaTerritorial(
   const heading = localizarHeading(html, seccion);
   if (!heading) return [];
 
-  const siguienteHeading = /<span\b[^>]*class=["'][^"']*mw-headline[^"']*["'][^>]*>/gi;
+  const siguienteHeading =
+    /<span\b[^>]*class=["'][^"']*mw-headline[^"']*["'][^>]*>/gi;
   siguienteHeading.lastIndex = heading.end;
   const siguiente = siguienteHeading.exec(html);
   const bloque = html.slice(heading.end, siguiente?.index ?? html.length);
@@ -86,12 +87,15 @@ export function extraerTablaTerritorial(
 
   const filas: EcuredTerritoryRow[] = [];
   for (const filaMatch of tabla.matchAll(/<tr\b[\s\S]*?<\/tr>/gi)) {
-    const celdas = [...filaMatch[0].matchAll(/<(?:td|th)\b[\s\S]*?<\/(?:td|th)>/gi)].map(
-      (match) => match[0],
-    );
+    const celdas = [
+      ...filaMatch[0].matchAll(
+        /<(?:td|th)\b[\s\S]*?<\/(?:td|th)>/gi,
+      ),
+    ].map((match) => match[0]);
     if (celdas.length < 2) continue;
 
-    const municipio = extraerEnlaces(celdas[0])[0] ?? extraerTextoHtml(celdas[0]);
+    const municipio =
+      extraerEnlaces(celdas[0])[0] ?? extraerTextoHtml(celdas[0]);
     const valores = extraerEnlaces(celdas[1]);
     if (!municipio || !valores.length) continue;
 
@@ -151,7 +155,9 @@ function decodeHtmlEntities(valor: string): string {
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
     .replace(/&#x27;/gi, "'")
-    .replace(/&#(\d+);/g, (_, numero: string) => String.fromCodePoint(Number(numero)))
+    .replace(/&#(\d+);/g, (_, numero: string) =>
+      String.fromCodePoint(Number(numero)),
+    )
     .replace(/&#x([0-9a-f]+);/gi, (_, numero: string) =>
       String.fromCodePoint(parseInt(numero, 16)),
     );
