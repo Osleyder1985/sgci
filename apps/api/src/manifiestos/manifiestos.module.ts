@@ -4,6 +4,7 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 import { ManifiestosController } from './manifiestos.controller.js';
 import { ManifiestosDiagnosticoService } from './manifiestos.diagnostico.service.js';
 import { ManifiestosImportacionProgressService } from './manifiestos.importacion.progress.service.js';
+import { ManifiestosImportacionProgressDisplayService } from './manifiestos.importacion.progress.display.service.js';
 import { ManifiestosImportacionEscalableService } from './manifiestos.importacion.escalable.service.js';
 import { ManifiestosImportacionSourceService } from './manifiestos.importacion.source.service.js';
 import { ManifiestosImportacionWorker } from './manifiestos.importacion.worker.js';
@@ -16,7 +17,11 @@ import { ManifiestoParser } from './parsers/manifiesto.parser.js';
   providers: [
     ManifiestosService,
     ManifiestosDiagnosticoService,
-    ManifiestosImportacionProgressService,
+    {
+      provide: ManifiestosImportacionProgressService,
+      useClass: ManifiestosImportacionProgressDisplayService,
+    },
+    ManifiestosImportacionProgressDisplayService,
     ManifiestosImportacionEscalableService,
     ManifiestosImportacionSourceService,
     ManifiestosImportacionWorker,
