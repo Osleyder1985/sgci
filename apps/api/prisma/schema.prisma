@@ -14,13 +14,6 @@
 //   - Master AWB.
 //   - House / guías.
 //   - Bultos asociados a cada House.
-//
-// PostgreSQL constituye el motor principal de persistencia.
-// PostGIS proporciona capacidades geográficas y espaciales.
-// ================================================================================
-
-// ================================================================================
-// GENERADOR PRISMA CLIENT
 // ================================================================================
 
 generator client {
@@ -28,17 +21,9 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
-// ================================================================================
-// BASE DE DATOS
-// ================================================================================
-
 datasource db {
   provider = "postgresql"
 }
-
-// ================================================================================
-// ENUMERACIONES
-// ================================================================================
 
 enum TipoDocumentoIdentidad {
   CARNET_IDENTIDAD
@@ -76,13 +61,6 @@ enum EstadoGeocodificacion {
   REQUIERE_REVISION
 }
 
-// Estado del House según el valor recibido desde el manifiesto.
-// Se conserva como texto en Guia para no perder códigos del documento de origen.
-
-// =============================================================================
-// PERSONA
-// =============================================================================
-
 model Persona {
   id             String               @id @default(uuid()) @db.Uuid
   nombres        String
@@ -91,21 +69,14 @@ model Persona {
   activo         Boolean              @default(true)
   documentos     DocumentoIdentidad[]
   direcciones    Direccion[]
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   conflictosExistentes ConflictoIdentidad[] @relation("PersonaExistenteConflicto")
   conflictosNuevos     ConflictoIdentidad[] @relation("PersonaNuevaConflicto")
-
   @@index([nombres])
   @@index([apellidos])
   @@index([nombreCompleto])
 }
-
-// =============================================================================
-// DOCUMENTO DE IDENTIDAD
-// =============================================================================
 
 model DocumentoIdentidad {
   id             String                 @id @default(uuid()) @db.Uuid
@@ -116,20 +87,13 @@ model DocumentoIdentidad {
   estado         EstadoIdentidad        @default(PENDIENTE_VERIFICACION)
   esPrincipal    Boolean                @default(false)
   verificadoAt   DateTime?
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   persona Persona @relation(fields: [personaId], references: [id], onDelete: Restrict)
-
   @@unique([tipo, numero])
   @@index([numero])
   @@index([estado])
 }
-
-// =============================================================================
-// DIRECCIÓN
-// =============================================================================
 
 model Direccion {
   id                    String                               @id @default(uuid()) @db.Uuid
@@ -148,21 +112,14 @@ model Direccion {
   geocodificadoAt       DateTime?
   esPrincipal           Boolean                              @default(false)
   activa                Boolean                              @default(true)
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   persona Persona @relation(fields: [personaId], references: [id], onDelete: Restrict)
-
   @@index([provincia])
   @@index([municipio])
   @@index([localidad])
   @@index([estadoGeocodificacion])
 }
-
-// =============================================================================
-// CONFLICTO DE IDENTIDAD
-// =============================================================================
 
 model ConflictoIdentidad {
   id                      String                   @id @default(uuid()) @db.Uuid
@@ -171,45 +128,30 @@ model ConflictoIdentidad {
   tipoDocumento           TipoDocumentoIdentidad
   numeroDocumento         String
   numeroDocumentoOriginal String?
-  datosOriginales        Json
+  datosOriginales         Json
   tipoConflicto           TipoConflictoIdentidad
   estado                  EstadoConflictoIdentidad @default(ABIERTO)
   resolucion              String?
   resueltoAt              DateTime?
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   personaExistente Persona @relation("PersonaExistenteConflicto", fields: [personaExistenteId], references: [id], onDelete: Restrict)
   personaNueva     Persona @relation("PersonaNuevaConflicto", fields: [personaNuevaId], references: [id], onDelete: Restrict)
-
   @@index([estado])
   @@index([tipoDocumento, numeroDocumento])
   @@index([personaExistenteId])
   @@index([personaNuevaId])
 }
 
-// =============================================================================
-// MASTER AWB
-// =============================================================================
-
-// Documento Master que agrupa uno o varios manifiestos.
 model MasterAwb {
   id          String      @id @default(uuid()) @db.Uuid
   numero      String      @unique
   manifiestos Manifiesto[]
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   @@index([numero])
 }
 
-// =============================================================================
-// MANIFIESTO
-// =============================================================================
-
-// Cabecera del manifiesto importado desde Excel/CSV.
 model Manifiesto {
   id                 String   @id @default(uuid()) @db.Uuid
   masterAwbId        String   @db.Uuid
@@ -220,31 +162,20 @@ model Manifiesto {
   cantidadHouse      Int
   totalSacas         Int
   totalPersonas      Int
-
-  // Peso declarado en la fila de total del manifiesto.
-  // NO se debe sumar nuevamente esta fila como si fuera un House.
   pesoTotalKg        Decimal  @db.Decimal(12, 2)
-
   archivoNombre      String?
   archivoHash        String?
   importadoAt        DateTime @default(now())
-
   masterAwb MasterAwb @relation(fields: [masterAwbId], references: [id], onDelete: Restrict)
   guias    Guia[]
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   @@index([masterAwbId])
   @@index([fecha])
   @@index([agenteTransitario])
+  @@unique([archivoHash])
 }
 
-// =============================================================================
-// HOUSE / GUÍA
-// =============================================================================
-
-// Representa cada House del manifiesto.
 model Guia {
   id                    String   @id @default(uuid()) @db.Uuid
   manifiestoId          String   @db.Uuid
@@ -252,26 +183,18 @@ model Guia {
   naturalezaCantidad    String
   pesoKg                Decimal  @db.Decimal(12, 2)
   bultos                Int
-
   remitenteNombre       String
   remitentePasaporte    String?
-
   destinatarioNombre    String
   destinatarioCarnet    String?
   telefonoDestinatario  String?
   direccionDestinatario String?
-
-  // Valor original de la columna "Identificación si el House está COBRADO ó NO COBRADO en origen".
   estadoCobroOrigen     String?
-
   unidadDestino         String?
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   manifiesto Manifiesto @relation(fields: [manifiestoId], references: [id], onDelete: Cascade)
   paquetes   Paquete[]
-
   @@unique([manifiestoId, numeroHouse])
   @@index([numeroHouse])
   @@index([manifiestoId])
@@ -280,22 +203,51 @@ model Guia {
   @@index([unidadDestino])
 }
 
-// =============================================================================
-// PAQUETE / BULTO
-// =============================================================================
-
-// Detalle físico asociado a un House.
-// En el manifiesto actual la columna "Bultos (Cant.)" indica la cantidad de bultos.
 model Paquete {
   id        String  @id @default(uuid()) @db.Uuid
   guiaId    String  @db.Uuid
   numero    Int
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   guia Guia @relation(fields: [guiaId], references: [id], onDelete: Cascade)
-
   @@unique([guiaId, numero])
   @@index([guiaId])
+}
+
+model ManifiestoImportacionJob {
+  id                  String   @id @default(uuid()) @db.Uuid
+  stage               String
+  status              String
+  message             String
+  totalHouses         Int
+  processedHouses     Int
+  totalPeople         Int
+  processedPeople     Int
+  totalAddresses      Int
+  processedAddresses  Int
+  addressesGeocoded   Int
+  addressesReused     Int
+  addressesNotFound   Int
+  addressesReview     Int
+  errors              Int
+  currentAddress      String?
+  startedAt           DateTime
+  updatedAt           DateTime @updatedAt
+  completedAt         DateTime?
+  elapsedMs           Int
+  housesPerMinute     Float
+  etaSeconds          Int?
+  coverage            Float
+  error               String?
+  resultManifiestoId  String?  @db.Uuid
+  resultMasterAwb     String?
+  resultGuias         Int?
+  resultPaquetes      Int?
+  resultPersonas      Int?
+  resultPesoTotalKg   String?
+  resultWarnings      Int?
+  @@index([status])
+  @@index([updatedAt])
+  @@index([startedAt])
+  @@index([resultManifiestoId])
 }

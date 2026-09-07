@@ -1,7 +1,5 @@
 "use client";
-
-import { ChangeEvent, useMemo, useState } from "react";
-
+import { ChangeEvent, ReactNode, useEffect, useMemo, useState } from "react";
 interface HousePreview {
   numeroHouse?: string;
   house?: string;
@@ -10,15 +8,12 @@ interface HousePreview {
   bultos?: number;
   cantidadBultos?: number;
   remitenteNombre?: string;
-  remitentePasaporte?: string | null;
   destinatarioNombre?: string;
   destinatarioCarnet?: string | null;
   telefonoDestinatario?: string | null;
   direccionDestinatario?: string | null;
-  estadoCobroOrigen?: number | null;
   unidadDestino?: string | null;
 }
-
 interface PreviewResponse {
   ok: boolean;
   mensaje?: string;
@@ -39,16 +34,6 @@ interface PreviewResponse {
   registros?: number;
   casas?: HousePreview[];
   warnings?: string[];
-  duplicado?: {
-    existe: boolean;
-    id?: string;
-    masterAwb?: string | null;
-    fecha?: string | null;
-    pesoTotalKg?: string | null;
-    cantidadHouse?: number;
-    totalSacas?: number;
-    totalPersonas?: number;
-  };
   direcciones?: {
     total: number;
     encontradas: number;
@@ -62,241 +47,248 @@ interface PreviewResponse {
     warnings: string[];
   };
 }
-
-interface ImportResponse {
-  ok: boolean;
-  mensaje?: string;
-  manifiesto?: {
-    id: string;
-    masterAwb: string;
-    cantidadHouse: number;
-    totalSacas: number;
-    totalPersonas: number;
-    pesoTotalKg: string | number;
-    archivoNombre: string;
-    importadoAt: string;
-  };
-  estadisticas?: {
-    guias: number;
-    paquetes: number;
-    personasVerificadas: number;
-    direccionesEncontradas: number;
-    direccionesReutilizadas: number;
-    direccionesGeocodificadas: number;
-    direccionesPendientes: number;
-  };
-  warnings?: string[];
-  error?: string;
+interface Progress {
+  jobId: string;
+  stage:
+    | "queued"
+    | "parsing"
+    | "creating_guides"
+    | "processing_addresses"
+    | "completed"
+    | "failed";
+  status: "running" | "completed" | "failed";
+  message: string;
+  totalHouses: number;
+  processedHouses: number;
+  totalPeople: number;
+  processedPeople: number;
+  totalAddresses: number;
+  processedAddresses: number;
+  addressesGeocoded: number;
+  addressesReused: number;
+  addressesNotFound: number;
+  addressesReview: number;
+  errors: number;
+  currentAddress: string | null;
+  startedAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+  elapsedMs: number;
+  housesPerMinute: number;
+  etaSeconds: number | null;
+  coverage: number;
+  error: string | null;
 }
-
 type Tone = "green" | "amber" | "red" | "blue" | "slate";
-
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 export default function ImportarManifiestoPage() {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
-  const [resultado, setResultado] = useState<ImportResponse | null>(null);
-  const [cargandoPreview, setCargandoPreview] = useState(false);
-  const [importando, setImportando] = useState(false);
+  const [progress, setProgress] = useState<Progress | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
-  const [busqueda, setBusqueda] = useState("");
-  const [soloAlertas, setSoloAlertas] = useState(false);
-  const [mostrarWarnings, setMostrarWarnings] = useState(false);
-
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
-
-  const seleccionarArchivo = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
+  const [query, setQuery] = useState("");
+  const [alertsOnly, setAlertsOnly] = useState(false);
+  const [warningsOpen, setWarningsOpen] = useState(false);
+  const selectFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
     setArchivo(file);
     setPreview(null);
-    setResultado(null);
+    setProgress(null);
     setError("");
-    setBusqueda("");
-    setSoloAlertas(false);
-    setMostrarWarnings(false);
-    if (file) await generarPreview(file);
+    setQuery("");
+    setAlertsOnly(false);
+    if (file) await loadPreview(file);
   };
-
-  const generarPreview = async (file: File) => {
-    setCargandoPreview(true);
-    setError("");
+  const loadPreview = async (file: File) => {
+    setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append("archivo", file);
-      const response = await fetch(`${apiUrl}/api/guias/importar/preview`, {
+      const body = new FormData();
+      body.append("archivo", file);
+      const r = await fetch(`${apiUrl}/api/guias/importar/preview`, {
         method: "POST",
-        body: formData,
+        body,
       });
-      const texto = await response.text();
-      let data: PreviewResponse;
-      try {
-        data = JSON.parse(texto);
-      } catch {
-        throw new Error(`El servidor respondió con HTTP ${response.status}.`);
-      }
-      if (!response.ok || !data.ok) {
+      const d = (await r.json().catch(() => null)) as PreviewResponse | null;
+      if (!r.ok || !d?.ok)
         throw new Error(
-          data.mensaje ?? "No fue posible analizar el manifiesto.",
+          d?.mensaje ?? `El servidor respondió HTTP ${r.status}.`,
         );
-      }
-      setPreview(data);
-    } catch (err) {
-      setPreview(null);
+      setPreview(d);
+    } catch (e) {
       setError(
-        err instanceof Error ? err.message : "Error al analizar el manifiesto.",
+        e instanceof Error
+          ? e.message
+          : "No fue posible analizar el manifiesto.",
       );
     } finally {
-      setCargandoPreview(false);
+      setLoading(false);
     }
   };
-
-  const importarManifiesto = async () => {
+  const startImport = async () => {
     if (!archivo) return setError("Seleccione un archivo de manifiesto.");
-    setImportando(true);
-    setResultado(null);
+    setStarting(true);
     setError("");
     try {
-      const formData = new FormData();
-      formData.append("archivo", archivo);
-      const response = await fetch(`${apiUrl}/api/guias/importar`, {
+      const body = new FormData();
+      body.append("archivo", archivo);
+      const r = await fetch(`${apiUrl}/api/guias/importar/job`, {
         method: "POST",
-        body: formData,
+        body,
       });
-      const texto = await response.text();
-      let data: ImportResponse;
-      try {
-        data = JSON.parse(texto);
-      } catch {
-        throw new Error(`El servidor respondió con HTTP ${response.status}.`);
-      }
-      if (!response.ok || !data.ok) {
+      const d = (await r.json().catch(() => null)) as {
+        ok?: boolean;
+        jobId?: string;
+        progress?: Progress;
+        message?: string;
+      } | null;
+      if (!r.ok || !d?.ok || !d.jobId)
         throw new Error(
-          data.error ??
-            data.mensaje ??
-            "No fue posible importar el manifiesto.",
+          d?.message ??
+            `No fue posible iniciar la importación (HTTP ${r.status}).`,
         );
-      }
-      setResultado(data);
-    } catch (err) {
+      setProgress(d.progress ?? null);
+    } catch (e) {
       setError(
-        err instanceof Error ? err.message : "Error al importar el manifiesto.",
+        e instanceof Error
+          ? e.message
+          : "No fue posible iniciar la importación.",
       );
     } finally {
-      setImportando(false);
+      setStarting(false);
     }
   };
-
-  const limpiar = () => {
+  useEffect(() => {
+    if (!progress?.jobId || progress.status !== "running") return;
+    const timer = window.setInterval(async () => {
+      try {
+        const r = await fetch(
+          `${apiUrl}/api/guias/importar/job/${progress.jobId}`,
+          { cache: "no-store" },
+        );
+        if (r.ok) {
+          const d = (await r.json()) as { progress: Progress };
+          setProgress(d.progress);
+        }
+      } catch {
+        /* conserva el último estado real */
+      }
+    }, 900);
+    return () => window.clearInterval(timer);
+  }, [progress?.jobId, progress?.status]);
+  const clear = () => {
     setArchivo(null);
     setPreview(null);
-    setResultado(null);
+    setProgress(null);
     setError("");
-    setBusqueda("");
-    setSoloAlertas(false);
-    setMostrarWarnings(false);
-    const input = document.getElementById(
+    setQuery("");
+    setAlertsOnly(false);
+    const i = document.getElementById(
       "archivo-manifiesto",
     ) as HTMLInputElement | null;
-    if (input) input.value = "";
+    if (i) i.value = "";
   };
-
-  const casasFiltradas = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    return (preview?.casas ?? []).filter((house) => {
-      const texto = [
-        house.numeroHouse ?? house.house,
-        house.naturalezaCantidad,
-        house.remitenteNombre,
-        house.destinatarioNombre,
-        house.destinatarioCarnet,
-        house.telefonoDestinatario,
-        house.direccionDestinatario,
-        house.unidadDestino,
+  const houses = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (preview?.casas ?? []).filter((h) => {
+      const text = [
+        h.numeroHouse ?? h.house,
+        h.naturalezaCantidad,
+        h.remitenteNombre,
+        h.destinatarioNombre,
+        h.destinatarioCarnet,
+        h.telefonoDestinatario,
+        h.direccionDestinatario,
+        h.unidadDestino,
       ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
-      const alerta = !house.destinatarioNombre || !house.direccionDestinatario;
-      return (!q || texto.includes(q)) && (!soloAlertas || alerta);
+      const alert = !h.destinatarioNombre || !h.direccionDestinatario;
+      return (!q || text.includes(q)) && (!alertsOnly || alert);
     });
-  }, [preview?.casas, busqueda, soloAlertas]);
-
-  const d = preview?.direcciones;
-  const geo = resultado?.estadisticas;
-  const resultadoPositivo =
-    (geo?.direccionesGeocodificadas ?? 0) + (geo?.direccionesReutilizadas ?? 0);
-  const resultadoTotal = resultadoPositivo + (geo?.direccionesPendientes ?? 0);
-  const coberturaFinal = resultadoTotal
-    ? Math.round((resultadoPositivo / resultadoTotal) * 100)
+  }, [preview?.casas, query, alertsOnly]);
+  const warnings = [
+    ...(preview?.warnings ?? []),
+    ...(preview?.direcciones?.warnings ?? []),
+  ];
+  const p = progress;
+  const housePct = p?.totalHouses
+    ? Math.round((p.processedHouses / p.totalHouses) * 100)
     : 0;
-  const warnings = [...(preview?.warnings ?? []), ...(d?.warnings ?? [])];
-
+  const addressPct = p?.totalAddresses
+    ? Math.round((p.processedAddresses / p.totalAddresses) * 100)
+    : 0;
+  const resolved = (p?.addressesGeocoded ?? 0) + (p?.addressesReused ?? 0);
   return (
     <main className="min-h-screen bg-[#f4f7fb] pb-16 text-slate-900">
       <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
         <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <a
-              href="/dashboard"
-              className="text-sm font-medium text-slate-500 hover:text-slate-900"
-            >
+            <a href="/dashboard" className="text-sm font-medium text-slate-500">
               ← Dashboard
             </a>
             <div className="mt-3 flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-xl text-white">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-xl text-white">
                 ⇧
               </div>
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">
+                <h1 className="text-3xl font-black tracking-tight">
                   Centro de Control de Importación
                 </h1>
                 <p className="mt-1 text-sm text-slate-500">
-                  Valida, importa y audita cada manifiesto desde un único lugar.
+                  Validación, ejecución y trazabilidad en tiempo real.
                 </p>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" /> API de
-            importación conectada
+          <div className="flex items-center gap-2 text-xs font-bold text-emerald-700">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" /> API
+            operativa
           </div>
         </header>
-
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="grid lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="grid lg:grid-cols-[1.2fr_.8fr]">
             <label
               htmlFor="archivo-manifiesto"
-              className="group flex min-h-[190px] cursor-pointer flex-col justify-center border-b border-slate-200 p-7 hover:bg-slate-50 lg:border-b-0 lg:border-r"
+              className="flex min-h-[185px] cursor-pointer items-center border-b border-slate-200 p-7 hover:bg-slate-50 lg:border-b-0 lg:border-r"
             >
               <input
                 id="archivo-manifiesto"
                 type="file"
                 accept=".xlsx,.xls,.csv"
-                onChange={seleccionarArchivo}
+                onChange={selectFile}
                 className="hidden"
               />
-              <div className="flex items-start gap-5">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-2xl">
-                  📄
+              <div className="flex gap-5">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-2xl text-white">
+                  ⌁
                 </div>
                 <div>
-                  <p className="text-lg font-bold">Seleccionar manifiesto</p>
-                  <p className="mt-1 text-sm text-slate-500">
-                    XLSX, XLS o CSV. Al seleccionarlo iniciaremos la validación
-                    automáticamente.
+                  <div className="text-xs font-black uppercase tracking-widest text-slate-400">
+                    Entrada operacional
+                  </div>
+                  <p className="mt-1 text-xl font-black">
+                    Seleccionar manifiesto
                   </p>
-                  <span className="mt-4 inline-flex rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">
+                  <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">
+                    XLSX, XLS o CSV. La validación comienza automáticamente y la
+                    importación se ejecuta como trabajo monitorizado.
+                  </p>
+                  <span className="mt-4 inline-flex rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white">
                     Elegir archivo
                   </span>
                 </div>
               </div>
             </label>
-            <div className="flex min-h-[190px] flex-col justify-center p-7">
+            <div className="flex min-h-[185px] flex-col justify-center p-7">
               {archivo ? (
                 <>
-                  <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                    Archivo en análisis
+                  <div className="text-xs font-black uppercase tracking-widest text-slate-400">
+                    Archivo seleccionado
                   </div>
-                  <div className="mt-2 break-all text-lg font-bold">
+                  <div className="mt-2 break-all text-lg font-black">
                     {archivo.name}
                   </div>
                   <div className="mt-1 text-sm text-slate-500">
@@ -305,52 +297,45 @@ export default function ImportarManifiestoPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={limpiar}
-                    className="mt-5 w-fit rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    onClick={clear}
+                    className="mt-5 w-fit rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold"
                   >
                     Cambiar / limpiar
                   </button>
                 </>
               ) : (
                 <>
-                  <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                    Flujo operativo
+                  <div className="text-xs font-black uppercase tracking-widest text-slate-400">
+                    Pipeline
                   </div>
-                  <p className="mt-2 text-base font-semibold">
-                    Archivo → validación → importación → personas → direcciones
+                  <p className="mt-2 text-base font-bold">
+                    Archivo → diagnóstico → ejecución → geocodificación →
+                    auditoría
                   </p>
                   <p className="mt-2 text-sm leading-6 text-slate-500">
-                    El sistema mostrará los resultados reales devueltos por la
-                    API.
+                    La pantalla no inventa progreso: cada indicador proviene del
+                    estado real del trabajo.
                   </p>
                 </>
               )}
             </div>
           </div>
         </section>
-
-        {cargandoPreview && (
-          <StatusBanner
+        {loading && (
+          <Banner
             tone="blue"
             title="Analizando manifiesto"
-            text="Leyendo estructura, identificando Houses, personas, bultos y preparando el diagnóstico de direcciones..."
-            spinner
+            text="Leyendo estructura, Houses, personas y diagnóstico de direcciones…"
+            spin
           />
         )}
-        {error && (
-          <StatusBanner
-            tone="red"
-            title="No se pudo completar la operación"
-            text={error}
-          />
-        )}
-
+        {error && <Banner tone="red" title="Operación detenida" text={error} />}
         {preview?.ok && preview.total && (
           <>
             <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <Kpi
                 label="Master AWB"
-                value={preview.metadata?.masterAwb ?? "No detectado"}
+                value={preview.metadata?.masterAwb ?? "—"}
                 detail={
                   preview.metadata?.fecha
                     ? formatDate(preview.metadata.fecha)
@@ -365,63 +350,52 @@ export default function ImportarManifiestoPage() {
               <Kpi
                 label="Bultos"
                 value={preview.total.cantidadSacas}
-                detail="Total declarado"
+                detail="Declarados"
               />
               <Kpi
                 label="Personas"
                 value={preview.total.cantidadPersonas}
-                detail="Total declarado"
+                detail="Declaradas"
               />
               <Kpi
                 label="Peso total"
-                value={`${Number(preview.total.pesoTotalKg ?? 0).toFixed(2)} kg`}
-                detail="Peso declarado"
+                value={`${Number(preview.total.pesoTotalKg).toFixed(2)} kg`}
+                detail="Declarado"
               />
             </section>
-
             <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex flex-col gap-4 lg:flex-row lg:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-xl font-bold">
-                      Diagnóstico previo a importación
+                    <h2 className="text-xl font-black">
+                      Diagnóstico antes de ejecutar
                     </h2>
                     <Badge
                       tone={preview.archivo?.duplicado ? "amber" : "green"}
                     >
-                      {preview.archivo?.duplicado
-                        ? "DUPLICADO"
-                        : "LISTO PARA IMPORTAR"}
+                      {preview.archivo?.duplicado ? "DUPLICADO" : "LISTO"}
                     </Badge>
                   </div>
                   <p className="mt-1 text-sm text-slate-500">
-                    La API ya comprobó la estructura y consultó el estado de las
-                    direcciones existentes sin ejecutar geocodificación.
+                    Lectura real del API; aquí todavía no se modifica la base de
+                    datos.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <InfoPill
+                  <Info
                     label="Agente"
                     value={preview.metadata?.agenteTransitario ?? "—"}
                   />
-                  <InfoPill
+                  <Info
                     label="Origen"
                     value={preview.metadata?.paisOrigen ?? "—"}
                   />
-                  <InfoPill
+                  <Info
                     label="Consignatario"
                     value={preview.metadata?.consignatario ?? "—"}
                   />
                 </div>
               </div>
-
-              {preview.archivo?.duplicado && (
-                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  <strong>Este manifiesto ya fue importado.</strong> Master AWB:{" "}
-                  {preview.duplicado?.masterAwb ?? "—"}.
-                </div>
-              )}
-
               <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                 <Stage title="Archivo" text="Recibido" done />
                 <Stage title="Parser" text="Estructura válida" done />
@@ -432,100 +406,78 @@ export default function ImportarManifiestoPage() {
                 />
                 <Stage
                   title="Direcciones"
-                  text={d ? `${d.total} con dirección` : "Analizando"}
-                  done={!!d}
+                  text={`${preview.direcciones?.total ?? 0} diagnosticadas`}
+                  done={!!preview.direcciones}
                 />
                 <Stage
                   title="Geocodificación"
-                  text={d ? "Preparación lista" : "Pendiente"}
-                  done={!!d}
+                  text="Se ejecutará al importar"
+                  done={false}
                 />
               </div>
             </section>
-
-            <section className="mt-6 rounded-3xl border border-slate-900 bg-slate-950 p-6 text-white shadow-lg">
-              <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                    <h2 className="text-xl font-bold">
+            {preview.direcciones && (
+              <section className="mt-6 rounded-3xl bg-slate-950 p-6 text-white shadow-lg">
+                <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-xl font-black">
                       Inteligencia de direcciones
                     </h2>
-                  </div>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-                    Antes de importar puedes saber exactamente cuántas
-                    direcciones ya existen, cuáles pueden reutilizarse, cuáles
-                    deberán geocodificarse y cuántas no tienen dirección.
-                  </p>
-                  {d && (
-                    <div className="mt-5 h-3 overflow-hidden rounded-full bg-white/10">
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                      Reutilización, nuevas direcciones y casos que requerirán
+                      geocodificación o revisión.
+                    </p>
+                    <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-white/10">
                       <div
-                        className="h-full rounded-full bg-emerald-400 transition-all"
-                        style={{ width: `${Math.min(100, d.cobertura)}%` }}
+                        className="h-full rounded-full bg-emerald-400"
+                        style={{ width: `${preview.direcciones.cobertura}%` }}
                       />
                     </div>
-                  )}
+                  </div>
+                  <div className="grid w-full gap-2 sm:grid-cols-2 xl:w-[650px] xl:grid-cols-4">
+                    <Dark
+                      label="Cobertura"
+                      value={`${preview.direcciones.cobertura}%`}
+                    />
+                    <Dark
+                      label="Reutilizables"
+                      value={preview.direcciones.reutilizables}
+                    />
+                    <Dark label="Nuevas" value={preview.direcciones.nuevas} />
+                    <Dark
+                      label="Pendientes"
+                      value={preview.direcciones.pendientesGeocodificacion}
+                    />
+                  </div>
                 </div>
-                <div className="grid w-full gap-2 sm:grid-cols-2 xl:w-[650px] xl:grid-cols-4">
-                  <DarkMetric
-                    label="Cobertura"
-                    value={d ? `${d.cobertura}%` : "—"}
-                  />
-                  <DarkMetric
-                    label="Reutilizables"
-                    value={d?.reutilizables ?? "—"}
-                  />
-                  <DarkMetric label="Nuevas" value={d?.nuevas ?? "—"} />
-                  <DarkMetric
-                    label="Pendientes"
-                    value={d?.pendientesGeocodificacion ?? "—"}
-                  />
-                </div>
-              </div>
-              {d && (
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                  <DarkMetric label="Direcciones" value={d.total} />
-                  <DarkMetric label="Encontradas" value={d.encontradas} />
-                  <DarkMetric label="Sin dirección" value={d.sinDireccion} />
-                  <DarkMetric
-                    label="Personas con dirección"
-                    value={d.personasConDireccion}
-                  />
-                  <DarkMetric
-                    label="Personas sin dirección"
-                    value={d.personasSinDireccion}
-                  />
-                </div>
-              )}
-            </section>
-
+              </section>
+            )}
             <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-col gap-4 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <h2 className="text-lg font-bold">Houses detectados</h2>
+                  <h2 className="text-lg font-black">Houses detectados</h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    {casasFiltradas.length} de {(preview.casas ?? []).length}{" "}
-                    registros visibles.
+                    {houses.length} de {(preview.casas ?? []).length} visibles.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <input
-                    value={busqueda}
-                    onChange={(e) => setBusqueda(e.target.value)}
-                    placeholder="Buscar House, persona, carnet, dirección..."
-                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-slate-500 sm:w-80"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Buscar House, persona, carnet, dirección…"
+                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm sm:w-80"
                   />
                   <button
                     type="button"
-                    onClick={() => setSoloAlertas((v) => !v)}
-                    className={`rounded-xl border px-4 py-2.5 text-sm font-semibold ${soloAlertas ? "border-amber-300 bg-amber-50 text-amber-800" : "border-slate-300 bg-white text-slate-700"}`}
+                    onClick={() => setAlertsOnly((v) => !v)}
+                    className={`rounded-xl border px-4 py-2.5 text-sm font-bold ${alertsOnly ? "border-amber-300 bg-amber-50 text-amber-800" : "border-slate-300"}`}
                   >
-                    {soloAlertas ? "Mostrando alertas" : "Solo alertas"}
+                    {alertsOnly ? "Solo alertas ✓" : "Solo alertas"}
                   </button>
                 </div>
               </div>
-              <div className="max-h-[620px] overflow-auto">
-                <table className="min-w-[1250px] w-full text-left text-sm">
+              <div className="max-h-[560px] overflow-auto">
+                <table className="min-w-[1200px] w-full text-left text-sm">
                   <thead className="sticky top-0 z-10 bg-slate-100 text-[11px] uppercase tracking-wider text-slate-500">
                     <tr>
                       {[
@@ -547,281 +499,279 @@ export default function ImportarManifiestoPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {casasFiltradas.map((house, index) => {
-                      const numero = house.numeroHouse ?? house.house ?? "—";
-                      const incompleto =
-                        !house.destinatarioNombre ||
-                        !house.direccionDestinatario;
+                    {houses.map((h, i) => {
+                      const incomplete =
+                        !h.destinatarioNombre || !h.direccionDestinatario;
                       return (
                         <tr
-                          key={`${numero}-${index}`}
+                          key={`${h.numeroHouse ?? h.house}-${i}`}
                           className="align-top hover:bg-slate-50"
                         >
-                          <td className="whitespace-nowrap px-4 py-3 font-bold">
-                            {numero}
+                          <td className="px-4 py-3 font-black">
+                            {h.numeroHouse ?? h.house ?? "—"}
                           </td>
-                          <td className="max-w-[220px] px-4 py-3 text-slate-600">
-                            {house.naturalezaCantidad ?? "—"}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3">
-                            {Number(house.pesoKg ?? 0).toFixed(2)} kg
+                          <td className="px-4 py-3 text-slate-600">
+                            {h.naturalezaCantidad ?? "—"}
                           </td>
                           <td className="px-4 py-3">
-                            {Number(house.bultos ?? house.cantidadBultos ?? 0)}
+                            {Number(h.pesoKg ?? 0).toFixed(2)} kg
                           </td>
-                          <td className="min-w-[190px] px-4 py-3">
-                            {house.remitenteNombre ?? "—"}
+                          <td className="px-4 py-3">
+                            {Number(h.bultos ?? h.cantidadBultos ?? 0)}
                           </td>
-                          <td className="min-w-[190px] px-4 py-3 font-medium">
-                            {house.destinatarioNombre ?? "—"}
+                          <td className="min-w-[180px] px-4 py-3">
+                            {h.remitenteNombre ?? "—"}
                           </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                            {house.destinatarioCarnet ?? "—"}
+                          <td className="min-w-[180px] px-4 py-3 font-bold">
+                            {h.destinatarioNombre ?? "—"}
+                          </td>
+                          <td className="px-4 py-3">
+                            {h.destinatarioCarnet ?? "—"}
                           </td>
                           <td className="min-w-[260px] px-4 py-3 text-slate-600">
-                            {house.direccionDestinatario ?? "—"}
+                            {h.direccionDestinatario ?? "—"}
                           </td>
-                          <td className="whitespace-nowrap px-4 py-3">
-                            <Badge tone={incompleto ? "amber" : "green"}>
-                              {incompleto ? "REVISAR" : "DATOS OK"}
+                          <td className="px-4 py-3">
+                            <Badge tone={incomplete ? "amber" : "green"}>
+                              {incomplete ? "REVISAR" : "DATOS OK"}
                             </Badge>
                           </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                            {house.unidadDestino ?? "—"}
+                          <td className="px-4 py-3">
+                            {h.unidadDestino ?? "—"}
                           </td>
                         </tr>
                       );
                     })}
-                    {casasFiltradas.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={10}
-                          className="px-6 py-12 text-center text-sm text-slate-500"
-                        >
-                          No hay Houses que coincidan con el filtro.
-                        </td>
-                      </tr>
-                    )}
                   </tbody>
                 </table>
               </div>
             </section>
-
             {warnings.length > 0 && (
-              <section className="mt-6 overflow-hidden rounded-3xl border border-amber-200 bg-amber-50/70">
+              <section className="mt-6 overflow-hidden rounded-3xl border border-amber-200 bg-amber-50">
                 <button
                   type="button"
-                  onClick={() => setMostrarWarnings((v) => !v)}
+                  onClick={() => setWarningsOpen((v) => !v)}
                   className="flex w-full items-center justify-between p-5 text-left"
                 >
                   <div>
-                    <div className="font-bold text-amber-950">
+                    <div className="font-black text-amber-950">
                       Advertencias y observaciones
                     </div>
                     <div className="mt-1 text-sm text-amber-800">
-                      {warnings.length} observaciones devueltas por la
-                      validación.
+                      {warnings.length} observaciones.
                     </div>
                   </div>
-                  <span className="text-xl text-amber-700">
-                    {mostrarWarnings ? "−" : "+"}
-                  </span>
+                  <span className="text-xl">{warningsOpen ? "−" : "+"}</span>
                 </button>
-                {mostrarWarnings && (
-                  <ul className="border-t border-amber-200 px-5 pb-5 pt-3 space-y-2 text-sm text-amber-900">
+                {warningsOpen && (
+                  <ul className="space-y-2 border-t border-amber-200 px-5 pb-5 pt-4 text-sm text-amber-950">
                     {warnings.map((w, i) => (
-                      <li key={i} className="flex gap-2">
-                        <span>•</span>
-                        <span>{w}</span>
-                      </li>
+                      <li key={i}>• {w}</li>
                     ))}
                   </ul>
                 )}
               </section>
             )}
-
-            <section className="mt-6 rounded-3xl border border-slate-900 bg-slate-950 p-6 text-white shadow-lg">
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <h2 className="text-xl font-bold">Confirmar importación</h2>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-                    Se crearán las guías y paquetes, se resolverán las personas
-                    y se procesarán las direcciones. La geocodificación real se
-                    ejecutará durante la importación.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  disabled={importando || !!preview.archivo?.duplicado}
-                  onClick={importarManifiesto}
-                  className="min-w-[220px] rounded-2xl bg-white px-6 py-3.5 text-sm font-bold text-slate-950 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {importando
-                    ? "Importando..."
-                    : preview.archivo?.duplicado
-                      ? "Manifiesto duplicado"
-                      : "Importar manifiesto"}
-                </button>
-              </div>
-            </section>
-          </>
-        )}
-
-        {importando && (
-          <StatusBanner
-            tone="blue"
-            title="Importación en curso"
-            text="Creando guías y paquetes, resolviendo personas y procesando direcciones con LocationIQ. No cierre esta ventana."
-            spinner
-          />
-        )}
-
-        {resultado?.ok && resultado.manifiesto && (
-          <section className="mt-8 space-y-5">
-            <div className="overflow-hidden rounded-3xl border border-emerald-200 bg-white shadow-sm">
-              <div className="border-b border-emerald-100 bg-emerald-50 p-6">
-                <div className="flex items-center justify-between">
+            {!p && (
+              <section className="mt-6 rounded-3xl bg-slate-950 p-6 text-white">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold text-emerald-950">
-                      ✓ Operación completada
-                    </h2>
-                    <p className="mt-2 text-sm text-emerald-800">
-                      {resultado.mensaje ??
-                        "Manifiesto importado correctamente."}
+                    <h2 className="text-xl font-black">Ejecutar importación</h2>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                      Abriremos un trabajo monitorizado con Houses, personas,
+                      direcciones, dirección actual, velocidad, ETA, cobertura y
+                      errores reales.
                     </p>
                   </div>
-                  <Badge tone="green">IMPORTADO</Badge>
+                  <button
+                    type="button"
+                    disabled={starting || !!preview.archivo?.duplicado}
+                    onClick={startImport}
+                    className="min-w-[230px] rounded-2xl bg-white px-6 py-3.5 text-sm font-black text-slate-950 disabled:opacity-50"
+                  >
+                    {starting
+                      ? "Iniciando…"
+                      : preview.archivo?.duplicado
+                        ? "Manifiesto duplicado"
+                        : "Importar y monitorizar"}
+                  </button>
                 </div>
-              </div>
-              <div className="grid gap-3 p-6 sm:grid-cols-2 lg:grid-cols-5">
-                <Kpi
-                  label="Master AWB"
-                  value={resultado.manifiesto.masterAwb}
-                  detail="Identificador maestro"
-                />
-                <Kpi
-                  label="Houses / Guías"
-                  value={resultado.manifiesto.cantidadHouse}
-                  detail={`${geo?.guias ?? 0} guías creadas`}
-                />
-                <Kpi
-                  label="Bultos / Paquetes"
-                  value={resultado.manifiesto.totalSacas}
-                  detail={`${geo?.paquetes ?? 0} paquetes creados`}
-                />
-                <Kpi
-                  label="Personas"
-                  value={resultado.manifiesto.totalPersonas}
-                  detail={`${geo?.personasVerificadas ?? 0} verificadas`}
-                />
-                <Kpi
-                  label="Peso total"
-                  value={`${Number(resultado.manifiesto.pesoTotalKg).toFixed(2)} kg`}
-                  detail="Registrado"
-                />
-              </div>
-            </div>
-            <div className="grid gap-5 lg:grid-cols-[1.4fr_0.6fr]">
-              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="text-lg font-bold">
-                  Trazabilidad de la operación
-                </h3>
-                <div className="mt-6 space-y-4">
-                  <ResultStage
-                    title="Lectura y validación"
-                    text="Manifiesto parseado y validado"
-                  />
-                  <ResultStage
-                    title="Guías"
-                    text={`${geo?.guias ?? 0} guías creadas`}
-                  />
-                  <ResultStage
-                    title="Paquetes"
-                    text={`${geo?.paquetes ?? 0} paquetes creados`}
-                  />
-                  <ResultStage
-                    title="Personas"
-                    text={`${geo?.personasVerificadas ?? 0} personas únicas verificadas`}
-                  />
-                  <ResultStage
-                    title="Direcciones"
-                    text={`${resultadoPositivo} ubicaciones encontradas/reutilizadas · ${geo?.direccionesPendientes ?? 0} pendientes`}
-                  />
-                </div>
-              </section>
-              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="text-lg font-bold">
-                  Inteligencia de direcciones
-                </h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  Resultado real de geocodificación.
-                </p>
-                <div className="mt-6 text-center">
-                  <div className="text-5xl font-black">{coberturaFinal}%</div>
-                  <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                    Cobertura con resultado
-                  </div>
-                </div>
-                <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full bg-emerald-500"
-                    style={{ width: `${coberturaFinal}%` }}
-                  />
-                </div>
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <Metric
-                    label="Geocodificadas"
-                    value={geo?.direccionesGeocodificadas ?? 0}
-                  />
-                  <Metric
-                    label="Reutilizadas"
-                    value={geo?.direccionesReutilizadas ?? 0}
-                  />
-                  <Metric
-                    label="Encontradas"
-                    value={geo?.direccionesEncontradas ?? 0}
-                  />
-                  <Metric
-                    label="Pendientes"
-                    value={geo?.direccionesPendientes ?? 0}
-                  />
-                </div>
-              </section>
-            </div>
-            {(resultado.warnings ?? []).length > 0 && (
-              <section className="rounded-3xl border border-amber-200 bg-amber-50 p-6">
-                <div className="font-bold text-amber-950">
-                  Advertencias / pendientes
-                </div>
-                <ul className="mt-4 max-h-64 space-y-2 overflow-auto text-sm text-amber-950">
-                  {resultado.warnings!.map((w, i) => (
-                    <li key={i}>• {w}</li>
-                  ))}
-                </ul>
               </section>
             )}
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={limpiar}
-                className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700"
-              >
-                Importar otro manifiesto
-              </button>
-              <a
-                href="/dashboard"
-                className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white"
-              >
-                Volver al dashboard
-              </a>
-            </div>
-          </section>
+          </>
+        )}
+        {p && (
+          <LiveImport
+            progress={p}
+            housePct={housePct}
+            addressPct={addressPct}
+            resolved={resolved}
+            onReset={clear}
+          />
         )}
       </div>
     </main>
   );
 }
-
+function LiveImport({
+  progress: p,
+  housePct,
+  addressPct,
+  resolved,
+  onReset,
+}: {
+  progress: Progress;
+  housePct: number;
+  addressPct: number;
+  resolved: number;
+  onReset: () => void;
+}) {
+  const running = p.status === "running";
+  const title =
+    p.status === "completed"
+      ? "Operación completada"
+      : p.status === "failed"
+        ? "Operación con errores"
+        : "Importación en curso";
+  return (
+    <section className="mt-6 space-y-5">
+      <div
+        className={`rounded-3xl border p-6 shadow-sm ${p.status === "completed" ? "border-emerald-200 bg-emerald-50" : p.status === "failed" ? "border-red-200 bg-red-50" : "border-blue-200 bg-white"}`}
+      >
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <span
+                className={`h-3 w-3 rounded-full ${running ? "animate-pulse bg-blue-500" : p.status === "completed" ? "bg-emerald-500" : "bg-red-500"}`}
+              />
+              <h2 className="text-2xl font-black">{title}</h2>
+            </div>
+            <p className="mt-2 text-sm text-slate-600">{p.message}</p>
+          </div>
+          <Badge
+            tone={
+              p.status === "completed"
+                ? "green"
+                : p.status === "failed"
+                  ? "red"
+                  : "blue"
+            }
+          >
+            {p.stage.replaceAll("_", " ").toUpperCase()}
+          </Badge>
+        </div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <LiveKpi
+            label="Houses"
+            value={`${p.processedHouses} / ${p.totalHouses}`}
+            sub={`${housePct}%`}
+          />
+          <LiveKpi
+            label="Personas"
+            value={`${p.processedPeople} / ${p.totalPeople}`}
+            sub="únicas verificadas"
+          />
+          <LiveKpi
+            label="Direcciones"
+            value={`${p.processedAddresses} / ${p.totalAddresses}`}
+            sub={`${addressPct}% procesadas`}
+          />
+          <LiveKpi
+            label="Cobertura"
+            value={`${p.coverage}%`}
+            sub={`${resolved} con resultado`}
+          />
+        </div>
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <ProgressBar label="Procesamiento de Houses" pct={housePct} />
+          <ProgressBar label="Procesamiento de direcciones" pct={addressPct} />
+        </div>
+      </div>
+      <div className="grid gap-5 lg:grid-cols-[1.4fr_.6fr]">
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-black">Telemetría de ejecución</h3>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <LiveKpi
+              label="Velocidad"
+              value={`${p.housesPerMinute.toFixed(1)} Houses/min`}
+              sub="ritmo observado"
+            />
+            <LiveKpi
+              label="Tiempo transcurrido"
+              value={formatDuration(p.elapsedMs)}
+              sub="desde el inicio"
+            />
+            <LiveKpi
+              label="ETA"
+              value={
+                p.etaSeconds == null
+                  ? "Calculando…"
+                  : formatDuration(p.etaSeconds * 1000)
+              }
+              sub="basada en ritmo real"
+            />
+            <LiveKpi
+              label="Errores / revisión"
+              value={`${p.errors} / ${p.addressesReview}`}
+              sub={`${p.addressesNotFound} no encontradas`}
+            />
+          </div>
+          {p.currentAddress && (
+            <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+              <div className="text-[10px] font-black uppercase tracking-widest text-blue-600">
+                Dirección actualmente procesada
+              </div>
+              <div className="mt-2 break-words text-sm font-bold text-blue-950">
+                {p.currentAddress}
+              </div>
+            </div>
+          )}
+        </section>
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-black">Resultado de direcciones</h3>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <LiveKpi
+              label="Geocodificadas"
+              value={p.addressesGeocoded}
+              sub="nuevos resultados"
+            />
+            <LiveKpi
+              label="Reutilizadas"
+              value={p.addressesReused}
+              sub="sin nueva consulta"
+            />
+            <LiveKpi
+              label="No encontradas"
+              value={p.addressesNotFound}
+              sub="requieren atención"
+            />
+            <LiveKpi
+              label="Revisión"
+              value={p.addressesReview}
+              sub="casos pendientes"
+            />
+          </div>
+        </section>
+      </div>
+      {p.error && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-900">
+          {p.error}
+        </div>
+      )}
+      {!running && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onReset}
+            className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white"
+          >
+            Importar otro manifiesto
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
 function Kpi({
   label,
   value,
@@ -833,37 +783,68 @@ function Kpi({
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+      <div className="text-[11px] font-black uppercase tracking-widest text-slate-400">
         {label}
       </div>
-      <div className="mt-2 break-words text-2xl font-black tracking-tight">
-        {value}
-      </div>
+      <div className="mt-2 break-words text-2xl font-black">{value}</div>
       {detail && <div className="mt-1 text-xs text-slate-500">{detail}</div>}
     </div>
   );
 }
-function Metric({ label, value }: { label: string; value: string | number }) {
+function LiveKpi({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string | number;
+  sub: string;
+}) {
   return (
     <div className="rounded-2xl bg-slate-50 p-4">
-      <div className="text-xs font-semibold text-slate-500">{label}</div>
+      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+        {label}
+      </div>
+      <div className="mt-1 text-xl font-black">{value}</div>
+      <div className="mt-1 text-xs text-slate-500">{sub}</div>
+    </div>
+  );
+}
+function ProgressBar({ label, pct }: { label: string; pct: number }) {
+  return (
+    <div>
+      <div className="flex justify-between text-xs font-bold text-slate-600">
+        <span>{label}</span>
+        <span>{pct}%</span>
+      </div>
+      <div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-100">
+        <div
+          className="h-full rounded-full bg-slate-950 transition-all duration-500"
+          style={{ width: `${Math.min(100, pct)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+function Dark({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+        {label}
+      </div>
       <div className="mt-1 text-xl font-black">{value}</div>
     </div>
   );
 }
-function DarkMetric({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
+function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+      <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
         {label}
       </div>
-      <div className="mt-1 text-xl font-black text-white">{value}</div>
+      <div className="mt-0.5 max-w-[220px] truncate text-xs font-bold">
+        {value}
+      </div>
     </div>
   );
 }
@@ -882,99 +863,79 @@ function Stage({
     >
       <div className="flex items-center gap-3">
         <div
-          className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white ${done ? "bg-emerald-600" : "bg-slate-300"}`}
+          className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-black text-white ${done ? "bg-emerald-600" : "bg-slate-300"}`}
         >
-          {done ? "✓" : ""}
+          {done ? "✓" : "·"}
         </div>
         <div>
-          <div className="font-bold">{title}</div>
+          <div className="font-black">{title}</div>
           <div className="text-xs text-slate-500">{text}</div>
         </div>
       </div>
     </div>
   );
 }
-function ResultStage({ title, text }: { title: string; text: string }) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">
-        ✓
-      </div>
-      <div>
-        <div className="font-semibold">{title}</div>
-        <div className="text-sm text-slate-500">{text}</div>
-      </div>
-    </div>
-  );
-}
-function InfoPill({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-        {label}
-      </div>
-      <div className="mt-0.5 max-w-[220px] truncate text-xs font-semibold text-slate-700">
-        {value}
-      </div>
-    </div>
-  );
-}
-function Badge({
-  tone,
-  children,
-}: {
-  tone: Exclude<Tone, "blue" | "red">;
-  children: React.ReactNode;
-}) {
+function Badge({ tone, children }: { tone: Tone; children: ReactNode }) {
   const styles =
     tone === "green"
       ? "bg-emerald-100 text-emerald-800"
       : tone === "amber"
         ? "bg-amber-100 text-amber-800"
-        : "bg-slate-100 text-slate-700";
+        : tone === "red"
+          ? "bg-red-100 text-red-800"
+          : tone === "blue"
+            ? "bg-blue-100 text-blue-800"
+            : "bg-slate-100 text-slate-700";
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${styles}`}
+      className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black tracking-wide ${styles}`}
     >
       {children}
     </span>
   );
 }
-function StatusBanner({
+function Banner({
   tone,
   title,
   text,
-  spinner,
+  spin,
 }: {
   tone: "blue" | "red";
   title: string;
   text: string;
-  spinner?: boolean;
+  spin?: boolean;
 }) {
-  const styles =
-    tone === "blue"
-      ? "border-blue-200 bg-blue-50 text-blue-950"
-      : "border-red-200 bg-red-50 text-red-950";
   return (
-    <section className={`mt-6 rounded-2xl border p-5 ${styles}`}>
+    <section
+      className={`mt-6 rounded-2xl border p-5 ${tone === "blue" ? "border-blue-200 bg-blue-50 text-blue-950" : "border-red-200 bg-red-50 text-red-950"}`}
+    >
       <div className="flex gap-3">
         <div>
-          {spinner ? (
+          {spin ? (
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
           ) : (
             "⚠"
           )}
         </div>
         <div>
-          <div className="font-bold">{title}</div>
+          <div className="font-black">{title}</div>
           <div className="mt-1 text-sm opacity-80">{text}</div>
         </div>
       </div>
     </section>
   );
 }
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("es-ES", { dateStyle: "medium" }).format(date);
+function formatDate(v: string) {
+  const d = new Date(v);
+  return Number.isNaN(d.getTime())
+    ? v
+    : new Intl.DateTimeFormat("es-ES", { dateStyle: "medium" }).format(d);
+}
+function formatDuration(ms: number) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60),
+    r = s % 60;
+  if (m < 60) return `${m}m ${r}s`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
 }

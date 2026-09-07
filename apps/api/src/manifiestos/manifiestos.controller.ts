@@ -1,24 +1,17 @@
-// ================================================================================
-// SGCI - Sistema de Gestión Contextual Integrado
-//
-// Archivo:
-//   apps/api/src/manifiestos/manifiestos.controller.ts
-//
-// Descripción:
-//   Controller HTTP responsable de la funcionalidad "Importar Manifiesto".
-// ================================================================================
-
 import {
   BadRequestException,
   Controller,
+  Get,
+  NotFoundException,
+  Param,
   Post,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
-
 import { FileInterceptor } from '@nestjs/platform-express';
-
 import { ManifiestosDiagnosticoService } from './manifiestos.diagnostico.service.js';
+import { ManifiestosImportacionProgressService } from './manifiestos.importacion.progress.service.js';
+import { ManifiestosImportacionEscalableService } from './manifiestos.importacion.escalable.service.js';
 import { ManifiestosService } from './manifiestos.service.js';
 
 interface UploadedManifestFile {
@@ -39,23 +32,14 @@ export class ManifiestosController {
   constructor(
     private readonly manifiestosService: ManifiestosService,
     private readonly diagnosticoService: ManifiestosDiagnosticoService,
+    private readonly scalableImport: ManifiestosImportacionEscalableService,
+    private readonly progress: ManifiestosImportacionProgressService,
   ) {}
 
-  /**
-   * ===========================================================================
-   * PREVISUALIZAR MANIFIESTO
-   * ===========================================================================
-   *
-   * POST /api/guias/importar/preview
-   *
-   * Analiza el manifiesto sin modificar la base de datos y agrega un
-   * diagnóstico de preparación de las direcciones existentes.
-   */
   @Post('importar/preview')
   @UseInterceptors(FileInterceptor('archivo'))
   async preview(@UploadedFile() archivo?: UploadedManifestFile) {
     this.validarArchivo(archivo);
-
     const [preview, diagnostico] = await Promise.all([
       this.manifiestosService.preview(archivo.buffer, archivo.originalname),
       this.diagnosticoService.analizarArchivo(
@@ -63,31 +47,62 @@ export class ManifiestosController {
         archivo.originalname,
       ),
     ]);
-
-    return {
-      ...preview,
-      direcciones: diagnostico,
-    };
+    return { ...preview, direcciones: diagnostico };
   }
 
-  /**
-   * ===========================================================================
-   * IMPORTAR MANIFIESTO
-   * ===========================================================================
-   *
-   * POST /api/guias/importar
-   *
-   * Importa definitivamente el manifiesto.
-   */
   @Post('importar')
   @UseInterceptors(FileInterceptor('archivo'))
   async importar(@UploadedFile() archivo?: UploadedManifestFile) {
     this.validarArchivo(archivo);
-
     return this.manifiestosService.importar(
       archivo.buffer,
       archivo.originalname,
     );
+  }
+
+  @Post('importar/job')
+  @UseInterceptors(FileInterceptor('archivo'))
+  async importarJob(@UploadedFile() archivo?: UploadedManifestFile) {
+    this.validarArchivo(archivo);
+    const [preview, diagnostico] = await Promise.all([
+      this.manifiestosService.preview(archivo.buffer, archivo.originalname),
+      this.diagnosticoService.analizarArchivo(
+        archivo.buffer,
+        archivo.originalname,
+      ),
+    ]);
+    if (preview.archivo?.duplicado) {
+      throw new BadRequestException(
+        'El manifiesto ya fue importado anteriormente.',
+      );
+    }
+    const job = await this.progress.create(
+      preview.total?.cantidadHouses ?? preview.registros ?? 0,
+      preview.total?.cantidadPersonas ?? 0,
+      diagnostico.total,
+    );
+    void this.scalableImport.importar(
+      archivo.buffer,
+      archivo.originalname,
+      job.jobId,
+    );
+    return {
+      ok: true,
+      jobId: job.jobId,
+      message: 'Importación iniciada.',
+      progress: job,
+    };
+  }
+
+  @Get('importar/job/:jobId')
+  async getImportProgress(@Param('jobId') jobId: string) {
+    const job = await this.progress.get(jobId);
+    if (!job) {
+      throw new NotFoundException(
+        'No existe el trabajo de importación solicitado.',
+      );
+    }
+    return { ok: true, progress: job };
   }
 
   private validarArchivo(
@@ -98,7 +113,6 @@ export class ManifiestosController {
         'Debe seleccionar un archivo de manifiesto.',
       );
     }
-
     if (!archivo.buffer || archivo.buffer.length === 0) {
       throw new BadRequestException('El archivo de manifiesto está vacío.');
     }
