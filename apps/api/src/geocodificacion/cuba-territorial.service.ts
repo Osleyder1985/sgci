@@ -71,6 +71,14 @@ export class CubaTerritorialService {
     );
     const localidad = this.elegirLocalidad(localidades);
 
+    if (
+      !municipio &&
+      !localidad &&
+      !this.contieneTerritorio(texto, 'CUBA')
+    ) {
+      return null;
+    }
+
     return {
       provincia: provincia?.provincia ?? municipio!.provincia,
       municipio: municipio?.municipio ?? localidad?.municipio,
