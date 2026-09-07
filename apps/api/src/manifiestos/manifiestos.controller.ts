@@ -81,6 +81,12 @@ export class ManifiestosController {
       preview.total?.cantidadPersonas ?? 0,
       diagnostico.total,
     );
+    const claimed = await this.progress.claim(job.jobId);
+    if (!claimed) {
+      throw new BadRequestException(
+        'No se pudo adquirir el trabajo de importación recién creado.',
+      );
+    }
     void this.scalableImport.importar(
       archivo.buffer,
       archivo.originalname,
@@ -90,7 +96,7 @@ export class ManifiestosController {
       ok: true,
       jobId: job.jobId,
       message: 'Importación iniciada.',
-      progress: job,
+      progress: (await this.progress.get(job.jobId)) ?? job,
     };
   }
 
