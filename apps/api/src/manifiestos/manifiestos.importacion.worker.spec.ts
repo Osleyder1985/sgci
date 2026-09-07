@@ -95,11 +95,7 @@ describe('ManifiestosImportacionWorker durable execution', () => {
     importer.importar.mockResolvedValue(undefined);
 
     await expect(
-      (worker as any).execute(
-        'job-1',
-        Buffer.from('xlsx'),
-        'manifest.xlsx',
-      ),
+      (worker as any).execute('job-1', Buffer.from('xlsx'), 'manifest.xlsx'),
     ).resolves.toBeUndefined();
 
     expect(progress.fail).not.toHaveBeenCalled();
