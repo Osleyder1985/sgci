@@ -5,8 +5,10 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export interface TerritorioCubanoResuelto {
   provincia: string;
   municipio?: string;
+  localidad?: string;
   provinciaNormalizada: string;
   municipioNormalizado?: string;
+  localidadNormalizada?: string;
   confianza: 'ALTA' | 'MEDIA';
 }
 
@@ -15,6 +17,8 @@ interface TerritorioCatalogo {
   provinciaNormalizada: string;
   municipio?: string;
   municipioNormalizado?: string;
+  localidad?: string;
+  localidadNormalizada?: string;
 }
 
 @Injectable()
@@ -33,6 +37,7 @@ export class CubaTerritorialService {
     if (!componentes.length) return null;
 
     const catalogo = await this.obtenerCatalogo();
+    const textoCompleto = componentes.join(' ');
     const ultimoComponente = componentes.at(-1) ?? '';
 
     const provincias = catalogo.filter(
@@ -53,6 +58,7 @@ export class CubaTerritorialService {
       .filter(
         (item) =>
           item.municipio &&
+          !item.localidad &&
           item.provinciaNormalizada === provincia.provinciaNormalizada &&
           this.contieneTerritorio(colaMunicipal, item.municipioNormalizado!),
       )
@@ -64,12 +70,30 @@ export class CubaTerritorialService {
 
     const municipio = municipios[0];
 
+    const localidades = catalogo
+      .filter(
+        (item) =>
+          item.localidad &&
+          item.provinciaNormalizada === provincia.provinciaNormalizada &&
+          (!municipio || item.municipioNormalizado === municipio.municipioNormalizado) &&
+          this.contieneTerritorio(textoCompleto, item.localidadNormalizada!),
+      )
+      .sort(
+        (a, b) =>
+          (b.localidadNormalizada ?? '').length -
+          (a.localidadNormalizada ?? '').length,
+      );
+
+    const localidad = localidades[0];
+
     return {
       provincia: provincia.provincia,
       municipio: municipio?.municipio,
+      localidad: localidad?.localidad,
       provinciaNormalizada: provincia.provinciaNormalizada,
       municipioNormalizado: municipio?.municipioNormalizado,
-      confianza: municipio ? 'ALTA' : 'MEDIA',
+      localidadNormalizada: localidad?.localidadNormalizada,
+      confianza: localidad || municipio ? 'ALTA' : 'MEDIA',
     };
   }
 
@@ -101,21 +125,36 @@ export class CubaTerritorialService {
       WHERE "activo" = true
     `;
 
+    const localidades = await this.prisma.$queryRaw<
+      Array<{
+        id: number;
+        nombre: string;
+        nombreNormalizado: string;
+        municipioId: number;
+      }>
+    >`
+      SELECT "id", "nombre", "nombreNormalizado", "municipioId"
+      FROM "CatalogoLocalidadCubana"
+      WHERE "activo" = true
+    `;
+
     const aliases = await this.prisma.$queryRaw<
       Array<{
         valorNormalizado: string;
         provinciaId: number | null;
         municipioId: number | null;
+        localidadId: number | null;
         valorCanonico: string;
       }>
     >`
-      SELECT "valorNormalizado", "provinciaId", "municipioId", "valorCanonico"
+      SELECT "valorNormalizado", "provinciaId", "municipioId", "localidadId", "valorCanonico"
       FROM "CatalogoAliasTerritorialCubano"
       WHERE "activo" = true
     `;
 
     const provinciaPorId = new Map(provincias.map((item) => [item.id, item]));
     const municipioPorId = new Map(municipios.map((item) => [item.id, item]));
+    const localidadPorId = new Map(localidades.map((item) => [item.id, item]));
     const catalogo: TerritorioCatalogo[] = [];
 
     for (const municipio of municipios) {
@@ -130,6 +169,23 @@ export class CubaTerritorialService {
       });
     }
 
+    for (const localidad of localidades) {
+      const municipio = municipioPorId.get(localidad.municipioId);
+      if (!municipio) continue;
+
+      const provincia = provinciaPorId.get(municipio.provinciaId);
+      if (!provincia) continue;
+
+      catalogo.push({
+        provincia: provincia.nombre,
+        provinciaNormalizada: provincia.nombreNormalizado,
+        municipio: municipio.nombre,
+        municipioNormalizado: municipio.nombreNormalizado,
+        localidad: localidad.nombre,
+        localidadNormalizada: localidad.nombreNormalizado,
+      });
+    }
+
     for (const provincia of provincias) {
       catalogo.push({
         provincia: provincia.nombre,
@@ -138,7 +194,25 @@ export class CubaTerritorialService {
     }
 
     for (const alias of aliases) {
-      if (alias.municipioId) {
+      if (alias.localidadId) {
+        const localidad = localidadPorId.get(alias.localidadId);
+        if (!localidad) continue;
+
+        const municipio = municipioPorId.get(localidad.municipioId);
+        if (!municipio) continue;
+
+        const provincia = provinciaPorId.get(municipio.provinciaId);
+        if (!provincia) continue;
+
+        catalogo.push({
+          provincia: provincia.nombre,
+          provinciaNormalizada: provincia.nombreNormalizado,
+          municipio: municipio.nombre,
+          municipioNormalizado: municipio.nombreNormalizado,
+          localidad: alias.valorCanonico,
+          localidadNormalizada: alias.valorNormalizado,
+        });
+      } else if (alias.municipioId) {
         const municipio = municipioPorId.get(alias.municipioId);
         if (!municipio) continue;
 
@@ -164,7 +238,7 @@ export class CubaTerritorialService {
 
     this.cache = catalogo;
     this.logger.log(
-      `Catálogo territorial cubano cargado: ${provincias.length} provincias, ${municipios.length} municipios.`,
+      `Catálogo territorial cubano cargado: ${provincias.length} provincias, ${municipios.length} municipios, ${localidades.length} localidades.`,
     );
     return catalogo;
   }
