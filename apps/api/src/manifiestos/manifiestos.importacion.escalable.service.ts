@@ -58,6 +58,8 @@ export class ManifiestosImportacionEscalableService {
   ) {}
 
   async importar(buffer: Buffer, originalname: string, jobId: string) {
+    let importCompleted = false;
+
     const rollback: ImportRollbackContext = {
       manifiestoId: null,
       masterAwbId: null,
@@ -280,11 +282,52 @@ export class ManifiestosImportacionEscalableService {
         warnings: [...parsed.warnings, ...direcciones.warnings],
       };
 
-      await this.progress?.complete(jobId);
+      importCompleted = true;
+
+      await this.progress?.complete(jobId, JSON.stringify(response));
+
       return response;
     } catch (error) {
-      await this.cleanupFailedImport(rollback);
-      await this.progress?.fail(jobId, error);
+      if (importCompleted) {
+        if (error instanceof BadRequestException) throw error;
+        if (error instanceof Error)
+          throw new BadRequestException(error.message);
+        throw new BadRequestException(String(error));
+      }
+
+      try {
+        await this.cleanupFailedImport(rollback);
+      } catch (rollbackError) {
+        const originalMessage =
+          error instanceof Error ? error.message : String(error);
+        const rollbackMessage =
+          rollbackError instanceof Error
+            ? rollbackError.message
+            : String(rollbackError);
+
+        const combinedError = new Error(
+          `La importación falló y el rollback también falló. ` +
+            `Error original: ${originalMessage}. ` +
+            `Error de rollback: ${rollbackMessage}.`,
+        );
+
+        try {
+          await this.progress?.fail(jobId, combinedError);
+        } catch {
+          // El servicio de progreso puede fallar independientemente.
+          // El error combinado debe seguir propagándose.
+        }
+
+        throw new BadRequestException(combinedError.message);
+      }
+
+      try {
+        await this.progress?.fail(jobId, error);
+      } catch {
+        // El servicio de progreso puede fallar independientemente.
+        // El error original debe seguir propagándose.
+      }
+
       if (error instanceof BadRequestException) throw error;
       if (error instanceof Error) throw new BadRequestException(error.message);
       throw new BadRequestException(String(error));
@@ -304,10 +347,9 @@ export class ManifiestosImportacionEscalableService {
       return;
     }
 
-    try {
-      await this.prisma.$transaction(async (tx) => {
-        for (const snapshot of ctx.modifiedDirections.values()) {
-          await tx.$executeRaw`
+    await this.prisma.$transaction(async (tx) => {
+      for (const snapshot of ctx.modifiedDirections.values()) {
+        await tx.$executeRaw`
             UPDATE "Direccion"
             SET "ubicacion" = ST_SetSRID(ST_MakePoint(${snapshot.lon}, ${snapshot.lat}), 4326)::geography,
                 "estadoGeocodificacion" = ${snapshot.estadoGeocodificacion}::"EstadoGeocodificacion",
@@ -317,55 +359,52 @@ export class ManifiestosImportacionEscalableService {
                 "updatedAt" = NOW()
             WHERE "id" = ${snapshot.id}::uuid
           `;
-        }
+      }
 
-        for (const [id, esPrincipal] of ctx.modifiedDocumentPrincipal) {
-          await tx.documentoIdentidad.update({
-            where: { id },
-            data: { esPrincipal },
-          });
-        }
+      for (const [id, esPrincipal] of ctx.modifiedDocumentPrincipal) {
+        await tx.documentoIdentidad.update({
+          where: { id },
+          data: { esPrincipal },
+        });
+      }
 
-        if (ctx.createdDireccionIds.size) {
-          await tx.direccion.deleteMany({
-            where: { id: { in: [...ctx.createdDireccionIds] } },
-          });
-        }
-        if (ctx.createdDocumentoIds.size) {
-          await tx.documentoIdentidad.deleteMany({
-            where: { id: { in: [...ctx.createdDocumentoIds] } },
-          });
-        }
+      if (ctx.createdDireccionIds.size) {
+        await tx.direccion.deleteMany({
+          where: { id: { in: [...ctx.createdDireccionIds] } },
+        });
+      }
+      if (ctx.createdDocumentoIds.size) {
+        await tx.documentoIdentidad.deleteMany({
+          where: { id: { in: [...ctx.createdDocumentoIds] } },
+        });
+      }
 
-        for (const personaId of ctx.createdPersonaIds) {
-          const dependencias = await tx.$queryRaw<Array<{ total: bigint }>>`
+      for (const personaId of ctx.createdPersonaIds) {
+        const dependencias = await tx.$queryRaw<Array<{ total: bigint }>>`
             SELECT (
               (SELECT COUNT(*) FROM "DocumentoIdentidad" WHERE "personaId" = ${personaId}::uuid) +
               (SELECT COUNT(*) FROM "Direccion" WHERE "personaId" = ${personaId}::uuid) +
               (SELECT COUNT(*) FROM "ConflictoIdentidad" WHERE "personaExistenteId" = ${personaId}::uuid OR "personaNuevaId" = ${personaId}::uuid)
             )::bigint AS total
           `;
-          if (Number(dependencias[0]?.total ?? 0n) === 0) {
-            await tx.persona.delete({ where: { id: personaId } });
-          }
+        if (Number(dependencias[0]?.total ?? 0n) === 0) {
+          await tx.persona.delete({ where: { id: personaId } });
         }
+      }
 
-        if (ctx.manifiestoId) {
-          await tx.manifiesto.delete({ where: { id: ctx.manifiestoId } });
-        }
+      if (ctx.manifiestoId) {
+        await tx.manifiesto.delete({ where: { id: ctx.manifiestoId } });
+      }
 
-        if (ctx.masterAwbCreated && ctx.masterAwbId) {
-          const manifiestos = await tx.manifiesto.count({
-            where: { masterAwbId: ctx.masterAwbId },
-          });
-          if (manifiestos === 0) {
-            await tx.masterAwb.delete({ where: { id: ctx.masterAwbId } });
-          }
+      if (ctx.masterAwbCreated && ctx.masterAwbId) {
+        const manifiestos = await tx.manifiesto.count({
+          where: { masterAwbId: ctx.masterAwbId },
+        });
+        if (manifiestos === 0) {
+          await tx.masterAwb.delete({ where: { id: ctx.masterAwbId } });
         }
-      });
-    } catch {
-      // Nunca ocultar el error original. El rollback es idempotente y compensatorio.
-    }
+      }
+    });
   }
 
   private async resolvePersona(
