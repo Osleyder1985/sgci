@@ -84,9 +84,7 @@ type JobRow = {
 
 @Injectable()
 export class ManifiestosImportacionProgressService {
-  private readonly logger = new Logger(
-    ManifiestosImportacionProgressService.name,
-  );
+  private readonly logger = new Logger(ManifiestosImportacionProgressService.name);
   private readonly queues = new Map<string, Promise<void>>();
 
   constructor(private readonly prisma: PrismaService) {}
