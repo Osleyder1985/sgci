@@ -2,18 +2,6 @@
 // SGCI - Sistema de Gestión Contextual Integrado
 //
 // Modelo de datos principal.
-//
-// Dominio actual:
-//   - Personas.
-//   - Documentos de identidad.
-//   - Direcciones.
-//   - Geocodificación.
-//   - Conflictos de identidad.
-//   - Continuidad operativa ante inconsistencias.
-//   - Manifiestos de carga.
-//   - Master AWB.
-//   - House / guías.
-//   - Bultos asociados a cada House.
 // ================================================================================
 
 generator client {
@@ -69,8 +57,8 @@ model Persona {
   activo         Boolean              @default(true)
   documentos     DocumentoIdentidad[]
   direcciones    Direccion[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
   conflictosExistentes ConflictoIdentidad[] @relation("PersonaExistenteConflicto")
   conflictosNuevos     ConflictoIdentidad[] @relation("PersonaNuevaConflicto")
   @@index([nombres])
@@ -87,8 +75,8 @@ model DocumentoIdentidad {
   estado         EstadoIdentidad        @default(PENDIENTE_VERIFICACION)
   esPrincipal    Boolean                @default(false)
   verificadoAt   DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
   persona Persona @relation(fields: [personaId], references: [id], onDelete: Restrict)
   @@unique([tipo, numero])
   @@index([numero])
@@ -112,8 +100,8 @@ model Direccion {
   geocodificadoAt       DateTime?
   esPrincipal           Boolean                              @default(false)
   activa                Boolean                              @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt             DateTime                             @default(now())
+  updatedAt             DateTime                             @updatedAt
   persona Persona @relation(fields: [personaId], references: [id], onDelete: Restrict)
   @@index([provincia])
   @@index([municipio])
@@ -133,8 +121,8 @@ model ConflictoIdentidad {
   estado                  EstadoConflictoIdentidad @default(ABIERTO)
   resolucion              String?
   resueltoAt              DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
   personaExistente Persona @relation("PersonaExistenteConflicto", fields: [personaExistenteId], references: [id], onDelete: Restrict)
   personaNueva     Persona @relation("PersonaNuevaConflicto", fields: [personaNuevaId], references: [id], onDelete: Restrict)
   @@index([estado])
@@ -147,8 +135,8 @@ model MasterAwb {
   id          String      @id @default(uuid()) @db.Uuid
   numero      String      @unique
   manifiestos Manifiesto[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   @@index([numero])
 }
 
@@ -191,8 +179,8 @@ model Guia {
   direccionDestinatario String?
   estadoCobroOrigen     String?
   unidadDestino         String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
   manifiesto Manifiesto @relation(fields: [manifiestoId], references: [id], onDelete: Cascade)
   paquetes   Paquete[]
   @@unique([manifiestoId, numeroHouse])
@@ -204,8 +192,8 @@ model Guia {
 }
 
 model Paquete {
-  id        String  @id @default(uuid()) @db.Uuid
-  guiaId    String  @db.Uuid
+  id        String   @id @default(uuid()) @db.Uuid
+  guiaId    String   @db.Uuid
   numero    Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -246,8 +234,14 @@ model ManifiestoImportacionJob {
   resultPersonas      Int?
   resultPesoTotalKg   String?
   resultWarnings      Int?
+  attempt             Int      @default(0)
+  workerId            String?
+  heartbeatAt         DateTime?
+  leaseUntil          DateTime?
   @@index([status])
   @@index([updatedAt])
   @@index([startedAt])
   @@index([resultManifiestoId])
+  @@index([leaseUntil])
+  @@index([status, leaseUntil])
 }
