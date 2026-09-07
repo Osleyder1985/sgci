@@ -88,9 +88,7 @@ export function extraerTablaTerritorial(
   const filas: EcuredTerritoryRow[] = [];
   for (const filaMatch of tabla.matchAll(/<tr\b[\s\S]*?<\/tr>/gi)) {
     const celdas = [
-      ...filaMatch[0].matchAll(
-        /<(?:td|th)\b[\s\S]*?<\/(?:td|th)>/gi,
-      ),
+      ...filaMatch[0].matchAll(/<(?:td|th)\b[\s\S]*?<\/(?:td|th)>/gi),
     ].map((match) => match[0]);
     if (celdas.length < 2) continue;
 
