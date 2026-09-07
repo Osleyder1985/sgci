@@ -55,6 +55,11 @@ jobs:
       - name: Lint Web
         run: npm run lint --workspace=@sgci/web
 
+      - name: Debug Prettier output
+        run: |
+          npx prettier --write "apps/api/src/geocodificacion/cuba-territorial.service.spec.ts" "apps/api/src/geocodificacion/cuba-territorial.service.ts"
+          git diff --no-color -- apps/api/src/geocodificacion/cuba-territorial.service.spec.ts apps/api/src/geocodificacion/cuba-territorial.service.ts
+
       - name: Check formatting
         run: npx prettier --check "apps/**/*.{ts,tsx,js,jsx,json,css,md}"
 
