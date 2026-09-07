@@ -412,14 +412,16 @@ export class ManifiestosService {
         resultado.warnings.push(
           `No se pudo procesar la dirección de ${destinatario.nombre}: ${error instanceof Error ? error.message : String(error)}`,
         );
-        if (jobId)
+        if (jobId) {
+          const current = await this.progress?.get(jobId);
           await this.progress?.update(jobId, {
             processedAddresses: index + 1,
             addressesNotFound: resultado.direccionesPendientes,
             addressesReview: resultado.direccionesPendientes,
-            errors: (await this.progress?.get(jobId))?.errors ?? 0 + 1,
+            errors: (current?.errors ?? 0) + 1,
             currentAddress: direccion,
           });
+        }
       }
     }
     return resultado;
