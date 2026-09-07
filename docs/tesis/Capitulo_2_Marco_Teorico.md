@@ -1052,18 +1052,18 @@ A partir de esta fundamentación, la investigación se encuentra preparada para 
 
 # 📊 Estado del Capítulo
 
-| Sección | Estado |
-|---|---|
-| 2.1 Introducción | 🟢 Completado |
-| 2.2 Fundamentos de los Sistemas de Gestión | 🟢 Completado |
-| 2.3 Contexto, Restricciones y Diseño de Sistemas | 🟢 Completado |
-| 2.4 Fundamentos de la Gestión Logística y del Transporte | 🟢 Completado |
+| Sección                                                      | Estado        |
+| ------------------------------------------------------------ | ------------- |
+| 2.1 Introducción                                             | 🟢 Completado |
+| 2.2 Fundamentos de los Sistemas de Gestión                   | 🟢 Completado |
+| 2.3 Contexto, Restricciones y Diseño de Sistemas             | 🟢 Completado |
+| 2.4 Fundamentos de la Gestión Logística y del Transporte     | 🟢 Completado |
 | 2.5 Sistemas Digitales en Contextos Operativos Condicionados | 🟢 Completado |
-| 2.6 Gestión Económica, Trazabilidad y Sostenibilidad | 🟢 Completado |
-| 2.7 Evaluación de Sistemas y Evidencia Verificable | 🟢 Completado |
-| 2.8 Estado del Arte y Análisis Comparativo | 🟢 Completado |
-| 2.9 Fundamentación Conceptual del SGCI | 🟢 Completado |
-| 2.10 Síntesis del Capítulo | 🟢 Completado |
+| 2.6 Gestión Económica, Trazabilidad y Sostenibilidad         | 🟢 Completado |
+| 2.7 Evaluación de Sistemas y Evidencia Verificable           | 🟢 Completado |
+| 2.8 Estado del Arte y Análisis Comparativo                   | 🟢 Completado |
+| 2.9 Fundamentación Conceptual del SGCI                       | 🟢 Completado |
+| 2.10 Síntesis del Capítulo                                   | 🟢 Completado |
 
 ---
 

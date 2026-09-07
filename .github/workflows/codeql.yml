@@ -5,14 +5,14 @@ on:
     branches:
       - main
       - develop
-      - 'feature/**'
-      - 'fix/**'
+      - "feature/**"
+      - "fix/**"
   pull_request:
     branches:
       - main
       - develop
   schedule:
-    - cron: '30 3 * * 1'
+    - cron: "30 3 * * 1"
 
 permissions:
   security-events: write
@@ -42,4 +42,4 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: '/language:${{ matrix.language }}'
+          category: "/language:${{ matrix.language }}"

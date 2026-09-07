@@ -1,4 +1,5 @@
 # ⚖️ CAPÍTULO 3
+
 # MARCO LEGAL Y NORMATIVO DEL SISTEMA DE GESTIÓN Y CONTROL INTEGRADO (SGCI)
 
 ---
@@ -507,49 +508,49 @@ Debe convertirse en una estructura operativa:
 
 ## 🔐 Protección de datos personales
 
-| Área | Necesidad | Requisito SGCI | Mecanismo | Evidencia |
-|---|---|---|---|---|
-| 🔐 Datos personales | Identificación | Autenticación | Gestión de identidad | Registro de acceso |
-| 🔑 Acceso | Control de permisos | Autorización | Roles y permisos | Log de autorización |
-| 🏷️ Información | Clasificación | Etiquetado | Security Labels | Clasificación registrada |
-| 📜 Acciones | Trazabilidad | Audit Trail | Registro de eventos | Historial |
-| 🛡️ Protección | Restricción | Control de acceso | RBAC/ABAC | Eventos de autorización |
-| 👤 Responsabilidad | Identificación | Gestión de responsables | Asignación | Registro institucional |
+| Área                | Necesidad           | Requisito SGCI          | Mecanismo            | Evidencia                |
+| ------------------- | ------------------- | ----------------------- | -------------------- | ------------------------ |
+| 🔐 Datos personales | Identificación      | Autenticación           | Gestión de identidad | Registro de acceso       |
+| 🔑 Acceso           | Control de permisos | Autorización            | Roles y permisos     | Log de autorización      |
+| 🏷️ Información      | Clasificación       | Etiquetado              | Security Labels      | Clasificación registrada |
+| 📜 Acciones         | Trazabilidad        | Audit Trail             | Registro de eventos  | Historial                |
+| 🛡️ Protección       | Restricción         | Control de acceso       | RBAC/ABAC            | Eventos de autorización  |
+| 👤 Responsabilidad  | Identificación      | Gestión de responsables | Asignación           | Registro institucional   |
 
 ## ✍️ Documentos electrónicos y firma digital
 
-| Área | Necesidad | Requisito SGCI | Función |
-|---|---|---|---|
-| ✍️ Firma | Identificar firmante | Gestión de identidad | 👤 Signer |
-| 📄 Documento | Relacionar firma | Vínculo documental | 🆔 DocumentId |
-| 🔢 Versión | Identificar contenido firmado | Versionado | DocumentVersion |
-| 📜 Evidencia | Conservar información | Registro de firma | Signature Log |
-| 🔍 Validación | Verificar estado | Estado de validación | ValidationStatus |
-| 🔐 Integridad | Detectar modificaciones | Hash documental | Integrity Check |
+| Área          | Necesidad                     | Requisito SGCI       | Función          |
+| ------------- | ----------------------------- | -------------------- | ---------------- |
+| ✍️ Firma      | Identificar firmante          | Gestión de identidad | 👤 Signer        |
+| 📄 Documento  | Relacionar firma              | Vínculo documental   | 🆔 DocumentId    |
+| 🔢 Versión    | Identificar contenido firmado | Versionado           | DocumentVersion  |
+| 📜 Evidencia  | Conservar información         | Registro de firma    | Signature Log    |
+| 🔍 Validación | Verificar estado              | Estado de validación | ValidationStatus |
+| 🔐 Integridad | Detectar modificaciones       | Hash documental      | Integrity Check  |
 
 ## 🌐 Comercio electrónico
 
-| Principio | Requisito | Implementación |
-|---|---|---|
-| 📄 Gestión documental | Documentos electrónicos | Gestión documental |
-| ✍️ Identificación | Firma o validación | Integración |
-| 🔐 Seguridad | Protección tecnológica | Controles de acceso |
-| 🔎 Trazabilidad | Registro de operaciones | Audit Trail |
-| 👁️ Transparencia | Consulta verificable | Historial |
-| 🛡️ Privacidad | Protección de información | Clasificación |
-| 🔄 Evolución | Actualización | Versionado |
+| Principio             | Requisito                 | Implementación      |
+| --------------------- | ------------------------- | ------------------- |
+| 📄 Gestión documental | Documentos electrónicos   | Gestión documental  |
+| ✍️ Identificación     | Firma o validación        | Integración         |
+| 🔐 Seguridad          | Protección tecnológica    | Controles de acceso |
+| 🔎 Trazabilidad       | Registro de operaciones   | Audit Trail         |
+| 👁️ Transparencia      | Consulta verificable      | Historial           |
+| 🛡️ Privacidad         | Protección de información | Clasificación       |
+| 🔄 Evolución          | Actualización             | Versionado          |
 
 ## 🏢 Comercio interior y cambios normativos
 
-| Necesidad | Requisito SGCI | Función |
-|---|---|---|
-| 🆕 Nueva norma | Registro | Gestión normativa |
-| 🔄 Cambio | Versionado | Historial |
-| 🔍 Impacto | Análisis | Matriz de impacto |
-| 📋 Obligación | Requisito | Gestión de requisitos |
-| ⚙️ Control | Seguimiento | Gestión de controles |
-| 🚚 Proceso | Relación | Trazabilidad |
-| 🔔 Cambio relevante | Notificación | Sistema de alertas |
+| Necesidad           | Requisito SGCI | Función               |
+| ------------------- | -------------- | --------------------- |
+| 🆕 Nueva norma      | Registro       | Gestión normativa     |
+| 🔄 Cambio           | Versionado     | Historial             |
+| 🔍 Impacto          | Análisis       | Matriz de impacto     |
+| 📋 Obligación       | Requisito      | Gestión de requisitos |
+| ⚙️ Control          | Seguimiento    | Gestión de controles  |
+| 🚚 Proceso          | Relación       | Trazabilidad          |
+| 🔔 Cambio relevante | Notificación   | Sistema de alertas    |
 
 ---
 
@@ -650,17 +651,17 @@ El sistema debe permitir visualizar y evaluar el estado de cumplimiento de requi
 
 # 3.16 Requisitos no funcionales derivados
 
-| Código | Requisito |
-|---|---|
-| RNF-L01 | 🔐 Confidencialidad |
-| RNF-L02 | 🛡️ Integridad |
-| RNF-L03 | ⚡ Disponibilidad |
-| RNF-L04 | 📜 Trazabilidad |
-| RNF-L05 | 🔄 Recuperabilidad |
-| RNF-L06 | 📈 Escalabilidad |
-| RNF-L07 | 🔌 Interoperabilidad |
-| RNF-L08 | 🧩 Mantenibilidad |
-| RNF-L09 | 🔍 Auditabilidad |
+| Código  | Requisito                     |
+| ------- | ----------------------------- |
+| RNF-L01 | 🔐 Confidencialidad           |
+| RNF-L02 | 🛡️ Integridad                 |
+| RNF-L03 | ⚡ Disponibilidad             |
+| RNF-L04 | 📜 Trazabilidad               |
+| RNF-L05 | 🔄 Recuperabilidad            |
+| RNF-L06 | 📈 Escalabilidad              |
+| RNF-L07 | 🔌 Interoperabilidad          |
+| RNF-L08 | 🧩 Mantenibilidad             |
+| RNF-L09 | 🔍 Auditabilidad              |
 | RNF-L10 | 📦 Conservación de evidencias |
 
 El sistema debe garantizar mecanismos adecuados para proteger la información, detectar modificaciones relevantes, mantener disponibilidad, reconstruir acciones, recuperar información crítica e interoperar de forma controlada.
