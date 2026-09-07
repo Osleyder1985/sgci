@@ -4,6 +4,7 @@ import { Pool } from 'pg';
 
 import {
   ECURED_CUBA_PROVINCES,
+  ecuredLocalidadesUrl,
   normalizarTerritorio,
   parsearPaginaEcured,
 } from '../src/geocodificacion/ecured-cuba.catalog.ts';
@@ -14,22 +15,18 @@ const MUNICIPIO_ALIASES: Record<string, string> = {
 };
 
 const USER_AGENT = 'SGCI/1.0 (territorial catalog synchronization)';
+const FETCH_TIMEOUT_MS = 30_000;
 
 async function main(): Promise<void> {
   const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error('DATABASE_URL no está definida.');
-  }
+  if (!connectionString) throw new Error('DATABASE_URL no está definida.');
 
   const pool = new Pool({ connectionString });
   const client = await pool.connect();
-
   let totalLocalidades = 0;
   let totalConsejos = 0;
 
   try {
-    await client.query('BEGIN');
-
     const provincias = await client.query<{
       id: number;
       nombre: string;
@@ -37,7 +34,6 @@ async function main(): Promise<void> {
     }>(
       'SELECT "id", "nombre", "nombreNormalizado" AS nombre_normalizado FROM "CatalogoProvinciaCubana" WHERE "activo" = true',
     );
-
     const municipios = await client.query<{
       id: number;
       nombre: string;
@@ -50,7 +46,6 @@ async function main(): Promise<void> {
     const provinciaPorNormalizado = new Map(
       provincias.rows.map((item) => [item.nombre_normalizado, item]),
     );
-
     const municipioPorClave = new Map(
       municipios.rows.map((item) => [
         `${item.provincia_id}:${item.nombre_normalizado}`,
@@ -58,85 +53,93 @@ async function main(): Promise<void> {
       ]),
     );
 
+    // Network collection happens before BEGIN: a failed source download cannot
+    // leave an open transaction. Persistence below is all-or-nothing.
+    const catalogos: Array<{
+      provincia: string;
+      provinciaDbId: number;
+      localidades: ReturnType<typeof parsearPaginaEcured>['localidades'];
+      consejosPopulares: ReturnType<typeof parsearPaginaEcured>['consejosPopulares'];
+    }> = [];
+
     for (const provincia of ECURED_CUBA_PROVINCES) {
       const provinciaDb = provinciaPorNormalizado.get(
         normalizarTerritorio(provincia),
       );
-
       if (!provinciaDb) {
         throw new Error(`Provincia no encontrada en catálogo: ${provincia}`);
       }
 
-      const url = `https://www.ecured.cu/Localidades_de_${encodeURIComponent(provincia).replace(/%20/g, '_')}`;
+      const url = ecuredLocalidadesUrl(provincia);
       console.log(`→ ${provincia}: ${url}`);
-
       const response = await fetch(url, {
         headers: { 'user-agent': USER_AGENT },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
-
       if (!response.ok) {
-        throw new Error(
-          `EcuRed respondió ${response.status} para ${provincia}: ${url}`,
-        );
+        throw new Error(`EcuRed respondió ${response.status} para ${provincia}: ${url}`);
       }
 
-      const html = await response.text();
-      const catalogo = parsearPaginaEcured(provincia, html);
-
+      const catalogo = parsearPaginaEcured(provincia, await response.text());
       if (!catalogo.localidades.length) {
-        throw new Error(`No se encontraron localidades para ${provincia}`);
+        throw new Error(`No se encontraron localidades para ${provincia}: ${url}`);
+      }
+      if (!catalogo.consejosPopulares.length) {
+        throw new Error(`No se encontraron consejos populares para ${provincia}: ${url}`);
       }
 
-      for (const fila of catalogo.localidades) {
-        const municipio = resolverMunicipio(
-          provinciaDb.id,
-          fila.municipio,
-          municipioPorClave,
-        );
-        if (!municipio) {
-          console.warn(
-            `  ! Municipio EcuRed no resuelto: ${provincia} / ${fila.municipio}`,
-          );
-          continue;
-        }
-
-        for (const localidad of fila.valores) {
-          await upsertLocalidad(client, municipio.id, localidad);
-          totalLocalidades += 1;
+      for (const fila of [...catalogo.localidades, ...catalogo.consejosPopulares]) {
+        if (!resolverMunicipio(provinciaDb.id, fila.municipio, municipioPorClave)) {
+          throw new Error(`Municipio EcuRed no resuelto: ${provincia} / ${fila.municipio}`);
         }
       }
 
-      for (const fila of catalogo.consejosPopulares) {
-        const municipio = resolverMunicipio(
-          provinciaDb.id,
-          fila.municipio,
-          municipioPorClave,
-        );
-        if (!municipio) {
-          console.warn(
-            `  ! Municipio EcuRed no resuelto en consejos: ${provincia} / ${fila.municipio}`,
-          );
-          continue;
-        }
-
-        for (const consejo of fila.valores) {
-          await upsertConsejoPopular(client, municipio.id, consejo);
-          totalConsejos += 1;
-        }
-      }
-
+      catalogos.push({
+        provincia,
+        provinciaDbId: provinciaDb.id,
+        localidades: catalogo.localidades,
+        consejosPopulares: catalogo.consejosPopulares,
+      });
       console.log(
         `  ✓ ${catalogo.localidades.length} filas de localidades, ${catalogo.consejosPopulares.length} filas de consejos`,
       );
     }
 
-    await client.query('COMMIT');
-    console.log(
-      `✓ Catálogo EcuRed sincronizado: ${totalLocalidades} localidades y ${totalConsejos} consejos populares procesados.`,
-    );
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
+    await client.query('BEGIN');
+    try {
+      for (const catalogo of catalogos) {
+        for (const fila of catalogo.localidades) {
+          const municipio = resolverMunicipio(
+            catalogo.provinciaDbId,
+            fila.municipio,
+            municipioPorClave,
+          );
+          if (!municipio) throw new Error(`Municipio perdido durante persistencia: ${fila.municipio}`);
+          for (const localidad of fila.valores) {
+            await upsertLocalidad(client, municipio.id, localidad);
+            totalLocalidades += 1;
+          }
+        }
+        for (const fila of catalogo.consejosPopulares) {
+          const municipio = resolverMunicipio(
+            catalogo.provinciaDbId,
+            fila.municipio,
+            municipioPorClave,
+          );
+          if (!municipio) throw new Error(`Municipio perdido durante persistencia: ${fila.municipio}`);
+          for (const consejo of fila.valores) {
+            await upsertConsejoPopular(client, municipio.id, consejo);
+            totalConsejos += 1;
+          }
+        }
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+
+    console.log(`✓ Catálogo EcuRed sincronizado: ${totalLocalidades} localidades y ${totalConsejos} consejos populares procesados.`);
   } finally {
     client.release();
     await pool.end();
@@ -156,14 +159,9 @@ function resolverMunicipio(
   return municipioPorClave.get(`${provinciaId}:${candidato}`);
 }
 
-async function upsertLocalidad(
-  client: import('pg').PoolClient,
-  municipioId: number,
-  nombre: string,
-): Promise<void> {
+async function upsertLocalidad(client: import('pg').PoolClient, municipioId: number, nombre: string): Promise<void> {
   const normalizado = normalizarTerritorio(nombre);
   if (!normalizado) return;
-
   await client.query(
     `INSERT INTO "CatalogoLocalidadCubana" ("municipioId", "nombre", "nombreNormalizado")
      VALUES ($1, $2, $3)
@@ -173,14 +171,9 @@ async function upsertLocalidad(
   );
 }
 
-async function upsertConsejoPopular(
-  client: import('pg').PoolClient,
-  municipioId: number,
-  nombre: string,
-): Promise<void> {
+async function upsertConsejoPopular(client: import('pg').PoolClient, municipioId: number, nombre: string): Promise<void> {
   const normalizado = normalizarTerritorio(nombre);
   if (!normalizado) return;
-
   await client.query(
     `INSERT INTO "CatalogoConsejoPopularCubano" ("municipioId", "nombre", "nombreNormalizado")
      VALUES ($1, $2, $3)
