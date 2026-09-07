@@ -284,7 +284,15 @@ export class ManifiestosImportacionEscalableService {
 
       importCompleted = true;
 
-      await this.progress?.complete(jobId, JSON.stringify(response));
+      await this.progress?.complete(jobId, response.mensaje, {
+        manifiestoId: response.manifiesto.id,
+        masterAwb: response.manifiesto.masterAwb,
+        guias: response.estadisticas.guias,
+        paquetes: response.estadisticas.paquetes,
+        personas: response.estadisticas.personasVerificadas,
+        pesoTotalKg: response.manifiesto.pesoTotalKg,
+        warnings: response.warnings.length,
+      });
 
       return response;
     } catch (error) {
