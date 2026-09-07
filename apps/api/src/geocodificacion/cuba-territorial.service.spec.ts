@@ -73,19 +73,22 @@ describe('CubaTerritorialService', () => {
     },
   };
 
-  it('resuelve municipio y provincia desde el tramo territorial de la dirección', async () => {
-    const service = new CubaTerritorialService(prisma as never);
+  it(
+    'resuelve municipio y provincia desde el tramo territorial de la dirección',
+    async () => {
+      const service = new CubaTerritorialService(prisma as never);
 
-    await expect(
-      service.resolver(
-        'CALLE 35 REPARTO ZAMORA # 12207 E/ 120 Y 120 A, MARIANAO, LA HABANA',
-      ),
-    ).resolves.toMatchObject({
-      provincia: 'La Habana',
-      municipio: 'Marianao',
-      confianza: 'ALTA',
-    });
-  });
+      await expect(
+        service.resolver(
+          'CALLE 35 REPARTO ZAMORA # 12207 E/ 120 Y 120 A, MARIANAO, LA HABANA',
+        ),
+      ).resolves.toMatchObject({
+        provincia: 'La Habana',
+        municipio: 'Marianao',
+        confianza: 'ALTA',
+      });
+    },
+  );
 
   it('resuelve un municipio aunque la provincia no aparezca al final', async () => {
     const service = new CubaTerritorialService(prisma as never);
