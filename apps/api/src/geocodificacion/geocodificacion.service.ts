@@ -464,7 +464,9 @@ export class GeocodificacionService {
         .trim();
 
     const provincia = normalizarTexto(normalizada.provincia ?? '');
-    const ultimoComponente = normalizarTexto(original.split(',').at(-1) ?? '');
+    const ultimoComponente = normalizarTexto(
+      original.split(',').at(-1) ?? '',
+    );
     const municipio = normalizarTexto(normalizada.municipio ?? '');
     const tieneMarcadorCubano = /\bE\s*\/|\bRPTO\.?|\bEDIF(?:ICIO)?\.?|\bAPTO\.?|\bAPARTAMENTO\b|#/.test(
       normalizarTexto(original),
