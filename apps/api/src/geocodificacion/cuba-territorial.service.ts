@@ -29,115 +29,152 @@ export class CubaTerritorialService {
   constructor(private readonly prisma: PrismaService) {}
 
   async resolver(direccion: string): Promise<TerritorioCubanoResuelto | null> {
-    const componentes = direccion
-      .split(',')
-      .map((componente) => this.normalizar(componente))
-      .filter(Boolean);
-
-    if (!componentes.length) return null;
+    const texto = this.normalizar(direccion);
+    if (!texto) return null;
 
     const catalogo = await this.obtenerCatalogo();
-    const textoCompleto = componentes.join(' ');
-    const ultimoComponente = componentes.at(-1) ?? '';
-
-    const provincias = catalogo.filter(
-      (item) =>
-        !item.municipio &&
-        this.contieneTerritorio(ultimoComponente, item.provinciaNormalizada),
+    const provincia = this.buscarUnico(catalogo, (item) =>
+      !item.municipio && this.contieneTerritorio(texto, item.provinciaNormalizada),
     );
 
-    if (!provincias.length) return null;
+    // Municipality/locality can identify the province even when the address
+    // does not explicitly contain the province (e.g. "..., Marianao").
+    const municipioCoincidencias = catalogo.filter(
+      (item) =>
+        item.municipio &&
+        !item.localidad &&
+        this.contieneTerritorio(texto, item.municipioNormalizado!),
+    );
+    const municipio = this.elegirMunicipio(municipioCoincidencias, provincia);
 
-    const provincia = provincias.sort(
-      (a, b) =>
-        b.provinciaNormalizada.length - a.provinciaNormalizada.length,
-    )[0];
+    const provinciaNormalizada =
+      provincia?.provinciaNormalizada ?? municipio?.provinciaNormalizada;
+    if (!provinciaNormalizada) {
+      const localidadSinContexto = this.buscarLocalidadSinContexto(catalogo, texto);
+      if (!localidadSinContexto) return null;
+      return this.resultado(localidadSinContexto);
+    }
 
-    const colaMunicipal = componentes.slice(-3).join(' ');
-    const municipios = catalogo
-      .filter(
-        (item) =>
-          item.municipio &&
-          !item.localidad &&
-          item.provinciaNormalizada === provincia.provinciaNormalizada &&
-          this.contieneTerritorio(colaMunicipal, item.municipioNormalizado!),
-      )
-      .sort(
-        (a, b) =>
-          (b.municipioNormalizado ?? '').length -
-          (a.municipioNormalizado ?? '').length,
-      );
-
-    const municipio = municipios[0];
-
-    const localidades = catalogo
-      .filter(
-        (item) =>
-          item.localidad &&
-          item.provinciaNormalizada === provincia.provinciaNormalizada &&
-          (!municipio || item.municipioNormalizado === municipio.municipioNormalizado) &&
-          this.contieneTerritorio(textoCompleto, item.localidadNormalizada!),
-      )
-      .sort(
-        (a, b) =>
-          (b.localidadNormalizada ?? '').length -
-          (a.localidadNormalizada ?? '').length,
-      );
-
-    const localidad = localidades[0];
+    const localidades = catalogo.filter(
+      (item) =>
+        item.localidad &&
+        item.provinciaNormalizada === provinciaNormalizada &&
+        (!municipio || item.municipioNormalizado === municipio.municipioNormalizado) &&
+        this.contieneTerritorio(texto, item.localidadNormalizada!),
+    );
+    const localidad = this.elegirLocalidad(localidades);
 
     return {
-      provincia: provincia.provincia,
-      municipio: municipio?.municipio,
+      provincia: provincia?.provincia ?? municipio!.provincia,
+      municipio: municipio?.municipio ?? localidad?.municipio,
       localidad: localidad?.localidad,
-      provinciaNormalizada: provincia.provinciaNormalizada,
-      municipioNormalizado: municipio?.municipioNormalizado,
+      provinciaNormalizada,
+      municipioNormalizado: municipio?.municipioNormalizado ?? localidad?.municipioNormalizado,
       localidadNormalizada: localidad?.localidadNormalizada,
       confianza: localidad || municipio ? 'ALTA' : 'MEDIA',
     };
+  }
+
+  private buscarUnico(
+    catalogo: TerritorioCatalogo[],
+    predicate: (item: TerritorioCatalogo) => boolean,
+  ): TerritorioCatalogo | undefined {
+    const matches = catalogo.filter(predicate);
+    if (!matches.length) return undefined;
+    return matches.sort((a, b) =>
+      this.longitudTerritorio(b) - this.longitudTerritorio(a),
+    )[0];
+  }
+
+  private elegirMunicipio(
+    matches: TerritorioCatalogo[],
+    provincia?: TerritorioCatalogo,
+  ): TerritorioCatalogo | undefined {
+    const scoped = provincia
+      ? matches.filter((item) => item.provinciaNormalizada === provincia.provinciaNormalizada)
+      : matches;
+    if (!scoped.length) return undefined;
+
+    const distinct = new Map(
+      scoped.map((item) => [
+        `${item.provinciaNormalizada}:${item.municipioNormalizado}`,
+        item,
+      ]),
+    );
+    // A municipality name that exists in several provinces is not enough by
+    // itself to infer the province; require context rather than guessing.
+    if (!provincia && distinct.size > 1) return undefined;
+    return [...distinct.values()].sort(
+      (a, b) => this.longitudTerritorio(b) - this.longitudTerritorio(a),
+    )[0];
+  }
+
+  private elegirLocalidad(matches: TerritorioCatalogo[]): TerritorioCatalogo | undefined {
+    if (!matches.length) return undefined;
+    return matches.sort(
+      (a, b) => this.longitudTerritorio(b) - this.longitudTerritorio(a),
+    )[0];
+  }
+
+  private buscarLocalidadSinContexto(
+    catalogo: TerritorioCatalogo[],
+    texto: string,
+  ): TerritorioCatalogo | undefined {
+    const matches = catalogo.filter(
+      (item) =>
+        item.localidad && this.contieneTerritorio(texto, item.localidadNormalizada!),
+    );
+    const distinct = new Map(
+      matches.map((item) => [
+        `${item.provinciaNormalizada}:${item.municipioNormalizado}:${item.localidadNormalizada}`,
+        item,
+      ]),
+    );
+    if (distinct.size !== 1) return undefined;
+    return [...distinct.values()][0];
+  }
+
+  private resultado(item: TerritorioCatalogo): TerritorioCubanoResuelto {
+    return {
+      provincia: item.provincia,
+      municipio: item.municipio,
+      localidad: item.localidad,
+      provinciaNormalizada: item.provinciaNormalizada,
+      municipioNormalizado: item.municipioNormalizado,
+      localidadNormalizada: item.localidadNormalizada,
+      confianza: item.localidad || item.municipio ? 'ALTA' : 'MEDIA',
+    };
+  }
+
+  private longitudTerritorio(item: TerritorioCatalogo): number {
+    return (
+      item.localidadNormalizada?.length ??
+      item.municipioNormalizado?.length ??
+      item.provinciaNormalizada.length
+    );
   }
 
   private async obtenerCatalogo(): Promise<TerritorioCatalogo[]> {
     if (this.cache) return this.cache;
 
     const provincias = await this.prisma.$queryRaw<
-      Array<{
-        id: number;
-        nombre: string;
-        nombreNormalizado: string;
-      }>
+      Array<{ id: number; nombre: string; nombreNormalizado: string }>
     >`
       SELECT "id", "nombre", "nombreNormalizado"
-      FROM "CatalogoProvinciaCubana"
-      WHERE "activo" = true
+      FROM "CatalogoProvinciaCubana" WHERE "activo" = true
     `;
-
     const municipios = await this.prisma.$queryRaw<
-      Array<{
-        id: number;
-        nombre: string;
-        nombreNormalizado: string;
-        provinciaId: number;
-      }>
+      Array<{ id: number; nombre: string; nombreNormalizado: string; provinciaId: number }>
     >`
       SELECT "id", "nombre", "nombreNormalizado", "provinciaId"
-      FROM "CatalogoMunicipioCubano"
-      WHERE "activo" = true
+      FROM "CatalogoMunicipioCubano" WHERE "activo" = true
     `;
-
     const localidades = await this.prisma.$queryRaw<
-      Array<{
-        id: number;
-        nombre: string;
-        nombreNormalizado: string;
-        municipioId: number;
-      }>
+      Array<{ id: number; nombre: string; nombreNormalizado: string; municipioId: number }>
     >`
       SELECT "id", "nombre", "nombreNormalizado", "municipioId"
-      FROM "CatalogoLocalidadCubana"
-      WHERE "activo" = true
+      FROM "CatalogoLocalidadCubana" WHERE "activo" = true
     `;
-
     const aliases = await this.prisma.$queryRaw<
       Array<{
         valorNormalizado: string;
@@ -148,8 +185,7 @@ export class CubaTerritorialService {
       }>
     >`
       SELECT "valorNormalizado", "provinciaId", "municipioId", "localidadId", "valorCanonico"
-      FROM "CatalogoAliasTerritorialCubano"
-      WHERE "activo" = true
+      FROM "CatalogoAliasTerritorialCubano" WHERE "activo" = true
     `;
 
     const provinciaPorId = new Map(provincias.map((item) => [item.id, item]));
@@ -160,7 +196,6 @@ export class CubaTerritorialService {
     for (const municipio of municipios) {
       const provincia = provinciaPorId.get(municipio.provinciaId);
       if (!provincia) continue;
-
       catalogo.push({
         provincia: provincia.nombre,
         provinciaNormalizada: provincia.nombreNormalizado,
@@ -171,11 +206,8 @@ export class CubaTerritorialService {
 
     for (const localidad of localidades) {
       const municipio = municipioPorId.get(localidad.municipioId);
-      if (!municipio) continue;
-
-      const provincia = provinciaPorId.get(municipio.provinciaId);
-      if (!provincia) continue;
-
+      const provincia = municipio && provinciaPorId.get(municipio.provinciaId);
+      if (!municipio || !provincia) continue;
       catalogo.push({
         provincia: provincia.nombre,
         provinciaNormalizada: provincia.nombreNormalizado,
@@ -196,14 +228,9 @@ export class CubaTerritorialService {
     for (const alias of aliases) {
       if (alias.localidadId) {
         const localidad = localidadPorId.get(alias.localidadId);
-        if (!localidad) continue;
-
-        const municipio = municipioPorId.get(localidad.municipioId);
-        if (!municipio) continue;
-
-        const provincia = provinciaPorId.get(municipio.provinciaId);
-        if (!provincia) continue;
-
+        const municipio = localidad && municipioPorId.get(localidad.municipioId);
+        const provincia = municipio && provinciaPorId.get(municipio.provinciaId);
+        if (!localidad || !municipio || !provincia) continue;
         catalogo.push({
           provincia: provincia.nombre,
           provinciaNormalizada: provincia.nombreNormalizado,
@@ -214,11 +241,8 @@ export class CubaTerritorialService {
         });
       } else if (alias.municipioId) {
         const municipio = municipioPorId.get(alias.municipioId);
-        if (!municipio) continue;
-
-        const provincia = provinciaPorId.get(municipio.provinciaId);
-        if (!provincia) continue;
-
+        const provincia = municipio && provinciaPorId.get(municipio.provinciaId);
+        if (!municipio || !provincia) continue;
         catalogo.push({
           provincia: provincia.nombre,
           provinciaNormalizada: provincia.nombreNormalizado,
@@ -228,7 +252,6 @@ export class CubaTerritorialService {
       } else if (alias.provinciaId) {
         const provincia = provinciaPorId.get(alias.provinciaId);
         if (!provincia) continue;
-
         catalogo.push({
           provincia: provincia.nombre,
           provinciaNormalizada: provincia.nombreNormalizado,
