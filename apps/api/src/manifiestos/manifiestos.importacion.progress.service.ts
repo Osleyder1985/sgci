@@ -84,7 +84,9 @@ type JobRow = {
 
 @Injectable()
 export class ManifiestosImportacionProgressService {
-  private readonly logger = new Logger(ManifiestosImportacionProgressService.name);
+  private readonly logger = new Logger(
+    ManifiestosImportacionProgressService.name,
+  );
   private readonly queues = new Map<string, Promise<void>>();
   private readonly staleAfterMs = 30 * 60 * 1000;
 
@@ -275,7 +277,11 @@ export class ManifiestosImportacionProgressService {
     job.housesPerMinute =
       minutes > 0 ? Math.round((job.processedHouses / minutes) * 10) / 10 : 0;
 
-    if (job.status === 'running' && job.totalHouses > 0 && job.processedHouses > 0) {
+    if (
+      job.status === 'running' &&
+      job.totalHouses > 0 &&
+      job.processedHouses > 0
+    ) {
       job.etaSeconds = Math.max(
         0,
         Math.round(
