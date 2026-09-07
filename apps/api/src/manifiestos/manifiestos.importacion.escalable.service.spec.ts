@@ -9,7 +9,10 @@ import { ManifiestoParser } from './parsers/manifiesto.parser.js';
 describe('ManifiestosImportacionEscalableService - rollback', () => {
   it('debe compensar una importación que falla después de varios Houses', async () => {
     const cleanupTx = {
-      manifiesto: { delete: vi.fn().mockResolvedValue(undefined), count: vi.fn() },
+      manifiesto: {
+        delete: vi.fn().mockResolvedValue(undefined),
+        count: vi.fn(),
+      },
       masterAwb: { delete: vi.fn().mockResolvedValue(undefined) },
       guia: { deleteMany: vi.fn() },
       paquete: { deleteMany: vi.fn() },
@@ -159,7 +162,9 @@ describe('ManifiestosImportacionEscalableService - rollback', () => {
       modifiedDocumentPrincipal: new Map(),
     });
 
-    expect(calls.indexOf('direcciones')).toBeLessThan(calls.indexOf('documentos'));
+    expect(calls.indexOf('direcciones')).toBeLessThan(
+      calls.indexOf('documentos'),
+    );
     expect(calls.indexOf('documentos')).toBeLessThan(calls.indexOf('personas'));
     expect(calls.indexOf('personas')).toBeLessThan(calls.indexOf('manifiesto'));
   });

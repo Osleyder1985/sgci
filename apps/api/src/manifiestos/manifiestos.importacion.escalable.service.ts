@@ -98,41 +98,51 @@ export class ManifiestosImportacionEscalableService {
       }
 
       if (!parsed.metadata.masterAwb) {
-        throw new BadRequestException('El manifiesto no contiene el Master AWB.');
+        throw new BadRequestException(
+          'El manifiesto no contiene el Master AWB.',
+        );
       }
       if (!parsed.metadata.fecha) {
-        throw new BadRequestException('El manifiesto no contiene una fecha válida.');
+        throw new BadRequestException(
+          'El manifiesto no contiene una fecha válida.',
+        );
       }
 
-      const { masterAwb, manifiesto } = await this.prisma.$transaction(async (tx) => {
-        const existingMaster = await tx.masterAwb.findUnique({
-          where: { numero: parsed.metadata.masterAwb! },
-          select: { id: true },
-        });
-        const masterAwb = existingMaster
-          ? await tx.masterAwb.findUniqueOrThrow({ where: { id: existingMaster.id } })
-          : await tx.masterAwb.create({ data: { numero: parsed.metadata.masterAwb! } });
+      const { masterAwb, manifiesto } = await this.prisma.$transaction(
+        async (tx) => {
+          const existingMaster = await tx.masterAwb.findUnique({
+            where: { numero: parsed.metadata.masterAwb! },
+            select: { id: true },
+          });
+          const masterAwb = existingMaster
+            ? await tx.masterAwb.findUniqueOrThrow({
+                where: { id: existingMaster.id },
+              })
+            : await tx.masterAwb.create({
+                data: { numero: parsed.metadata.masterAwb! },
+              });
 
-        rollback.masterAwbId = masterAwb.id;
-        rollback.masterAwbCreated = !existingMaster;
+          rollback.masterAwbId = masterAwb.id;
+          rollback.masterAwbCreated = !existingMaster;
 
-        const manifiesto = await tx.manifiesto.create({
-          data: {
-            masterAwbId: masterAwb.id,
-            agenteTransitario: parsed.metadata.agenteTransitario ?? '',
-            fecha: parsed.metadata.fecha!,
-            paisOrigen: parsed.metadata.paisOrigen ?? 'MEXICO',
-            consignatario: parsed.metadata.consignatario ?? '',
-            cantidadHouse: parsed.total.cantidadHouses,
-            totalSacas: parsed.total.cantidadSacas,
-            totalPersonas: parsed.total.cantidadPersonas,
-            pesoTotalKg: parsed.total.pesoTotalKg!,
-            archivoNombre: originalname,
-            archivoHash: hash,
-          },
-        });
-        return { masterAwb, manifiesto };
-      });
+          const manifiesto = await tx.manifiesto.create({
+            data: {
+              masterAwbId: masterAwb.id,
+              agenteTransitario: parsed.metadata.agenteTransitario ?? '',
+              fecha: parsed.metadata.fecha!,
+              paisOrigen: parsed.metadata.paisOrigen ?? 'MEXICO',
+              consignatario: parsed.metadata.consignatario ?? '',
+              cantidadHouse: parsed.total.cantidadHouses,
+              totalSacas: parsed.total.cantidadSacas,
+              totalPersonas: parsed.total.cantidadPersonas,
+              pesoTotalKg: parsed.total.pesoTotalKg!,
+              archivoNombre: originalname,
+              archivoHash: hash,
+            },
+          });
+          return { masterAwb, manifiesto };
+        },
+      );
       rollback.manifiestoId = manifiesto.id;
 
       const destinatarios: DestinatarioImportado[] = [];
@@ -186,7 +196,12 @@ export class ManifiestosImportacionEscalableService {
             } satisfies HouseResult;
           }
 
-          const persona = await this.resolvePersona(tx, nombre, carnet, rollback);
+          const persona = await this.resolvePersona(
+            tx,
+            nombre,
+            carnet,
+            rollback,
+          );
           return {
             guiaId: guia.id,
             personaId: persona.personaId,
@@ -209,7 +224,10 @@ export class ManifiestosImportacionEscalableService {
         }
         if (result.personaId && result.destinatario) {
           personasCache.set(
-            this.identityKey(result.destinatario.nombre, result.destinatario.carnet),
+            this.identityKey(
+              result.destinatario.nombre,
+              result.destinatario.carnet,
+            ),
             result.personaId,
           );
           destinatarios.push(result.destinatario);
@@ -218,7 +236,8 @@ export class ManifiestosImportacionEscalableService {
 
         await this.progress?.update(jobId, {
           processedHouses: index + 1,
-          processedPeople: new Set(destinatarios.map((item) => item.personaId)).size,
+          processedPeople: new Set(destinatarios.map((item) => item.personaId))
+            .size,
           message: `House ${index + 1} de ${parsed.rows.length} completado.`,
         });
       }
@@ -387,7 +406,10 @@ export class ManifiestosImportacionEscalableService {
           select: { id: true, esPrincipal: true },
         });
         for (const principal of principales) {
-          rollback.modifiedDocumentPrincipal.set(principal.id, principal.esPrincipal);
+          rollback.modifiedDocumentPrincipal.set(
+            principal.id,
+            principal.esPrincipal,
+          );
         }
         if (principales.length) {
           await tx.documentoIdentidad.updateMany({
@@ -632,7 +654,8 @@ export class ManifiestosImportacionEscalableService {
       telefonoDestinatario: this.cleanText(house.telefonoDestinatario),
       direccionDestinatario: this.cleanText(house.direccionDestinatario),
       estadoCobroOrigen:
-        house.estadoCobroOrigen !== null && house.estadoCobroOrigen !== undefined
+        house.estadoCobroOrigen !== null &&
+        house.estadoCobroOrigen !== undefined
           ? String(house.estadoCobroOrigen)
           : null,
       unidadDestino: this.cleanText(house.unidadDestino),
