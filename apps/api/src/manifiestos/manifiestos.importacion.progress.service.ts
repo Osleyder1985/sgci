@@ -232,7 +232,9 @@ export class ManifiestosImportacionProgressService {
             personas: row.personas,
             pesoTotalKg: row.pesoTotalKg,
             warnings:
-              current.addressesNotFound + current.addressesReview + current.errors,
+              current.addressesNotFound +
+              current.addressesReview +
+              current.errors,
           };
         }
       }
