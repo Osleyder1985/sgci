@@ -78,7 +78,11 @@ describe('ManifiestosImportacionWorker durable execution', () => {
     progress.get.mockResolvedValue({ status: 'completed' });
     importer.importar.mockResolvedValue(undefined);
 
-    await (worker as any).execute('job-1', Buffer.from('xlsx'), 'manifest.xlsx');
+    await (worker as any).execute(
+      'job-1',
+      Buffer.from('xlsx'),
+      'manifest.xlsx',
+    );
 
     expect(source.delete).toHaveBeenCalledWith('job-1');
     expect((worker as any).activeJobs.size).toBe(0);
@@ -91,7 +95,11 @@ describe('ManifiestosImportacionWorker durable execution', () => {
     importer.importar.mockResolvedValue(undefined);
 
     await expect(
-      (worker as any).execute('job-1', Buffer.from('xlsx'), 'manifest.xlsx'),
+      (worker as any).execute(
+        'job-1',
+        Buffer.from('xlsx'),
+        'manifest.xlsx',
+      ),
     ).resolves.toBeUndefined();
 
     expect(progress.fail).not.toHaveBeenCalled();
