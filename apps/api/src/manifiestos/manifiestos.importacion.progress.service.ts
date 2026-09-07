@@ -150,7 +150,10 @@ export class ManifiestosImportacionProgressService {
     const row = rows[0];
     if (!row) return null;
 
-    if (row.status === 'running' && Date.now() - row.updatedAt.getTime() > this.staleAfterMs) {
+    if (
+      row.status === 'running' &&
+      Date.now() - row.updatedAt.getTime() > this.staleAfterMs
+    ) {
       const now = new Date();
       const error =
         'El trabajo no ha reportado actividad durante más de 30 minutos y fue marcado como abandonado.';
@@ -226,7 +229,8 @@ export class ManifiestosImportacionProgressService {
             paquetes: Number(row.paquetes),
             personas: row.personas,
             pesoTotalKg: row.pesoTotalKg,
-            warnings: current.addressesNotFound + current.addressesReview + current.errors,
+            warnings:
+              current.addressesNotFound + current.addressesReview + current.errors,
           };
         }
       }
@@ -268,13 +272,15 @@ export class ManifiestosImportacionProgressService {
     job.elapsedMs = Math.max(0, end - started);
 
     const minutes = job.elapsedMs / 60000;
-    job.housesPerMinute = minutes > 0 ? Math.round((job.processedHouses / minutes) * 10) / 10 : 0;
+    job.housesPerMinute =
+      minutes > 0 ? Math.round((job.processedHouses / minutes) * 10) / 10 : 0;
 
     if (job.status === 'running' && job.totalHouses > 0 && job.processedHouses > 0) {
       job.etaSeconds = Math.max(
         0,
         Math.round(
-          ((job.totalHouses - job.processedHouses) / job.processedHouses) * (job.elapsedMs / 1000),
+          ((job.totalHouses - job.processedHouses) / job.processedHouses) *
+            (job.elapsedMs / 1000),
         ),
       );
     } else {
@@ -282,7 +288,10 @@ export class ManifiestosImportacionProgressService {
     }
 
     const resolved = job.addressesGeocoded + job.addressesReused;
-    job.coverage = job.totalAddresses > 0 ? Math.round((resolved / job.totalAddresses) * 1000) / 10 : 0;
+    job.coverage =
+      job.totalAddresses > 0
+        ? Math.round((resolved / job.totalAddresses) * 1000) / 10
+        : 0;
 
     await this.prisma.$executeRaw`
       UPDATE "ManifiestoImportacionJob"
