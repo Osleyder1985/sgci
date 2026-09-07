@@ -203,7 +203,9 @@ describe('ManifiestosService - direcciones', () => {
     };
 
     const geocodificacionMock = {
-      geocodificar: vi.fn().mockRejectedValue(new Error('Servicio no disponible')),
+      geocodificar: vi
+        .fn()
+        .mockRejectedValue(new Error('Servicio no disponible')),
     };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -275,7 +277,11 @@ describe('ManifiestosService - direcciones', () => {
     const parser = { parse: vi.fn().mockReturnValue(parsed) };
     const prisma = {
       manifiesto: { findFirst: vi.fn().mockResolvedValue(null) },
-      masterAwb: { upsert: vi.fn().mockResolvedValue({ id: 'master-1', numero: '649-31382945' }) },
+      masterAwb: {
+        upsert: vi
+          .fn()
+          .mockResolvedValue({ id: 'master-1', numero: '649-31382945' }),
+      },
       $transaction: vi.fn(),
     };
 
@@ -312,12 +318,14 @@ describe('ManifiestosService - direcciones', () => {
     const resultado = await service.importar(Buffer.from('xlsx'), 'manifest.xlsx');
 
     expect(service.verificarDirecciones).toHaveBeenCalledWith(
-      [{
-        personaId: 'persona-1',
-        nombre: 'Juan Pérez',
-        carnet: '123',
-        direccion: 'Calle 123',
-      }],
+      [
+        {
+          personaId: 'persona-1',
+          nombre: 'Juan Pérez',
+          carnet: '123',
+          direccion: 'Calle 123',
+        },
+      ],
       'MEXICO',
       undefined,
     );
