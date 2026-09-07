@@ -173,6 +173,7 @@ model Manifiesto {
   @@index([masterAwbId])
   @@index([fecha])
   @@index([agenteTransitario])
+  @@unique([archivoHash])
 }
 
 model Guia {
