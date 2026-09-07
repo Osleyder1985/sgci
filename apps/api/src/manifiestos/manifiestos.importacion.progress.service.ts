@@ -90,7 +90,11 @@ export class ManifiestosImportacionProgressService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(totalHouses: number, totalPeople = 0, totalAddresses = 0): Promise<ImportJobProgress> {
+  async create(
+    totalHouses: number,
+    totalPeople = 0,
+    totalAddresses = 0,
+  ): Promise<ImportJobProgress> {
     const now = new Date();
     const jobId = randomUUID();
     await this.prisma.$executeRaw`
@@ -148,7 +152,8 @@ export class ManifiestosImportacionProgressService {
 
     if (row.status === 'running' && Date.now() - row.updatedAt.getTime() > this.staleAfterMs) {
       const now = new Date();
-      const error = 'El trabajo no ha reportado actividad durante más de 30 minutos y fue marcado como abandonado.';
+      const error =
+        'El trabajo no ha reportado actividad durante más de 30 minutos y fue marcado como abandonado.';
       await this.prisma.$executeRaw`
         UPDATE "ManifiestoImportacionJob"
         SET "stage" = 'failed', "status" = 'failed',
@@ -176,21 +181,27 @@ export class ManifiestosImportacionProgressService {
     });
   }
 
-  complete(jobId: string, message = 'Manifiesto importado correctamente.', result?: ImportJobResult): Promise<void> {
+  complete(
+    jobId: string,
+    message = 'Manifiesto importado correctamente.',
+    result?: ImportJobResult,
+  ): Promise<void> {
     return this.enqueue(jobId, async () => {
       const current = await this.get(jobId);
       if (!current || current.status !== 'running') return;
 
       let durableResult = result ?? current.result;
       if (!durableResult) {
-        const rows = await this.prisma.$queryRaw<Array<{
-          id: string;
-          masterAwb: string;
-          guias: bigint;
-          paquetes: bigint;
-          personas: number;
-          pesoTotalKg: string;
-        }>>`
+        const rows = await this.prisma.$queryRaw<
+          Array<{
+            id: string;
+            masterAwb: string;
+            guias: bigint;
+            paquetes: bigint;
+            personas: number;
+            pesoTotalKg: string;
+          }>
+        >`
           SELECT
             m."id" AS "id",
             awb."numero" AS "masterAwb",
@@ -260,7 +271,12 @@ export class ManifiestosImportacionProgressService {
     job.housesPerMinute = minutes > 0 ? Math.round((job.processedHouses / minutes) * 10) / 10 : 0;
 
     if (job.status === 'running' && job.totalHouses > 0 && job.processedHouses > 0) {
-      job.etaSeconds = Math.max(0, Math.round(((job.totalHouses - job.processedHouses) / job.processedHouses) * (job.elapsedMs / 1000)));
+      job.etaSeconds = Math.max(
+        0,
+        Math.round(
+          ((job.totalHouses - job.processedHouses) / job.processedHouses) * (job.elapsedMs / 1000),
+        ),
+      );
     } else {
       job.etaSeconds = job.status === 'completed' ? 0 : null;
     }
@@ -296,11 +312,17 @@ export class ManifiestosImportacionProgressService {
     const previous = this.queues.get(jobId) ?? Promise.resolve();
     const next = previous
       .catch((error) => {
-        this.logger.error(`La cola de progreso del job ${jobId} falló antes de continuar.`, error instanceof Error ? error.stack : String(error));
+        this.logger.error(
+          `La cola de progreso del job ${jobId} falló antes de continuar.`,
+          error instanceof Error ? error.stack : String(error),
+        );
       })
       .then(operation)
       .catch((error) => {
-        this.logger.error(`No se pudo persistir el progreso del job ${jobId}.`, error instanceof Error ? error.stack : String(error));
+        this.logger.error(
+          `No se pudo persistir el progreso del job ${jobId}.`,
+          error instanceof Error ? error.stack : String(error),
+        );
       })
       .finally(() => {
         if (this.queues.get(jobId) === next) this.queues.delete(jobId);
@@ -335,17 +357,18 @@ export class ManifiestosImportacionProgressService {
       etaSeconds: row.etaSeconds,
       coverage: row.coverage,
       error: row.error,
-      result: row.resultManifiestoId && row.resultMasterAwb
-        ? {
-            manifiestoId: row.resultManifiestoId,
-            masterAwb: row.resultMasterAwb,
-            guias: row.resultGuias ?? 0,
-            paquetes: row.resultPaquetes ?? 0,
-            personas: row.resultPersonas ?? 0,
-            pesoTotalKg: row.resultPesoTotalKg ?? '0',
-            warnings: row.resultWarnings ?? 0,
-          }
-        : null,
+      result:
+        row.resultManifiestoId && row.resultMasterAwb
+          ? {
+              manifiestoId: row.resultManifiestoId,
+              masterAwb: row.resultMasterAwb,
+              guias: row.resultGuias ?? 0,
+              paquetes: row.resultPaquetes ?? 0,
+              personas: row.resultPersonas ?? 0,
+              pesoTotalKg: row.resultPesoTotalKg ?? '0',
+              warnings: row.resultWarnings ?? 0,
+            }
+          : null,
     };
   }
 }
