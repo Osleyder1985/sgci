@@ -1,41 +1,113 @@
 # SGCI — Prisma Engineering Standard
 
-## Guía de ingeniería profesional con Prisma
+## Estándar de ingeniería profesional para diseño, persistencia y evolución con Prisma
 
 **Proyecto:** SGCI  
-**Versión del documento:** 1.0  
-**Estado:** Propuesta de estándar de ingeniería
+**Versión del documento:** 2.0  
+**Estado:** Estándar de ingeniería  
+**Alcance:** diseño de datos, Prisma, base de datos, migraciones, rendimiento, concurrencia, seguridad, testing y operación.
 
 ---
 
 ## 1. Propósito
 
-Este documento define cómo diseñar, modificar, revisar, probar y operar Prisma de forma profesional dentro de SGCI.
+Este documento define cómo diseñar, modificar, revisar, probar, desplegar y operar la capa de persistencia de SGCI.
 
-No es únicamente una guía de sintaxis. Prisma forma parte del contrato de datos de la aplicación: el schema, las migraciones, las relaciones, las restricciones de la base de datos, Prisma Client y el código que lo utiliza deben evolucionar de forma coordinada.
+No es una guía de sintaxis. Un cambio de Prisma afecta un sistema formado por:
 
-Una implementación profesional debe optimizar simultáneamente:
+- modelo de datos;
+- contrato de la aplicación;
+- base de datos;
+- migraciones;
+- consultas;
+- reglas de negocio;
+- concurrencia;
+- integraciones;
+- datos históricos;
+- observabilidad;
+- despliegue.
 
-- Correctitud.
-- Integridad de datos.
-- Seguridad.
-- Rendimiento.
-- Mantenibilidad.
-- Evolución del schema.
-- Concurrencia.
-- Observabilidad.
-- Testabilidad.
-- Compatibilidad.
-- Calidad de código.
-- Claridad arquitectónica.
+**Regla principal:** que el código compile o que CI esté verde no significa que el cambio esté terminado.
 
-**Regla principal:** que el código compile no significa que el cambio esté terminado.
+Una implementación profesional debe preservar simultáneamente:
+
+- correctitud;
+- integridad;
+- seguridad;
+- rendimiento;
+- mantenibilidad;
+- compatibilidad;
+- testabilidad;
+- observabilidad;
+- capacidad de recuperación.
 
 ---
 
-## 2. Prisma dentro de la arquitectura
+# PARTE I — GOBERNANZA DE VERSIONES
 
-Prisma es una capa de acceso a datos, no la arquitectura completa.
+## 2. Política de versión y compatibilidad
+
+Antes de modificar Prisma, identificar:
+
+```bash
+npx prisma -v
+```
+
+Registrar la versión instalada y la documentación oficial correspondiente.
+
+Cada recomendación debe interpretarse con estas etiquetas:
+
+- **Version-independent:** principio de ingeniería.
+- **Prisma 7:** específico de esa generación.
+- **Prisma 8:** específico de esa generación.
+- **Provider-dependent:** depende del motor.
+- **Preview/Experimental:** requiere aprobación explícita.
+- **Legacy/Deprecated:** no usar en código nuevo salvo compatibilidad.
+
+Una actualización mayor no es una actualización rutinaria de dependencias. Debe incluir:
+
+1. inventario de APIs usadas;
+2. análisis de compatibilidad;
+3. migración técnica;
+4. pruebas de integración;
+5. revisión de migraciones;
+6. validación de producción.
+
+**Regla:** nunca mezclar instrucciones de generaciones distintas como si fueran intercambiables.
+
+Prisma 8 usa un modelo de contrato y flujos diferentes a las generaciones anteriores; por tanto, este estándar separa los principios universales de la API concreta usada por el proyecto. citeturn0search0turn0search8turn0search9
+
+---
+
+## 3. Matriz de compatibilidad
+
+Toda decisión avanzada debe declarar su alcance por:
+
+- PostgreSQL;
+- MySQL;
+- SQL Server;
+- SQLite;
+- CockroachDB;
+- MongoDB, cuando aplique.
+
+No extrapolar automáticamente entre motores:
+
+- transacciones;
+- aislamiento;
+- foreign keys;
+- índices;
+- JSON;
+- relaciones;
+- SQL;
+- capacidades de migración.
+
+La API y el comportamiento pueden variar por método y proveedor. citeturn0search6turn0search7
+
+---
+
+# PARTE II — ARQUITECTURA Y RESPONSABILIDADES
+
+## 4. Prisma dentro de la arquitectura
 
 ```text
 HTTP / UI
@@ -46,768 +118,640 @@ Application Service
    ↓
 Domain / Business Rules
    ↓
-Persistence / Repository (cuando aporte valor)
+Persistence abstraction (cuando aporte valor)
    ↓
-Prisma Client
+Prisma
    ↓
 Database
 ```
 
 ### Responsabilidades
 
-**Controller:** HTTP, entrada, autenticación/autorización y respuesta.
+**Controller/Route**
+- entrada;
+- autenticación/autorización;
+- respuesta.
 
-**Application Service:** casos de uso, coordinación, transacciones, estados, idempotencia y operaciones externas.
+**Application Service**
+- casos de uso;
+- coordinación;
+- límites transaccionales;
+- idempotencia;
+- integración con efectos externos.
 
-**Domain:** reglas de negocio.
+**Domain**
+- reglas de negocio.
 
-**Persistence:** consultas y patrones de acceso cuando una abstracción realmente aporte valor.
+**Persistence**
+- consultas y abstracciones solamente cuando reduzcan acoplamiento o complejidad.
 
-**Prisma:** acceso tipado y estructurado a la base de datos.
+**Prisma**
+- acceso estructurado a persistencia.
 
 No convertir Prisma en el lugar donde vive toda la lógica de negocio.
 
 ---
 
-## 3. Versionado
+## 5. Matriz Application vs Prisma vs Database
 
-Antes de modificar Prisma:
+| Responsabilidad | Aplicación | Prisma | Base de datos |
+|---|---|---|---|
+| Autorización | Principal | No sustituye | No sustituye |
+| Validación de entrada | Principal | Tipos/API | Constraints complementarios |
+| Workflow | Principal | Coordinación | No |
+| Unicidad crítica | Manejo del resultado | Declaración | Enforcement |
+| Integridad referencial | Complementaria | Modelo | Enforcement cuando exista |
+| Atomicidad | Define límites | API | Garantía |
+| Índices | Decide necesidad | Declara | Ejecuta |
+| Concurrencia | Estrategia | API | Isolation/constraints |
 
-```bash
-npx prisma -v
-```
-
-Revisar la versión instalada de `prisma` y `@prisma/client` y utilizar la documentación correspondiente a esa versión.
-
-Una actualización mayor de Prisma no debe introducirse únicamente porque exista una versión más nueva. Debe tratarse como un cambio técnico planificado, con pruebas y revisión de compatibilidad.
-
----
-
-## 4. Modelado de datos
-
-Modelar el dominio, no la pantalla.
-
-El schema debe representar entidades, reglas y relaciones reales. No crear una tabla gigante llena de campos opcionales solo para simplificar una interfaz.
-
-### Convenciones
-
-- Modelos: `PascalCase` y singular.
-- Campos: `camelCase`.
-- Nombres físicos heredados: usar `@map` y `@@map`.
-
-Ejemplo:
-
-```prisma
-model Manifest {
-  id        Int      @id @default(autoincrement())
-  fileHash  String   @unique
-  createdAt DateTime @default(now())
-}
-```
-
-Si la base existente utiliza otros nombres:
-
-```prisma
-model Manifest {
-  id       Int    @id @default(autoincrement()) @map("manifest_id")
-  fileHash String @unique @map("file_hash")
-
-  @@map("manifests")
-}
-```
+**Principio:** si una invariante crítica debe sobrevivir a múltiples procesos o clientes, no puede depender exclusivamente de una comprobación previa en código.
 
 ---
 
-## 5. Tipos de datos
+# PARTE III — MODELADO
 
-Usar el tipo que represente la naturaleza real del dato.
+## 6. Modelar el dominio
 
-- `String`: texto, códigos y valores dinámicos.
-- `Int`: enteros dentro del rango apropiado.
-- `BigInt`: enteros que pueden superar el rango de `Int`.
-- `Decimal`: valores que requieren precisión decimal, especialmente importes.
-- `Float`: valores de coma flotante cuando su precisión sea aceptable.
-- `Boolean`: estados realmente binarios.
-- `DateTime`: instantes temporales reales.
-- `Json`: estructuras variables cuando realmente necesiten flexibilidad.
-- Tipos nativos: utilizarlos cuando expresen correctamente una capacidad del motor.
+Modelar entidades y reglas reales, no pantallas.
 
-No almacenar fechas, pesos o estados como `String` por comodidad cuando existe un tipo mejor.
+Convenciones:
 
-No utilizar `Json` para esconder un modelo relacional que necesita relaciones, restricciones o índices.
+- modelos: `PascalCase`, singular;
+- campos: `camelCase`;
+- nombres físicos heredados: `@map` y `@@map`.
+
+No crear una tabla gigante llena de campos opcionales para simplificar la UI.
 
 ---
 
-## 6. Nullabilidad y defaults
+## 7. Tipos de datos
 
-Usar `?` únicamente cuando la ausencia tenga significado de negocio.
+Usar el tipo que represente la naturaleza real:
 
-Preferir:
+- `String`: texto y códigos;
+- `Int`: enteros apropiados;
+- `BigInt`: enteros de crecimiento elevado;
+- `Decimal`: precisión decimal;
+- `Float`: aproximación aceptable;
+- `Boolean`: estado binario;
+- `DateTime`: instante temporal;
+- `Json`: estructura flexible justificada.
 
-```prisma
-status String @default("PENDING")
-```
+No almacenar fechas, pesos o estados como texto por comodidad.
 
-cuando todo registro deba tener un estado inicial válido, en lugar de hacer `status` nullable sin necesidad.
-
-Los defaults deben representar valores iniciales válidos, no ocultar datos obligatorios.
+No usar JSON para esconder relaciones que requieren constraints o índices.
 
 ---
 
-## 7. Identidad y claves
+## 8. Nullabilidad y defaults
 
-Toda entidad persistida debe tener una estrategia clara de identidad.
+Usar `?` solo cuando la ausencia tenga significado real.
 
-Puede utilizar:
+Preferir un default válido a una propiedad nullable sin semántica.
 
-- clave técnica autoincremental;
+Un default no debe ocultar un dato que realmente era obligatorio.
+
+---
+
+## 9. Identidad y claves
+
+Toda entidad debe tener estrategia explícita:
+
+- clave técnica;
 - UUID;
 - identificador natural;
 - clave compuesta.
 
-No confundir el ID técnico con identificadores de negocio como AWB, tracking number o códigos externos.
+No confundir ID técnico con identidad de negocio.
 
-Si una regla de negocio exige unicidad, expresarla también en la base de datos:
-
-```prisma
-awb String @unique
-```
+Una regla de unicidad importante debe estar protegida en la base de datos.
 
 ---
 
-## 8. Unique constraints
+## 10. Relaciones
 
-Las reglas importantes de unicidad deben protegerse en la base de datos.
+Representar la cardinalidad real:
 
-No depender únicamente de:
+- 1:1;
+- 1:N;
+- N:M.
+
+En relaciones relacionales, el lado propietario almacena la FK y el campo de relación permite navegación. Las relaciones 1:N y 1:1 deben diseñarse desde esa realidad física. citeturn0search1turn0search2turn0search11
+
+Para N:M:
+
+- implícita cuando la relación no tiene identidad ni atributos propios y la versión/capacidad lo permita;
+- explícita cuando la relación tenga metadata, lifecycle o reglas propias.
+
+Nombrar relaciones explícitamente cuando haya ambigüedad.
+
+---
+
+## 11. Foreign keys y acciones referenciales
+
+No confiar exclusivamente en la aplicación para impedir referencias inválidas.
+
+`Cascade` nunca debe ser automático.
+
+Antes de una acción referencial preguntar:
+
+1. ¿Qué datos se eliminan?
+2. ¿Puede existir información histórica?
+3. ¿Qué servicios consumen esos datos?
+4. ¿Debe prohibirse, restringirse, poner NULL o cascada?
+
+---
+
+## 12. relationMode
+
+Documentar explícitamente el modelo de integridad usado.
+
+Cambiar el modo de relaciones puede modificar:
+
+- dónde se aplica la integridad;
+- existencia de constraints físicas;
+- comportamiento de migraciones;
+- necesidad de índices.
+
+No elegirlo por comodidad sin documentar consecuencias.
+
+---
+
+## 13. Herencia y polimorfismo
+
+Prisma no convierte automáticamente herencia OOP en modelo relacional.
+
+Evaluar:
+
+1. composición/1:1;
+2. single table + discriminator;
+3. table-per-type;
+4. capacidad específica del proveedor.
+
+No introducir herencia para imitar clases; elegir el modelo que exprese mejor los invariantes de datos.
+
+---
+
+## 14. Enums vs tablas
+
+Usar enum para valores pequeños, estables y controlados por código.
+
+Usar tabla de referencia para valores:
+
+- dinámicos;
+- administrables;
+- configurables;
+- con metadata;
+- dependientes de jerarquía.
+
+---
+
+# PARTE IV — PERFORMANCE
+
+## 15. Index Decision Framework
+
+Un índice debe responder a una consulta concreta.
+
+Antes de crearlo:
+
+1. ¿Qué query lo necesita?
+2. ¿Cuál es la cardinalidad?
+3. ¿Qué filtros usa?
+4. ¿Qué orden usa?
+5. ¿Debe ser compuesto?
+6. ¿Cuál es el coste de escritura?
+7. ¿Existe redundancia?
+8. ¿El proveedor ya crea estructura equivalente?
+9. ¿Se revisó el plan real cuando corresponde?
+10. ¿Se midió?
+
+**Regla:** un índice es una decisión de carga de trabajo, no decoración del schema.
+
+---
+
+## 16. Query engineering
+
+Recuperar únicamente:
+
+- campos necesarios;
+- relaciones necesarias;
+- filas necesarias.
+
+Evitar N+1 accidental y consultas por elemento cuando puedan agruparse.
+
+La paginación debe tener orden determinista y, cuando sea necesario, desempate estable.
+
+No asumir que una tabla permanecerá pequeña.
+
+---
+
+## 17. Medición
+
+Separar:
+
+**Performance del ORM**
+- shape de respuesta;
+- relaciones;
+- N+1;
+- batching;
+- paginación.
+
+**Performance de base de datos**
+- índices;
+- planes;
+- cardinalidad;
+- locks;
+- I/O;
+- conexiones.
+
+Una consulta que parece eficiente en código no necesariamente es eficiente en la base de datos.
+
+Optimizar con evidencia.
+
+---
+
+# PARTE V — MIGRACIONES
+
+## 18. Principios universales
+
+Una migración es código crítico:
+
+```text
+Cambiar contrato/schema
+↓
+Generar o planificar migración
+↓
+Revisar
+↓
+Probar
+↓
+Verificar datos
+↓
+Aplicar
+```
+
+Nunca tratar los datos existentes como secundarios.
+
+No reescribir una migración histórica aplicada sin un procedimiento de recuperación explícitamente aprobado.
+
+---
+
+## 19. Prisma 7 y generaciones schema-first
+
+Cuando el proyecto use el flujo schema-first tradicional, revisar el SQL generado y probar la migración con datos representativos.
+
+El schema tradicional puede organizarse en uno o varios archivos cuando la configuración y versión lo soporten. citeturn0search4
+
+---
+
+## 20. Prisma 8 y contratos
+
+En Prisma 8 el contrato de datos es el artefacto central; las migraciones se planifican y verifican contra ese contrato. citeturn0search8turn0search9
+
+No aplicar comandos o flujos de otra generación sin verificar compatibilidad.
+
+---
+
+## 21. Zero-Downtime Migration Engineering
+
+Para cambios complejos:
+
+### Expand
+Agregar estructuras compatibles.
+
+### Backfill
+Migrar datos históricos de manera medible y reintentable.
+
+### Dual Compatibility
+Permitir coexistencia temporal de versiones cuando el despliegue lo requiera.
+
+### Switch
+Mover lectores y escritores.
+
+### Observe
+Verificar que no existan consumidores del contrato antiguo.
+
+### Contract
+Eliminar lo obsoleto.
+
+Casos de alto riesgo:
+
+- NULL → NOT NULL;
+- cambio de tipo;
+- rename;
+- cambios de claves;
+- tablas grandes;
+- índices grandes;
+- eliminación de columnas.
+
+---
+
+# PARTE VI — TRANSACCIONES Y CONCURRENCIA
+
+## 22. Production Transaction Engineering
+
+Una transacción no es un workflow completo.
+
+No incluir en una transacción larga:
+
+- HTTP;
+- geocodificación;
+- procesamiento completo de XLSX;
+- esperas;
+- efectos externos lentos.
+
+Patrón:
+
+```text
+validar/preparar
+↓
+transacción corta
+↓
+persistir cambios atómicos
+↓
+commit
+↓
+efectos posteriores
+```
+
+Dentro de una transacción, utilizar el handle transaccional para todas las operaciones que deban participar.
+
+---
+
+## 23. Atomicidad vs workflow
+
+Distinguir:
+
+```text
+Database transaction
+≠
+Business workflow
+```
+
+Una importación SGCI puede durar minutos; su workflow necesita estados persistentes y recuperación, no una transacción abierta durante todo el proceso.
+
+---
+
+## 24. Concurrencia
+
+Nunca confiar únicamente en:
 
 ```text
 SELECT → comprobar → INSERT
 ```
 
-porque dos procesos concurrentes pueden observar que el dato no existe al mismo tiempo.
+Diseñar con:
 
-La aplicación puede hacer una comprobación previa para mejorar la experiencia, pero la constraint de la DB es la defensa definitiva.
-
-Las claves únicas compuestas son apropiadas cuando la identidad depende de varios campos:
-
-```prisma
-@@unique([countryCode, externalCode])
-```
+- constraints;
+- transacciones;
+- manejo de conflictos;
+- concurrencia optimista cuando aplique;
+- versionado o compare-and-swap cuando el dominio lo requiera.
 
 ---
 
-## 9. Relaciones
+## 25. Idempotencia y retry
 
-Las relaciones deben representar la cardinalidad real.
-
-### 1:1
-
-Una relación uno a uno necesita una FK única en el lado dependiente:
-
-```prisma
-model Profile {
-  id     Int  @id @default(autoincrement())
-  userId Int  @unique
-  user   User @relation(fields: [userId], references: [id])
-}
-```
-
-### 1:N
-
-La FK suele vivir en el lado dependiente:
-
-```prisma
-model Manifest {
-  id     Int    @id @default(autoincrement())
-  houses House[]
-}
-
-model House {
-  id         Int      @id @default(autoincrement())
-  manifestId Int
-  manifest   Manifest @relation(fields: [manifestId], references: [id])
-}
-```
-
-### N:M
-
-Usar relación implícita cuando no existan atributos propios de la relación y sea apropiado para el caso.
-
-Usar modelo explícito cuando la relación tenga información propia:
-
-```prisma
-model UserTeam {
-  userId   Int
-  teamId   Int
-  joinedAt DateTime @default(now())
-  role     String
-
-  user User @relation(fields: [userId], references: [id])
-  team Team @relation(fields: [teamId], references: [id])
-
-  @@id([userId, teamId])
-}
-```
-
-### Autorelaciones y relaciones múltiples
-
-Nombrar explícitamente las relaciones cuando existan varias relaciones entre los mismos modelos o relaciones autorreferenciales.
-
----
-
-## 10. Foreign keys y acciones referenciales
-
-Las foreign keys protegen la integridad de las relaciones.
-
-No confiar exclusivamente en la aplicación para impedir referencias inválidas.
-
-Las acciones `onDelete` y `onUpdate` deben ser deliberadas. `Cascade` no debe utilizarse automáticamente: una cascada incorrecta puede eliminar datos válidos.
-
-Revisar también `relationMode` y preferir la integridad de la base de datos cuando el motor relacional lo soporte y sea apropiado.
-
----
-
-## 11. Herencia y polimorfismo
-
-Prisma no implementa herencia OOP como:
-
-```ts
-class Dog extends Animal {}
-```
-
-El modelado relacional necesita un patrón equivalente.
-
-Opciones habituales:
-
-1. **Composición / 1:1** para especializaciones separadas.
-2. **Single Table + discriminator** cuando una tabla común sea adecuada.
-3. **Table-per-type** cuando las especializaciones necesiten tablas separadas.
-4. **Características específicas del motor** cuando estén soportadas por el conector y la versión utilizada.
-
-Ejemplo discriminator:
-
-```prisma
-enum PartyType {
-  PERSON
-  COMPANY
-}
-
-model Party {
-  id    Int       @id @default(autoincrement())
-  type  PartyType
-  name  String
-  taxId String?
-}
-```
-
-No introducir herencia solo para imitar una jerarquía OOP. Preferir el modelo que haga explícitas las reglas de datos.
-
----
-
-## 12. Enums vs tablas de referencia
-
-Usar `enum` para conjuntos pequeños, estables y controlados por código.
-
-Usar tablas de referencia cuando los valores sean dinámicos, configurables, administrables o necesiten metadata.
-
-Ejemplos de catálogos de negocio que normalmente requieren entidades propias:
-
-```text
-Country
-Province
-Municipality
-Locality
-Consejo Popular
-```
-
----
-
-## 13. Índices
-
-Diseñar índices a partir de consultas reales.
-
-Considerar índices para campos utilizados frecuentemente en:
-
-- `where`;
-- `orderBy`;
-- relaciones/FK;
-- búsquedas críticas.
+Toda operación reintentable debe tener identidad.
 
 Ejemplo:
 
-```prisma
-@@index([manifestId])
+```text
+entrada normalizada
+↓
+identificador/hash
+↓
+constraint o estado durable
+↓
+reintento seguro
 ```
 
-Para consultas compuestas:
+Clasificar errores:
 
-```prisma
-@@index([manifestId, status])
-```
+- transitorio y reintentable;
+- conflicto de concurrencia;
+- violación de integridad;
+- negocio;
+- permanente.
 
-El orden de las columnas importa.
+No hacer retry ciego.
 
-No indexar todo: los índices también tienen coste de almacenamiento y escritura.
+Cuando exista retry definir:
 
----
+- máximo de intentos;
+- backoff;
+- jitter si múltiples workers pueden sincronizarse;
+- observabilidad;
+- condición de parada.
 
-## 14. Organización del schema
-
-Cuando la versión/configuración del proyecto lo permita, un schema grande puede dividirse por dominio:
+No prometer exactly-once sin una garantía real de extremo a extremo. Preferir:
 
 ```text
-prisma/
-  schema/
-    manifest.prisma
-    person.prisma
-    address.prisma
-    geocoding.prisma
-    territory.prisma
+at-least-once delivery
++
+idempotent processing
++
+durable state
 ```
-
-La división debe mejorar descubribilidad y revisión, no añadir complejidad sin beneficio.
 
 ---
 
-## 15. Migraciones
+## 26. Transactional Outbox
 
-Una migración es código versionado y debe revisarse como código crítico.
-
-Flujo:
+Problema:
 
 ```text
-Cambiar schema
-    ↓
-Generar migración
-    ↓
-Revisar SQL
-    ↓
-Probar
-    ↓
-Verificar datos
-    ↓
-Aplicar
+persistir negocio
+COMMIT
+↓
+falla antes de publicar evento/job
 ```
 
-### Regla crítica
+Solución cuando aplique:
 
-**Nunca modificar una migración que ya fue aplicada.**
+En la misma transacción persistir:
 
-Si existe un problema, crear una nueva migración.
+- cambio de negocio;
+- registro Outbox.
 
----
+Un worker procesa posteriormente el efecto.
 
-## 16. Cambios destructivos
+Los consumidores también deben ser idempotentes.
 
-Requieren análisis especial:
+Evaluar especialmente en SGCI para:
 
-- eliminar columnas o tablas;
-- cambiar tipos incompatibles;
-- nullable → required;
-- modificar claves;
-- eliminar enums utilizados;
-- borrar datos.
-
-Analizar siempre:
-
-- datos existentes;
-- código consumidor;
+- importaciones;
 - jobs;
-- integraciones;
-- frontend;
-- rollback o compensación.
+- progreso;
+- notificaciones;
+- sincronizaciones.
 
 ---
 
-## 17. Expand / Contract
+# PARTE VII — CONSULTAS Y RAW SQL
 
-Para cambios de producción complejos:
+## 27. Elegir la superficie correcta
 
-1. **Expand:** añadir lo nuevo sin romper lo existente.
-2. **Migrate:** transformar/copiar datos.
-3. **Switch:** cambiar la aplicación al nuevo contrato.
-4. **Contract:** retirar lo antiguo cuando ya no tenga consumidores.
+Orden preferente:
 
-Este patrón reduce riesgos de incompatibilidad y downtime.
+1. ORM/API tipada adecuada a la versión;
+2. superficie SQL tipada disponible para versión/proveedor;
+3. raw query parametrizada;
+4. unsafe raw solo como excepción aprobada.
 
----
-
-## 18. Prisma Client
-
-Operaciones habituales:
-
-- `create`
-- `createMany`
-- `findUnique`
-- `findFirst`
-- `findMany`
-- `update`
-- `updateMany`
-- `delete`
-- `deleteMany`
-- `upsert`
-
-Elegir la operación que exprese claramente la intención.
+Prisma 8 documenta superficies separadas para ORM, SQL builder, pipelines y raw queries según proveedor. citeturn0search7
 
 ---
 
-## 19. select e include
+## 28. Raw SQL Governance
 
-No recuperar datos innecesarios.
+Toda consulta raw relevante debe documentar:
 
-Preferir `select` cuando el contrato necesita un conjunto pequeño y conocido de campos:
+- problema;
+- alternativa descartada;
+- versión;
+- proveedor;
+- seguridad;
+- test;
+- expectativa de rendimiento.
 
-```ts
-const person = await prisma.person.findUnique({
-  where: { id },
-  select: {
-    id: true,
-    firstName: true,
-    lastName: true,
-  },
-});
-```
-
-Usar `include` cuando realmente se necesitan relaciones.
+Nunca concatenar entrada no confiable en SQL.
 
 ---
 
-## 20. N+1 y consultas en loops
+# PARTE VIII — SEGURIDAD Y ERRORES
 
-Evitar patrones como:
-
-```ts
-for (const item of items) {
-  await prisma.person.findUnique(...);
-}
-```
-
-si el volumen puede ser grande y la consulta puede resolverse mediante:
-
-- `include`;
-- `select`;
-- batching;
-- `createMany`;
-- consultas agrupadas.
-
-No toda consulta dentro de un loop es incorrecta, pero siempre debe justificarse.
-
----
-
-## 21. Paginación
-
-No asumir que una tabla permanecerá pequeña.
-
-Diseñar paginación desde el dominio de consulta cuando los conjuntos puedan crecer.
-
-Opciones:
-
-- offset pagination;
-- cursor pagination.
-
-Las consultas paginadas deben tener orden determinista. Cuando sea necesario, utilizar una segunda columna estable como desempate:
-
-```text
-ORDER BY createdAt, id
-```
-
----
-
-## 22. Raw SQL
-
-El SQL directo puede ser válido cuando Prisma no exprese bien una consulta o se necesite una capacidad específica del motor.
-
-Reglas:
-
-- parametrizar valores;
-- evitar concatenación de entrada del usuario;
-- revisar permisos y compatibilidad;
-- probar la consulta;
-- documentar por qué es necesario.
-
-Nunca utilizar SQL inseguro para evitar la API tipada por comodidad.
-
----
-
-## 23. Transacciones
-
-Las transacciones agrupan operaciones que deben ser atómicas.
-
-Ejemplo:
-
-```ts
-await prisma.$transaction(async (tx) => {
-  await tx.person.create(...);
-  await tx.document.create(...);
-});
-```
-
-Dentro de la transacción se debe utilizar el cliente transaccional `tx` para las operaciones que formen parte de ella.
-
-### Regla de duración
-
-Mantener las transacciones cortas.
-
-No incluir dentro de una transacción larga:
-
-- llamadas HTTP externas;
-- geocodificación;
-- procesamiento completo de XLSX;
-- esperas prolongadas.
-
----
-
-## 24. Concurrencia e idempotencia
-
-Diseñar pensando en procesos simultáneos.
-
-Una comprobación previa no garantiza unicidad bajo concurrencia. Utilizar constraints, transacciones y manejo de errores.
-
-Una operación crítica repetida debe ser idempotente cuando el negocio lo requiera.
-
-Ejemplo SGCI:
-
-```text
-mismo archivo
-    ↓
-SHA-256
-    ↓
-unique constraint
-    ↓
-no duplicar la importación equivalente
-```
-
----
-
-## 25. Manejo de errores
-
-Los errores de Prisma deben convertirse en errores de dominio/API apropiados.
-
-No hacer:
-
-```ts
-catch {
-  return null;
-}
-```
-
-si eso oculta un fallo real.
-
-Los errores de persistencia deben poder:
-
-- reintentarse cuando proceda;
-- provocar fallo cuando corresponda;
-- quedar registrados;
-- ser observables.
-
-**Nunca fingir éxito después de un fallo de persistencia.**
-
----
-
-## 26. Seguridad
+## 29. Seguridad
 
 Prisma no sustituye:
 
 - autenticación;
 - autorización;
-- validación de entrada;
-- gestión de secretos;
-- políticas de acceso.
+- validación runtime;
+- secretos;
+- mínimos privilegios;
+- protección de información sensible.
 
-No seleccionar ni devolver información sensible si no es necesaria.
-
-Separar claramente:
-
-```text
-¿Quién puede ejecutar la operación?
-```
-
-de:
-
-```text
-¿Cómo se persisten los datos?
-```
+No seleccionar ni devolver datos sensibles sin necesidad.
 
 ---
 
-## 27. TypeScript
+## 30. Manejo de errores
 
-Mantener TypeScript estricto cuando el proyecto lo permita:
+Los errores de persistencia deben traducirse al nivel apropiado.
 
-```json
-{
-  "compilerOptions": {
-    "strict": true,
-    "noEmit": true
-  }
+Nunca:
+
+```ts
+catch {
+  return null
 }
 ```
 
-Prestar especial atención a:
+si eso convierte un fallo real en éxito aparente.
 
-- `strictNullChecks`;
-- `noImplicitAny`;
-- `noImplicitReturns`;
-- promesas no esperadas.
+Un error debe poder:
 
-No relajar tipos para ocultar un problema del modelo.
+- reintentarse cuando proceda;
+- fallar cuando corresponda;
+- registrarse;
+- observarse.
 
----
-
-## 28. Promesas y jobs
-
-En operaciones críticas no lanzar trabajo asíncrono y marcar el proceso como terminado antes de esperar su resultado.
-
-Malo:
-
-```text
-iniciar procesamiento
-↓
-marcar COMPLETED
-↓
-el procesamiento continúa
-```
-
-Correcto:
-
-```text
-RUNNING
-↓
-await procesamiento
-↓
-await persistir resultado
-↓
-COMPLETED
-```
-
-Reglas de lint como `no-floating-promises` pueden ayudar a detectar errores de lifecycle.
+Nunca fingir éxito después de un fallo de persistencia.
 
 ---
 
-## 29. Prettier, ESLint y CodeQL
+# PARTE IX — TESTING
 
-Son capas distintas:
-
-```text
-TypeScript → tipos
-ESLint     → patrones/calidad
-Prettier   → formato
-CodeQL     → seguridad/análisis estático
-Tests      → comportamiento
-Build      → integración de compilación
-```
-
-No considerar un cambio completo hasta que las comprobaciones relevantes estén verdes.
-
-Prettier en CI puede utilizar:
-
-```bash
-npx prettier --check "apps/**/*.{ts,tsx,js,jsx,json,css,md}"
-```
-
-`--check` verifica; no corrige.
-
-No desactivar reglas de ESLint para ocultar problemas sin una justificación técnica.
-
----
-
-## 30. Testing
-
-Usar diferentes niveles de prueba.
+## 31. Pirámide de pruebas
 
 ### Unit
-
-Para:
-
-- reglas de negocio;
-- transformaciones;
-- parsers;
-- validaciones;
-- cálculos.
+Reglas puras, transformaciones, parsers y cálculos.
 
 ### Integration
+Base real o equivalente para probar:
 
-Para comprobar con una base real o equivalente:
-
+- constraints;
 - FK;
-- unique constraints;
 - relaciones;
 - transacciones;
-- migraciones;
-- rollback.
-
-### E2E
-
-Para comportamiento observable de extremo a extremo.
+- queries.
 
 ### Concurrencia
+Operaciones simultáneas, duplicados y retries.
 
-Probar operaciones simultáneas cuando existan reglas de unicidad, jobs o recursos compartidos.
+### Migration
+Evolución desde datos existentes.
 
-No sustituir todos los tests de persistencia por mocks: los mocks no prueban constraints reales de la base de datos.
+### Historical data
+Compatibilidad de datos antiguos.
 
----
+### Failure injection
+Fallo:
 
-## 31. Observabilidad
+- después de escribir;
+- durante rollback;
+- durante retry;
+- entre commit y efecto externo.
 
-Un sistema profesional debe permitir responder:
-
-- qué ocurrió;
-- cuándo ocurrió;
-- cuánto tardó;
-- dónde falló;
-- qué datos procesó;
-- cuántas consultas ejecutó cuando sea relevante.
-
-Los logs no deben contener secretos ni datos sensibles innecesarios.
-
-Un log útil debe incluir contexto, por ejemplo:
-
-```text
-importJob=abc123
-stage=geocoding
-processed=500
-failed=3
-elapsed=12.4s
-```
+Los mocks no sustituyen pruebas de constraints reales.
 
 ---
 
-## 32. Importaciones SGCI
+# PARTE X — OBSERVABILIDAD Y OPERACIÓN
 
-Una importación de manifiesto es una operación de larga duración y debe tratarse como job persistente, no como una simple petición HTTP.
+## 32. Observabilidad
 
-Arquitectura:
+Medir cuando corresponda:
+
+- latencia de queries;
+- consultas lentas;
+- tasa de errores;
+- duración de transacciones;
+- saturación de conexiones;
+- agotamiento de conexiones;
+- deadlocks;
+- retries;
+- duración de migraciones;
+- throughput de jobs;
+- fallos de rollback.
+
+Logs útiles incluyen contexto, sin secretos ni datos sensibles innecesarios.
+
+**Regla:** no optimizar ni diagnosticar por intuición cuando puede medirse.
+
+---
+
+# PARTE XI — PATRONES SGCI
+
+## 33. Importaciones
+
+Una importación de manifiesto es un job persistente:
 
 ```text
 POST iniciar
-    ↓
+↓
 crear ImportJob
-    ↓
+↓
 RUNNING
-    ↓
+↓
 procesar
-    ↓
+↓
 persistir progreso
-    ↓
+↓
 persistir resultado
-    ↓
+↓
 COMPLETED / FAILED
 ```
 
-El resultado final debe estar asociado inequívocamente al `jobId`.
+El resultado debe estar asociado inequívocamente al `jobId`.
 
-No reconstruir el resultado mediante:
-
-- último manifiesto;
-- timestamp aproximado;
-- totales ambiguos;
-- consultas que puedan cruzarse con otra importación concurrente.
+Nunca reconstruirlo mediante “último manifiesto” o timestamps ambiguos.
 
 ---
 
-## 33. Rollback de importaciones
+## 34. Rollback y compensación
 
 Una importación puede afectar:
 
@@ -817,487 +761,275 @@ Una importación puede afectar:
 - personas;
 - documentos;
 - direcciones;
-- datos de geocodificación;
+- geocodificación;
 - metadatos.
 
-Si el contrato exige rollback, debe contemplar todos los efectos relevantes, no únicamente la tabla principal.
+Si existe rollback contractual, cubrir todos los efectos relevantes.
 
-Los fallos durante rollback no deben ocultarse.
+Los fallos de rollback no se ocultan.
 
-Cuando una operación externa no pueda deshacerse, utilizar compensación, estados, reintentos o reconciliación según corresponda.
+Cuando un efecto externo no pueda revertirse, usar:
+
+- compensación;
+- estados;
+- retries;
+- reconciliación.
 
 ---
 
-## 34. Geocodificación
+## 35. Geocodificación
 
-Las llamadas a proveedores externos deben permanecer fuera de transacciones DB largas.
+Las llamadas externas permanecen fuera de transacciones largas.
 
-Separar conceptualmente:
+Distinguir estados:
 
 ```text
-dirección encontrada
-≠
-dirección reutilizada
-≠
-dirección creada
-≠
-dirección pendiente
-≠
+encontrada
+reutilizada
+creada
+pendiente
 no encontrada
-≠
 error
 ```
 
-Los estados deben reflejar el contrato real del sistema.
+No colapsar estados técnicamente distintos si el workflow necesita diferenciarlos.
 
 ---
 
-## 35. Catálogo territorial cubano
+# PARTE XII — CALIDAD Y CI
 
-El modelo territorial de SGCI debe poder representar de forma determinista:
+## 36. Capas de validación
 
 ```text
-País
- ↓
-Provincia
- ↓
-Municipio
- ↓
-Localidad
- ↓
-Consejo Popular
+Prisma       → contrato/schema
+TypeScript   → tipos
+ESLint       → patrones/calidad
+Prettier     → formato
+Tests        → comportamiento
+Build        → integración
+CodeQL       → seguridad/análisis
 ```
 
-Además de:
+Cada capa cubre riesgos distintos.
 
-- aliases;
-- normalización;
-- identificadores;
-- fuentes;
-- relaciones;
-- mecanismos de resolución/cache cuando correspondan.
-
-No declarar el catálogo completo sin verificar realmente su cobertura.
+CI verde no sustituye revisión funcional ni arquitectónica.
 
 ---
 
-## 36. Compatibilidad del schema
+# PARTE XIII — ANTI-PATRONES
 
-Un campo Prisma puede ser utilizado por:
+## 37. Anti-reglas
 
-- servicios;
-- controllers;
-- frontend;
-- tests;
-- jobs;
-- migraciones;
-- integraciones;
-- reportes.
+Evitar reglas absolutas:
 
-Por eso, renombrar un campo no es una operación puramente estética.
+- “Siempre usar Repository Pattern”.
+- “Nunca usar Repository Pattern”.
+- “Nunca usar Raw SQL”.
+- “Siempre usar UUID”.
+- “Siempre usar soft delete”.
+- “Toda operación debe estar dentro de una transacción”.
+- “Todo debe normalizarse”.
+- “Nunca usar JSON”.
+- “Indexar automáticamente todas las FK”.
+- “Prisma elimina la necesidad de entender la base de datos”.
+- “TypeScript valida runtime”.
+- “CI verde garantiza corrección funcional”.
 
-Antes de modificar un campo:
+La decisión depende del dominio, volumen, proveedor, arquitectura y operación.
+
+---
+
+# PARTE XIV — DECISIONES DE ARQUITECTURA
+
+## 38. Persistence ADR
+
+Para decisiones de alto impacto registrar:
 
 ```text
-buscar consumidores
-↓
-evaluar impacto
-↓
-planificar migración
-↓
-adaptar código
-↓
-probar
+Decision:
+Context:
+Problem:
+Alternatives:
+Chosen option:
+Why:
+Consequences:
+Reversibility:
+Prisma version:
+Database provider:
+Operational impact:
+Review date:
 ```
 
-Los nombres existentes deben preservarse cuando forman parte de contratos o compatibilidad histórica, salvo que exista un plan de migración explícito.
+Usar para:
+
+- IDs;
+- soft delete;
+- JSON;
+- multi-tenancy;
+- repositorios;
+- raw SQL;
+- auditoría;
+- particionamiento;
+- outbox.
 
 ---
 
-## 37. Performance checklist
+# PARTE XV — CODE REVIEW
 
-Antes de aprobar una consulta importante:
-
-```text
-[ ] ¿Trae solo los campos necesarios?
-[ ] ¿Trae solo las relaciones necesarias?
-[ ] ¿Puede producir N+1?
-[ ] ¿Tiene paginación?
-[ ] ¿El orden es determinista?
-[ ] ¿Existen índices adecuados?
-[ ] ¿El volumen futuro fue considerado?
-[ ] ¿Se necesita batching?
-[ ] ¿La consulta fue medida cuando el riesgo lo justifica?
-```
-
-Optimizar con evidencia, no únicamente por intuición.
-
----
-
-## 38. Code review checklist
+## 39. Checklist
 
 ### Modelo
-
-- [ ] Representa el dominio real.
+- [ ] Representa el dominio.
 - [ ] Tipos correctos.
 - [ ] Nullability justificada.
-- [ ] Defaults correctos.
+- [ ] Defaults válidos.
 
 ### Integridad
-
 - [ ] PK correcta.
-- [ ] Unique constraints correctas.
-- [ ] FK correctas.
-- [ ] Referential actions revisadas.
-
-### Relaciones
-
-- [ ] Cardinalidad correcta.
-- [ ] Relaciones nombradas cuando sea necesario.
-- [ ] N:M explícita si tiene atributos propios.
+- [ ] Unicidad crítica protegida.
+- [ ] FK correcta.
+- [ ] Acciones referenciales revisadas.
 
 ### Performance
-
-- [ ] Índices basados en consultas reales.
+- [ ] Campos mínimos.
+- [ ] Relaciones mínimas.
 - [ ] Sin N+1 accidental.
-- [ ] Sin sobrecarga de datos.
-- [ ] Paginación cuando corresponda.
+- [ ] Índices justificados.
+- [ ] Volumen futuro considerado.
 
 ### Concurrencia
-
 - [ ] Race conditions consideradas.
-- [ ] Idempotencia considerada.
-- [ ] Constraints DB protegen reglas críticas.
+- [ ] Idempotencia evaluada.
+- [ ] Retry clasificado.
+- [ ] Constraints protegen invariantes.
 
 ### Transacciones
+- [ ] Límite correcto.
+- [ ] Duración corta.
+- [ ] Sin I/O externo innecesario.
+- [ ] Handle transaccional usado correctamente.
 
-- [ ] Atomicidad correcta.
-- [ ] Transacción corta.
-- [ ] No hay HTTP externo dentro de una transacción larga.
-- [ ] Se usa `tx` dentro de la transacción.
+### Migraciones
+- [ ] Datos existentes considerados.
+- [ ] Cambio destructivo analizado.
+- [ ] Compatibilidad de despliegue evaluada.
+- [ ] Recuperación/compensación definida.
+
+### Testing
+- [ ] Unit cuando aplica.
+- [ ] Integration para persistencia crítica.
+- [ ] Concurrencia cuando aplica.
+- [ ] Migración/histórico cuando aplica.
+- [ ] Failure paths cubiertos.
+
+---
+
+# PARTE XVI — DEFINITION OF DONE
+
+## 40. Un cambio de persistencia está terminado cuando
+
+### Compatibilidad
+- [ ] Versión Prisma identificada.
+- [ ] Proveedor identificado.
+- [ ] Dependencias de versión documentadas.
+
+### Modelo
+- [ ] Identidad correcta.
+- [ ] Tipos correctos.
+- [ ] Nullability justificada.
+- [ ] Constraints correctas.
+- [ ] Relaciones correctas.
 
 ### Migración
-
-- [ ] SQL revisado.
+- [ ] Generada/planificada según generación.
+- [ ] Revisada.
 - [ ] Datos existentes considerados.
 - [ ] Cambios destructivos analizados.
-- [ ] No se modifican migraciones aplicadas.
+- [ ] Compatibilidad de despliegue evaluada.
+
+### Concurrencia
+- [ ] Race conditions evaluadas.
+- [ ] Idempotencia definida.
+- [ ] Retry definido si aplica.
+
+### Operación
+- [ ] Observabilidad suficiente.
+- [ ] Estados consistentes.
+- [ ] Estrategia ante fallo a mitad.
 
 ### Calidad
-
+- [ ] Prisma.
 - [ ] TypeScript.
 - [ ] ESLint.
 - [ ] Prettier.
 - [ ] Tests.
-- [ ] CodeQL.
-- [ ] Build.
-
-### Operación
-
-- [ ] Logs suficientes.
-- [ ] Estados coherentes.
-- [ ] Fallos observables.
-- [ ] Recuperación/reintento definido cuando corresponda.
-
----
-
-## 39. Anti-patrones
-
-Evitar:
-
-### Todo nullable
-
-```prisma
-name   String?
-status String?
-type   String?
-```
-
-sin una razón de negocio.
-
-### Todo String
-
-```prisma
-createdAt String
-weight    String
-active    String
-```
-
-cuando existen tipos apropiados.
-
-### Unicidad solo en código
-
-```text
-if (!exists) create
-```
-
-sin constraint de DB.
-
-### Catch silencioso
-
-```ts
-catch {
-  // ignorar
-}
-```
-
-### Transacción gigante
-
-```text
-BEGIN
-→ HTTP
-→ XLSX
-→ geocoding
-→ loops
-→ COMMIT
-```
-
-### Queries sin control dentro de loops
-
-```ts
-for (...) {
-  await prisma...
-}
-```
-
-### Tests manipulados para pasar
-
-No cambiar el test únicamente para esconder un bug.
-
-### Reescribir migraciones antiguas
-
-Crear una migración nueva.
-
----
-
-## 40. Definition of Done
-
-Un cambio Prisma se considera terminado únicamente cuando:
-
-### Schema
-
-- [ ] PK definida.
-- [ ] FK definida.
-- [ ] Unique constraints definidas.
-- [ ] Índices revisados.
-- [ ] Tipos correctos.
-- [ ] Nullability justificada.
-- [ ] Defaults correctos.
-- [ ] Acciones referenciales revisadas.
-
-### Migración
-
-- [ ] Generada.
-- [ ] SQL revisado.
-- [ ] Probada.
-- [ ] Datos existentes considerados.
-- [ ] Cambios destructivos analizados.
-- [ ] Rollback/compensación definido.
-
-### Código
-
-- [ ] Reglas de negocio correctas.
-- [ ] Errores tratados.
-- [ ] Sin promesas abandonadas.
-- [ ] Sin consultas innecesarias.
-- [ ] Seguridad revisada.
-
-### Tests
-
-- [ ] Unit cuando corresponda.
-- [ ] Integration cuando haya persistencia.
-- [ ] Casos de error.
-- [ ] Concurrencia cuando aplique.
-- [ ] Rollback cuando aplique.
-
-### CI
-
-- [ ] Prisma generate.
-- [ ] Prisma validate.
-- [ ] TypeScript API/Web.
-- [ ] Lint.
-- [ ] Prettier.
-- [ ] Tests.
 - [ ] Build.
 - [ ] CodeQL.
-
-### Operación
-
-- [ ] Observabilidad suficiente.
-- [ ] Estados consistentes.
-- [ ] Idempotencia cuando corresponda.
-- [ ] Estrategia ante fallo a mitad.
+- [ ] Revisión funcional.
 
 ---
 
-## 41. Flujo profesional para cambios Prisma
+# PARTE XVII — PRINCIPIOS DE ORO
 
-```text
-1. Leer código actual
-2. Leer schema
-3. Buscar consumidores
-4. Entender relaciones
-5. Diseñar cambio
-6. Evaluar integridad y concurrencia
-7. Modificar schema
-8. Crear migración
-9. Revisar SQL
-10. Implementar servicio
-11. Implementar errores
-12. Crear tests
-13. Prisma validate/generate
-14. TypeScript
-15. ESLint
-16. Prettier
-17. Tests
-18. Build
-19. CodeQL
-20. Revisión funcional
-```
+## 41. Principios
 
----
-
-## 42. Principios de oro
-
-1. **Modela el dominio, no la pantalla.**
-2. **Usa tipos que representen correctamente los datos.**
-3. **No hagas todo nullable.**
-4. **Protege reglas importantes con constraints de base de datos.**
-5. **Las relaciones deben representar la cardinalidad real.**
-6. **Los índices deben responder a consultas reales.**
-7. **No confundas herencia OOP con modelado relacional.**
-8. **No uses JSON para ocultar un modelo relacional mal diseñado.**
-9. **Revisa las migraciones como código crítico.**
-10. **Nunca reescribas migraciones aplicadas.**
-11. **Mantén las transacciones cortas.**
-12. **No metas llamadas externas dentro de transacciones largas.**
-13. **Diseña para concurrencia.**
-14. **Haz operaciones críticas idempotentes.**
-15. **Nunca ocultes errores de persistencia.**
-16. **No marques un job como completado antes de terminar.**
-17. **Evita N+1.**
-18. **No recuperes datos innecesarios.**
-19. **Prueba constraints y transacciones con una DB real.**
-20. **TypeScript, ESLint, Prettier y CodeQL son capas distintas.**
-21. **CI verde no sustituye revisión funcional.**
-22. **El schema Prisma es un contrato.**
-23. **Los datos existentes importan tanto como el código nuevo.**
-24. **Toda operación de alto impacto necesita una estrategia de fallo.**
-25. **Si no puedes explicar qué pasa cuando falla a mitad, el diseño todavía no está terminado.**
+1. Modela el dominio, no la pantalla.
+2. Usa tipos que representen el dato.
+3. No hagas todo nullable.
+4. Protege invariantes críticas en el nivel correcto.
+5. Las relaciones representan cardinalidad real.
+6. Los índices responden a queries reales.
+7. No confundas modelo OOP con modelo relacional.
+8. No uses JSON para ocultar un mal modelo.
+9. Las migraciones son código crítico.
+10. Los datos existentes importan tanto como el código nuevo.
+11. Una transacción no es un workflow.
+12. Mantén las transacciones cortas.
+13. Diseña para concurrencia.
+14. Haz idempotentes las operaciones que puedan repetirse.
+15. Clasifica antes de reintentar.
+16. Nunca ocultes fallos de persistencia.
+17. Evita N+1.
+18. Recupera solo lo necesario.
+19. Prueba constraints con una DB real.
+20. CI verde no sustituye revisión funcional.
+21. Documenta las decisiones irreversibles.
+22. Si no puedes explicar qué ocurre cuando falla a mitad, el diseño no está terminado.
 
 ---
 
-## 43. Ruta de aprendizaje
+# 42. Fuentes oficiales prioritarias
 
-### Nivel 1 — Fundamentos
+- Prisma ORM y Prisma 8: documentación oficial.
+- Prisma 7: documentación versionada oficial.
+- Data modeling y relations.
+- Migrations.
+- Transactions.
+- Raw queries.
+- Database features.
+- TypeScript.
+- ESLint.
+- typescript-eslint.
+- Prettier.
+- GitHub CodeQL.
 
-- SQL.
-- Tablas.
-- PK/FK.
-- Índices.
-- Joins.
-- Nullability.
-- Transacciones.
-
-### Nivel 2 — Prisma
-
-- Schema.
-- Models.
-- Scalar types.
-- Relations.
-- Prisma Client.
-- CRUD.
-- `select` / `include`.
-- Filters.
-
-### Nivel 3 — Diseño
-
-- Normalización.
-- Cardinalidad.
-- Constraints.
-- Índices.
-- Enums.
-- Composición.
-- Polimorfismo.
-
-### Nivel 4 — Migraciones
-
-- Migration workflow.
-- SQL generado.
-- Data migrations.
-- Cambios destructivos.
-- Expand/contract.
-- Producción.
-
-### Nivel 5 — Backend profesional
-
-- Arquitectura.
-- Servicios.
-- Persistencia.
-- Errores.
-- Validación.
-- Transacciones.
-- Idempotencia.
-
-### Nivel 6 — Rendimiento
-
-- N+1.
-- Batching.
-- Índices.
-- Paginación.
-- Query plans.
-- Observabilidad.
-- Concurrencia.
-
-### Nivel 7 — Producción
-
-- Deployments.
-- Backups.
-- Recuperación.
-- Migraciones.
-- Compatibilidad.
-- Concurrencia alta.
-- Monitoring.
-
-### Nivel 8 — Arquitectura avanzada
-
-- Bounded contexts.
-- Eventos.
-- Outbox.
-- Idempotencia distribuida.
-- Consistencia eventual.
-- Compensaciones.
-- Escalabilidad.
+La documentación oficial correspondiente a la versión instalada tiene prioridad sobre ejemplos antiguos, artículos o convenciones heredadas.
 
 ---
 
-## 44. Fuentes oficiales
+## 43. Nota final
 
-La documentación primaria debe ser la referencia principal:
+Este estándar debe mantenerse vivo.
 
-- Prisma: https://www.prisma.io/docs
-- Prisma ORM: https://www.prisma.io/docs/orm
-- Prisma Data Model: https://www.prisma.io/docs/orm/prisma-schema/data-model
-- Prisma Relations: https://www.prisma.io/docs/orm/prisma-schema/data-model/relations
-- Prisma Indexes: https://www.prisma.io/docs/orm/prisma-schema/data-model/indexes
-- Prisma Migrate: https://www.prisma.io/docs/orm/prisma-migrate
-- Prisma Client: https://www.prisma.io/docs/orm/prisma-client
-- Prisma Transactions: https://www.prisma.io/docs/orm/prisma-client/queries/transactions
-- Prisma Database Features: https://www.prisma.io/docs/orm/reference/database-features
-- Prisma Best Practices: https://www.prisma.io/docs/orm/more/best-practices
-- TypeScript: https://www.typescriptlang.org/docs/
-- ESLint: https://eslint.org/docs/latest/
-- typescript-eslint: https://typescript-eslint.io/
-- Prettier: https://prettier.io/docs/
-- GitHub CodeQL: https://docs.github.com/en/code-security/code-scanning/introduction-to-code-scanning/about-code-scanning-with-codeql
-- Playwright: https://playwright.dev/docs/
+Revisarlo cuando cambien:
 
----
-
-## 45. Nota final
-
-Este documento debe mantenerse vivo y revisarse cuando cambien Prisma, el motor de base de datos, la arquitectura, el volumen de datos, los requisitos de seguridad o la estrategia de despliegue.
+- Prisma;
+- proveedor o versión de base de datos;
+- arquitectura;
+- volumen;
+- seguridad;
+- estrategia de despliegue.
 
 **Objetivo de SGCI:**
 
-> Código que compile, datos que permanezcan íntegros, operaciones observables, cambios reversibles o compensables cuando corresponda y un sistema mantenible después de años de evolución.
+> Código correcto, datos íntegros, operaciones observables, concurrencia entendida, migraciones seguras y un sistema que siga siendo mantenible después de años de evolución.
