@@ -77,20 +77,33 @@ async function main(): Promise<void> {
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
       if (!response.ok) {
-        throw new Error(`EcuRed respondió ${response.status} para ${provincia}: ${url}`);
+        throw new Error(
+          `EcuRed respondió ${response.status} para ${provincia}: ${url}`,
+        );
       }
 
       const catalogo = parsearPaginaEcured(provincia, await response.text());
       if (!catalogo.localidades.length) {
-        throw new Error(`No se encontraron localidades para ${provincia}: ${url}`);
+        throw new Error(
+          `No se encontraron localidades para ${provincia}: ${url}`,
+        );
       }
       if (!catalogo.consejosPopulares.length) {
-        throw new Error(`No se encontraron consejos populares para ${provincia}: ${url}`);
+        throw new Error(
+          `No se encontraron consejos populares para ${provincia}: ${url}`,
+        );
       }
 
-      for (const fila of [...catalogo.localidades, ...catalogo.consejosPopulares]) {
-        if (!resolverMunicipio(provinciaDb.id, fila.municipio, municipioPorClave)) {
-          throw new Error(`Municipio EcuRed no resuelto: ${provincia} / ${fila.municipio}`);
+      for (const fila of [
+        ...catalogo.localidades,
+        ...catalogo.consejosPopulares,
+      ]) {
+        if (
+          !resolverMunicipio(provinciaDb.id, fila.municipio, municipioPorClave)
+        ) {
+          throw new Error(
+            `Municipio EcuRed no resuelto: ${provincia} / ${fila.municipio}`,
+          );
         }
       }
 
@@ -114,7 +127,11 @@ async function main(): Promise<void> {
             fila.municipio,
             municipioPorClave,
           );
-          if (!municipio) throw new Error(`Municipio perdido durante persistencia: ${fila.municipio}`);
+          if (!municipio) {
+            throw new Error(
+              `Municipio perdido durante persistencia: ${fila.municipio}`,
+            );
+          }
           for (const localidad of fila.valores) {
             await upsertLocalidad(client, municipio.id, localidad);
             totalLocalidades += 1;
@@ -126,7 +143,11 @@ async function main(): Promise<void> {
             fila.municipio,
             municipioPorClave,
           );
-          if (!municipio) throw new Error(`Municipio perdido durante persistencia: ${fila.municipio}`);
+          if (!municipio) {
+            throw new Error(
+              `Municipio perdido durante persistencia: ${fila.municipio}`,
+            );
+          }
           for (const consejo of fila.valores) {
             await upsertConsejoPopular(client, municipio.id, consejo);
             totalConsejos += 1;
@@ -139,7 +160,9 @@ async function main(): Promise<void> {
       throw error;
     }
 
-    console.log(`✓ Catálogo EcuRed sincronizado: ${totalLocalidades} localidades y ${totalConsejos} consejos populares procesados.`);
+    console.log(
+      `✓ Catálogo EcuRed sincronizado: ${totalLocalidades} localidades y ${totalConsejos} consejos populares procesados.`,
+    );
   } finally {
     client.release();
     await pool.end();
@@ -151,7 +174,12 @@ function resolverMunicipio(
   nombre: string,
   municipioPorClave: Map<
     string,
-    { id: number; nombre: string; nombre_normalizado: string; provincia_id: number }
+    {
+      id: number;
+      nombre: string;
+      nombre_normalizado: string;
+      provincia_id: number;
+    }
   >,
 ) {
   const normalizado = normalizarTerritorio(nombre);
@@ -159,7 +187,11 @@ function resolverMunicipio(
   return municipioPorClave.get(`${provinciaId}:${candidato}`);
 }
 
-async function upsertLocalidad(client: import('pg').PoolClient, municipioId: number, nombre: string): Promise<void> {
+async function upsertLocalidad(
+  client: import('pg').PoolClient,
+  municipioId: number,
+  nombre: string,
+): Promise<void> {
   const normalizado = normalizarTerritorio(nombre);
   if (!normalizado) return;
   await client.query(
@@ -171,7 +203,11 @@ async function upsertLocalidad(client: import('pg').PoolClient, municipioId: num
   );
 }
 
-async function upsertConsejoPopular(client: import('pg').PoolClient, municipioId: number, nombre: string): Promise<void> {
+async function upsertConsejoPopular(
+  client: import('pg').PoolClient,
+  municipioId: number,
+  nombre: string,
+): Promise<void> {
   const normalizado = normalizarTerritorio(nombre);
   if (!normalizado) return;
   await client.query(
