@@ -1,8 +1,7 @@
 name: Format PR #8
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -32,3 +31,5 @@ jobs:
             git commit -m "style(manifiestos): apply prettier formatting"
             git push origin HEAD:feat/manifest-import-control-center-v2
           fi
+      - name: Verify formatting
+        run: npx prettier --check "apps/**/*.{ts,tsx,js,jsx,json,css,md}"
