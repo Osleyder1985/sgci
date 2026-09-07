@@ -1,0 +1,17 @@
+name: format-debug
+
+on:
+  pull_request:
+
+jobs:
+  format-debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prettier --write "apps/api/src/geocodificacion/cuba-territorial.service.ts" "apps/api/src/geocodificacion/ecured-cuba.catalog.ts"
+      - run: git diff --no-ext-diff -- apps/api/src/geocodificacion/cuba-territorial.service.ts apps/api/src/geocodificacion/ecured-cuba.catalog.ts
