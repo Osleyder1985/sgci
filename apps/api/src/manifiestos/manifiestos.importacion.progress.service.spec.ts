@@ -29,24 +29,30 @@ describe('ManifiestosImportacionProgressService durable jobs', () => {
     await expect(service.claim('job-1')).resolves.toBe(false);
   });
 
-  it('heartbeats only when the current worker still owns the lease', async () => {
-    const prisma = createPrismaMock() as any;
-    prisma.$queryRaw.mockResolvedValueOnce([{ id: 'job-1' }]);
-    const service = new ManifiestosImportacionProgressService(prisma);
+  it(
+    'heartbeats only when the current worker still owns the lease',
+    async () => {
+      const prisma = createPrismaMock() as any;
+      prisma.$queryRaw.mockResolvedValueOnce([{ id: 'job-1' }]);
+      const service = new ManifiestosImportacionProgressService(prisma);
 
-    await expect(service.heartbeat('job-1')).resolves.toBe(true);
-    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
-  });
+      await expect(service.heartbeat('job-1')).resolves.toBe(true);
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+    },
+  );
 
-  it('fails a progress update when the worker no longer owns the job', async () => {
-    const prisma = createPrismaMock() as any;
-    prisma.$queryRaw.mockResolvedValueOnce([]);
-    const service = new ManifiestosImportacionProgressService(prisma);
+  it(
+    'fails a progress update when the worker no longer owns the job',
+    async () => {
+      const prisma = createPrismaMock() as any;
+      prisma.$queryRaw.mockResolvedValueOnce([]);
+      const service = new ManifiestosImportacionProgressService(prisma);
 
-    await expect(
-      service.update('job-1', { message: 'actualizando' }),
-    ).rejects.toBeInstanceOf(ImportJobLeaseLostError);
-  });
+      await expect(
+        service.update('job-1', { message: 'actualizando' }),
+      ).rejects.toBeInstanceOf(ImportJobLeaseLostError);
+    },
+  );
 
   it('fails completion when the worker no longer owns the job', async () => {
     const prisma = createPrismaMock() as any;
