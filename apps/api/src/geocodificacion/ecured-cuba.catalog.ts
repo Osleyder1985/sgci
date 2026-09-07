@@ -77,14 +77,10 @@ export function extraerTablaTerritorial(
   const siguienteHeading = /<span\b[^>]*class=["'][^"']*mw-headline[^"']*["'][^>]*>/gi;
   siguienteHeading.lastIndex = heading.end;
   const siguiente = siguienteHeading.exec(html);
-  const limite = siguiente?.index ?? html.length;
-  const bloque = html.slice(heading.end, limite);
-
+  const bloque = html.slice(heading.end, siguiente?.index ?? html.length);
   const tablas = [...bloque.matchAll(/<table\b[\s\S]*?<\/table>/gi)].map(
     (match) => match[0],
   );
-  if (!tablas.length) return [];
-
   const tabla = seleccionarTablaTerritorial(tablas, seccion);
   if (!tabla) return [];
 
@@ -101,7 +97,6 @@ export function extraerTablaTerritorial(
 
     filas.push({ municipio, valores: [...new Set(valores)] });
   }
-
   return filas;
 }
 
@@ -145,7 +140,7 @@ function seleccionarTablaTerritorial(
       return encabezadosEsperados.every((encabezado) =>
         texto.includes(normalizarTerritorio(encabezado)),
       );
-    }) ?? tablas[0] ?? null
+    }) ?? null
   );
 }
 
@@ -156,9 +151,7 @@ function decodeHtmlEntities(valor: string): string {
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
     .replace(/&#x27;/gi, "'")
-    .replace(/&#(\d+);/g, (_, numero: string) =>
-      String.fromCodePoint(Number(numero)),
-    )
+    .replace(/&#(\d+);/g, (_, numero: string) => String.fromCodePoint(Number(numero)))
     .replace(/&#x([0-9a-f]+);/gi, (_, numero: string) =>
       String.fromCodePoint(parseInt(numero, 16)),
     );
