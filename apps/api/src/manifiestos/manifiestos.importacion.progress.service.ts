@@ -84,7 +84,9 @@ type JobRow = {
 
 @Injectable()
 export class ManifiestosImportacionProgressService {
-  private readonly logger = new Logger(ManifiestosImportacionProgressService.name);
+  private readonly logger = new Logger(
+    ManifiestosImportacionProgressService.name,
+  );
   private readonly queues = new Map<string, Promise<void>>();
   private readonly staleAfterMs = 30 * 60 * 1000;
 
