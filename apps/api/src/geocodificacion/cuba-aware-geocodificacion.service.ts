@@ -24,6 +24,14 @@ export class CubaAwareGeocodificacionService extends GeocodificacionService {
 
     const partes = [direccion.trim()];
 
+    if (territorio.localidad) {
+      partes.push(territorio.localidad);
+    }
+
+    if (territorio.consejoPopular) {
+      partes.push(territorio.consejoPopular);
+    }
+
     if (territorio.municipio) {
       partes.push(territorio.municipio);
     }
