@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Optional } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
+
 import { Prisma } from '../generated/prisma/client.js';
 import { GeocodificacionService } from '../geocodificacion/geocodificacion.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -61,39 +62,52 @@ export class ManifiestosImportacionEscalableService {
         where: { archivoHash: hash },
         select: { id: true, masterAwb: { select: { numero: true } } },
       });
+
       if (existente) {
         throw new BadRequestException(
           `El manifiesto ya fue importado anteriormente. Master AWB: ${existente.masterAwb.numero}`,
         );
       }
-      if (!parsed.metadata.masterAwb)
-        throw new BadRequestException('El manifiesto no contiene el Master AWB.');
-      if (!parsed.metadata.fecha)
-        throw new BadRequestException('El manifiesto no contiene una fecha válida.');
 
-      const { masterAwb, manifiesto } = await this.prisma.$transaction(async (tx) => {
-        const masterAwb = await tx.masterAwb.upsert({
-          where: { numero: parsed.metadata.masterAwb! },
-          update: {},
-          create: { numero: parsed.metadata.masterAwb! },
-        });
-        const manifiesto = await tx.manifiesto.create({
-          data: {
-            masterAwbId: masterAwb.id,
-            agenteTransitario: parsed.metadata.agenteTransitario ?? '',
-            fecha: parsed.metadata.fecha!,
-            paisOrigen: parsed.metadata.paisOrigen ?? 'MEXICO',
-            consignatario: parsed.metadata.consignatario ?? '',
-            cantidadHouse: parsed.total.cantidadHouses,
-            totalSacas: parsed.total.cantidadSacas,
-            totalPersonas: parsed.total.cantidadPersonas,
-            pesoTotalKg: parsed.total.pesoTotalKg!,
-            archivoNombre: originalname,
-            archivoHash: hash,
-          },
-        });
-        return { masterAwb, manifiesto };
-      });
+      if (!parsed.metadata.masterAwb) {
+        throw new BadRequestException(
+          'El manifiesto no contiene el Master AWB.',
+        );
+      }
+
+      if (!parsed.metadata.fecha) {
+        throw new BadRequestException(
+          'El manifiesto no contiene una fecha válida.',
+        );
+      }
+
+      const { masterAwb, manifiesto } = await this.prisma.$transaction(
+        async (tx) => {
+          const masterAwb = await tx.masterAwb.upsert({
+            where: { numero: parsed.metadata.masterAwb! },
+            update: {},
+            create: { numero: parsed.metadata.masterAwb! },
+          });
+
+          const manifiesto = await tx.manifiesto.create({
+            data: {
+              masterAwbId: masterAwb.id,
+              agenteTransitario: parsed.metadata.agenteTransitario ?? '',
+              fecha: parsed.metadata.fecha!,
+              paisOrigen: parsed.metadata.paisOrigen ?? 'MEXICO',
+              consignatario: parsed.metadata.consignatario ?? '',
+              cantidadHouse: parsed.total.cantidadHouses,
+              totalSacas: parsed.total.cantidadSacas,
+              totalPersonas: parsed.total.cantidadPersonas,
+              pesoTotalKg: parsed.total.pesoTotalKg!,
+              archivoNombre: originalname,
+              archivoHash: hash,
+            },
+          });
+
+          return { masterAwb, manifiesto };
+        },
+      );
       manifiestoId = manifiesto.id;
 
       const destinatarios: DestinatarioImportado[] = [];
@@ -106,6 +120,7 @@ export class ManifiestosImportacionEscalableService {
             data: this.createGuia(manifiesto.id, house),
           });
           const cantidad = this.resolveCantidadPaquetes(house);
+
           if (cantidad > 0) {
             await tx.paquete.createMany({
               data: Array.from({ length: cantidad }, (_, packageIndex) => ({
@@ -118,6 +133,7 @@ export class ManifiestosImportacionEscalableService {
           const nombre = this.cleanText(house.destinatarioNombre) ?? '';
           const carnet = this.cleanText(house.destinatarioCarnet);
           const direccion = this.cleanText(house.direccionDestinatario);
+
           if (!nombre && !carnet) {
             return {
               guiaId: guia.id,
@@ -130,11 +146,17 @@ export class ManifiestosImportacionEscalableService {
 
           const cacheKey = this.identityKey(nombre, carnet);
           const cachedPersonaId = personasCache.get(cacheKey);
+
           if (cachedPersonaId) {
             return {
               guiaId: guia.id,
               personaId: cachedPersonaId,
-              destinatario: { personaId: cachedPersonaId, nombre, carnet, direccion },
+              destinatario: {
+                personaId: cachedPersonaId,
+                nombre,
+                carnet,
+                direccion,
+              },
               createdPersonaId: null,
               createdDocumentoId: null,
             } satisfies HouseResult;
@@ -144,21 +166,42 @@ export class ManifiestosImportacionEscalableService {
           return {
             guiaId: guia.id,
             personaId: persona.personaId,
-            destinatario: { personaId: persona.personaId, nombre, carnet, direccion },
+            destinatario: {
+              personaId: persona.personaId,
+              nombre,
+              carnet,
+              direccion,
+            },
             createdPersonaId: persona.createdPersonaId,
             createdDocumentoId: persona.createdDocumentoId,
           } satisfies HouseResult;
         });
 
-        if (result.createdPersonaId) createdPersonaIds.push(result.createdPersonaId);
-        if (result.createdDocumentoId) createdDocumentoIds.push(result.createdDocumentoId);
-        if (result.personaId) personasCache.set(this.identityKey(result.destinatario!.nombre, result.destinatario!.carnet), result.personaId);
-        if (result.destinatario) destinatarios.push(result.destinatario);
+        if (result.createdPersonaId) {
+          createdPersonaIds.push(result.createdPersonaId);
+        }
+        if (result.createdDocumentoId) {
+          createdDocumentoIds.push(result.createdDocumentoId);
+        }
+        if (result.personaId && result.destinatario) {
+          personasCache.set(
+            this.identityKey(
+              result.destinatario.nombre,
+              result.destinatario.carnet,
+            ),
+            result.personaId,
+          );
+        }
+        if (result.destinatario) {
+          destinatarios.push(result.destinatario);
+        }
         cantidadPaquetes += this.resolveCantidadPaquetes(house);
 
         await this.progress?.update(jobId, {
           processedHouses: index + 1,
-          processedPeople: new Set(destinatarios.map((item) => item.personaId)).size,
+          processedPeople: new Set(
+            destinatarios.map((item) => item.personaId),
+          ).size,
           message: `House ${index + 1} de ${parsed.rows.length} completado.`,
         });
       }
@@ -168,6 +211,7 @@ export class ManifiestosImportacionEscalableService {
         message: 'Procesando y geocodificando direcciones.',
         processedHouses: parsed.rows.length,
       });
+
       const direcciones = await this.verificarDirecciones(
         destinatarios,
         parsed.metadata.paisOrigen,
@@ -225,10 +269,14 @@ export class ManifiestosImportacionEscalableService {
       await this.prisma.$transaction(async (tx) => {
         await tx.manifiesto.delete({ where: { id: manifiestoId } });
         if (documentoIds.length) {
-          await tx.documentoIdentidad.deleteMany({ where: { id: { in: documentoIds } } });
+          await tx.documentoIdentidad.deleteMany({
+            where: { id: { in: documentoIds } },
+          });
         }
         if (personaIds.length) {
-          await tx.persona.deleteMany({ where: { id: { in: personaIds } } });
+          await tx.persona.deleteMany({
+            where: { id: { in: personaIds } },
+          });
         }
       });
     } catch {
@@ -243,19 +291,29 @@ export class ManifiestosImportacionEscalableService {
     carnet: string | null,
   ) {
     const numero = this.normalizeIdentity(carnet);
+
     if (numero) {
       const documento = await tx.documentoIdentidad.findUnique({
         where: { tipo_numero: { tipo: 'CARNET_IDENTIDAD', numero } },
         select: { personaId: true },
       });
       if (documento) {
-        return { personaId: documento.personaId, createdPersonaId: null, createdDocumentoId: null };
+        return {
+          personaId: documento.personaId,
+          createdPersonaId: null,
+          createdDocumentoId: null,
+        };
       }
     }
 
     const personaExistente = nombre
       ? await tx.persona.findFirst({
-          where: { nombreCompleto: { equals: nombre.trim(), mode: 'insensitive' } },
+          where: {
+            nombreCompleto: {
+              equals: nombre.trim(),
+              mode: 'insensitive',
+            },
+          },
           select: { id: true },
         })
       : null;
@@ -272,9 +330,17 @@ export class ManifiestosImportacionEscalableService {
           },
           select: { id: true },
         });
-        return { personaId: personaExistente.id, createdPersonaId: null, createdDocumentoId: documento.id };
+        return {
+          personaId: personaExistente.id,
+          createdPersonaId: null,
+          createdDocumentoId: documento.id,
+        };
       }
-      return { personaId: personaExistente.id, createdPersonaId: null, createdDocumentoId: null };
+      return {
+        personaId: personaExistente.id,
+        createdPersonaId: null,
+        createdDocumentoId: null,
+      };
     }
 
     const persona = await tx.persona.create({
@@ -300,7 +366,12 @@ export class ManifiestosImportacionEscalableService {
       });
       documentoId = documento.id;
     }
-    return { personaId: persona.id, createdPersonaId: persona.id, createdDocumentoId: documentoId };
+
+    return {
+      personaId: persona.id,
+      createdPersonaId: persona.id,
+      createdDocumentoId: documentoId,
+    };
   }
 
   private async verificarDirecciones(
@@ -318,12 +389,14 @@ export class ManifiestosImportacionEscalableService {
       warnings: [] as string[],
     };
     const procesadas = new Set<string>();
-    const direcciones = destinatarios.filter((item) => item.direccion?.trim()).filter((item) => {
-      const key = `${item.personaId}|${this.normalizeIdentity(item.direccion)}`;
-      if (procesadas.has(key)) return false;
-      procesadas.add(key);
-      return true;
-    });
+    const direcciones = destinatarios
+      .filter((item) => item.direccion?.trim())
+      .filter((item) => {
+        const key = `${item.personaId}|${this.normalizeIdentity(item.direccion)}`;
+        if (procesadas.has(key)) return false;
+        procesadas.add(key);
+        return true;
+      });
 
     await this.progress?.update(jobId, {
       totalAddresses: direcciones.length,
@@ -338,14 +411,22 @@ export class ManifiestosImportacionEscalableService {
         currentAddress: direccion,
         message: `Procesando dirección ${index + 1} de ${direcciones.length}.`,
       });
+
       try {
         const existentes = await this.prisma.direccion.findMany({
           where: { personaId: destinatario.personaId, activa: true },
-          select: { id: true, direccionOriginal: true, estadoGeocodificacion: true },
+          select: {
+            id: true,
+            direccionOriginal: true,
+            estadoGeocodificacion: true,
+          },
         });
         const existente = existentes.find(
-          (item) => this.normalizeIdentity(item.direccionOriginal) === this.normalizeIdentity(direccion),
+          (item) =>
+            this.normalizeIdentity(item.direccionOriginal) ===
+            this.normalizeIdentity(direccion),
         );
+
         if (existente?.estadoGeocodificacion === 'GEOCODIFICADA') {
           resultado.direccionesEncontradas++;
           resultado.direccionesReutilizadas++;
@@ -356,10 +437,17 @@ export class ManifiestosImportacionEscalableService {
           });
           continue;
         }
-        const geocodificada = await this.geocodificacion.geocodificar(direccion, paisOrigen);
+
+        const geocodificada = await this.geocodificacion.geocodificar(
+          direccion,
+          paisOrigen,
+        );
+
         if (!geocodificada) {
           resultado.direccionesPendientes++;
-          resultado.warnings.push(`No se encontró una ubicación para la dirección de ${destinatario.nombre}: ${direccion}`);
+          resultado.warnings.push(
+            `No se encontró una ubicación para la dirección de ${destinatario.nombre}: ${direccion}`,
+          );
           const current = await this.progress?.get(jobId);
           await this.progress?.update(jobId, {
             processedAddresses: index + 1,
@@ -368,12 +456,35 @@ export class ManifiestosImportacionEscalableService {
           });
           continue;
         }
+
         if (existente) {
-          await this.prisma.$executeRaw`UPDATE "Direccion" SET "ubicacion"=ST_SetSRID(ST_MakePoint(${geocodificada.lon},${geocodificada.lat}),4326)::geography,"estadoGeocodificacion"='GEOCODIFICADA'::"EstadoGeocodificacion","geocodificadoAt"=NOW(),"updatedAt"=NOW() WHERE "id"=${existente.id}::uuid`;
+          await this.prisma.$executeRaw`
+            UPDATE "Direccion"
+            SET "ubicacion" = ST_SetSRID(ST_MakePoint(${geocodificada.lon}, ${geocodificada.lat}), 4326)::geography,
+                "estadoGeocodificacion" = 'GEOCODIFICADA'::"EstadoGeocodificacion",
+                "geocodificadoAt" = NOW(),
+                "updatedAt" = NOW()
+            WHERE "id" = ${existente.id}::uuid
+          `;
         } else {
           const id = randomUUID();
-          await this.prisma.$executeRaw`INSERT INTO "Direccion" ("id","personaId","direccionOriginal","ubicacion","estadoGeocodificacion","geocodificadoAt","esPrincipal","activa","createdAt","updatedAt") VALUES (${id}::uuid,${destinatario.personaId}::uuid,${direccion},ST_SetSRID(ST_MakePoint(${geocodificada.lon},${geocodificada.lat}),4326)::geography,'GEOCODIFICADA'::"EstadoGeocodificacion",NOW(),false,true,NOW(),NOW())`;
+          await this.prisma.$executeRaw`
+            INSERT INTO "Direccion" (
+              "id", "personaId", "direccionOriginal", "ubicacion",
+              "estadoGeocodificacion", "geocodificadoAt", "esPrincipal",
+              "activa", "createdAt", "updatedAt"
+            )
+            VALUES (
+              ${id}::uuid,
+              ${destinatario.personaId}::uuid,
+              ${direccion},
+              ST_SetSRID(ST_MakePoint(${geocodificada.lon}, ${geocodificada.lat}), 4326)::geography,
+              'GEOCODIFICADA'::"EstadoGeocodificacion",
+              NOW(), false, true, NOW(), NOW()
+            )
+          `;
         }
+
         resultado.direccionesEncontradas++;
         resultado.direccionesGeocodificadas++;
         await this.progress?.update(jobId, {
@@ -383,7 +494,9 @@ export class ManifiestosImportacionEscalableService {
         });
       } catch (error) {
         resultado.direccionesPendientes++;
-        resultado.warnings.push(`No se pudo procesar la dirección de ${destinatario.nombre}: ${error instanceof Error ? error.message : String(error)}`);
+        resultado.warnings.push(
+          `No se pudo procesar la dirección de ${destinatario.nombre}: ${error instanceof Error ? error.message : String(error)}`,
+        );
         const current = await this.progress?.get(jobId);
         await this.progress?.update(jobId, {
           processedAddresses: index + 1,
@@ -393,6 +506,7 @@ export class ManifiestosImportacionEscalableService {
         });
       }
     }
+
     return resultado;
   }
 
@@ -409,14 +523,22 @@ export class ManifiestosImportacionEscalableService {
       destinatarioCarnet: this.cleanText(house.destinatarioCarnet),
       telefonoDestinatario: this.cleanText(house.telefonoDestinatario),
       direccionDestinatario: this.cleanText(house.direccionDestinatario),
-      estadoCobroOrigen: house.estadoCobroOrigen !== null && house.estadoCobroOrigen !== undefined ? String(house.estadoCobroOrigen) : null,
+      estadoCobroOrigen:
+        house.estadoCobroOrigen !== null &&
+        house.estadoCobroOrigen !== undefined
+          ? String(house.estadoCobroOrigen)
+          : null,
       unidadDestino: this.cleanText(house.unidadDestino),
     };
   }
 
   private resolveNumeroHouse(house: ManifiestoHouse): string {
     const numero = this.cleanText(house.numeroHouse);
-    if (!numero) throw new BadRequestException('Se encontró una fila de House sin número de House.');
+    if (!numero) {
+      throw new BadRequestException(
+        'Se encontró una fila de House sin número de House.',
+      );
+    }
     return numero;
   }
 
@@ -427,13 +549,27 @@ export class ManifiestosImportacionEscalableService {
   }
 
   private validateParsedManifest(parsed: ManifiestoParsed): void {
-    if (!parsed) throw new BadRequestException('No fue posible leer el manifiesto.');
-    if (!parsed.rows?.length) throw new BadRequestException('El manifiesto no contiene registros de House.');
-    if (parsed.total.cantidadHouses !== parsed.rows.length) {
-      throw new BadRequestException(`La cantidad de Houses no coincide. Total declarado: ${parsed.total.cantidadHouses}. Registros encontrados: ${parsed.rows.length}.`);
+    if (!parsed) {
+      throw new BadRequestException('No fue posible leer el manifiesto.');
     }
-    if (parsed.total.pesoTotalKg === null || parsed.total.pesoTotalKg === undefined || !Number.isFinite(Number(parsed.total.pesoTotalKg))) {
-      throw new BadRequestException('El peso total del manifiesto no es válido.');
+    if (!parsed.rows?.length) {
+      throw new BadRequestException(
+        'El manifiesto no contiene registros de House.',
+      );
+    }
+    if (parsed.total.cantidadHouses !== parsed.rows.length) {
+      throw new BadRequestException(
+        `La cantidad de Houses no coincide. Total declarado: ${parsed.total.cantidadHouses}. Registros encontrados: ${parsed.rows.length}.`,
+      );
+    }
+    if (
+      parsed.total.pesoTotalKg === null ||
+      parsed.total.pesoTotalKg === undefined ||
+      !Number.isFinite(Number(parsed.total.pesoTotalKg))
+    ) {
+      throw new BadRequestException(
+        'El peso total del manifiesto no es válido.',
+      );
     }
   }
 
@@ -448,7 +584,11 @@ export class ManifiestosImportacionEscalableService {
   }
 
   private normalizeIdentity(value: unknown): string {
-    return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '');
   }
 
   private identityKey(nombre: string, carnet: string | null): string {
