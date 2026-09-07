@@ -181,9 +181,7 @@ export class ManifiestosImportacionProgressService {
 
     const minutes = job.elapsedMs / 60000;
     job.housesPerMinute =
-      minutes > 0
-        ? Math.round((job.processedHouses / minutes) * 10) / 10
-        : 0;
+      minutes > 0 ? Math.round((job.processedHouses / minutes) * 10) / 10 : 0;
 
     if (
       job.status === 'running' &&
