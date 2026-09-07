@@ -59,7 +59,9 @@ async function main(): Promise<void> {
       provincia: string;
       provinciaDbId: number;
       localidades: ReturnType<typeof parsearPaginaEcured>['localidades'];
-      consejosPopulares: ReturnType<typeof parsearPaginaEcured>['consejosPopulares'];
+      consejosPopulares: ReturnType<
+        typeof parsearPaginaEcured
+      >['consejosPopulares'];
     }> = [];
 
     for (const provincia of ECURED_CUBA_PROVINCES) {
