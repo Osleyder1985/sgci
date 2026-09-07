@@ -173,7 +173,7 @@ export class ManifiestosService {
               destinatarios.push({ personaId, nombre, carnet, direccion });
             }
             if (jobId)
-              await this.progress?.update(jobId, {
+              void this.progress?.update(jobId, {
                 processedHouses: index + 1,
                 processedPeople: new Set(
                   destinatarios.map((item) => item.personaId),
@@ -378,8 +378,7 @@ export class ManifiestosService {
           if (jobId)
             await this.progress?.update(jobId, {
               processedAddresses: index + 1,
-              addressesNotFound: resultado.direccionesPendientes,
-              addressesReview: resultado.direccionesPendientes,
+              addressesNotFound: (await this.progress?.get(jobId))?.addressesNotFound ?? 0 + 1,
               currentAddress: direccion,
             });
           continue;
@@ -416,8 +415,7 @@ export class ManifiestosService {
           const current = await this.progress?.get(jobId);
           await this.progress?.update(jobId, {
             processedAddresses: index + 1,
-            addressesNotFound: resultado.direccionesPendientes,
-            addressesReview: resultado.direccionesPendientes,
+            addressesReview: (current?.addressesReview ?? 0) + 1,
             errors: (current?.errors ?? 0) + 1,
             currentAddress: direccion,
           });
