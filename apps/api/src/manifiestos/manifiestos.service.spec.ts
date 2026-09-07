@@ -237,7 +237,7 @@ describe('ManifiestosService - direcciones', () => {
   });
 
   it('debe ejecutar la verificación de direcciones desde importar', async () => {
-    const service = Object.create(ManifiestosService.prototype) as any;
+    const service: any = Object.create(ManifiestosService.prototype);
     service.verificarDirecciones = vi.fn().mockResolvedValue({
       personasVerificadas: 1,
       direccionesEncontradas: 1,
@@ -279,9 +279,9 @@ describe('ManifiestosService - direcciones', () => {
       $transaction: vi.fn(),
     };
 
-    service.parser = parser as any;
-    service.prisma = prisma as any;
-    service.geocodificacion = {} as any;
+    service.parser = parser;
+    service.prisma = prisma;
+    service.geocodificacion = {};
 
     const transactionClient = {
       manifiesto: {
