@@ -10,6 +10,16 @@ export type ImportJobStage =
   | 'completed'
   | 'failed';
 
+export interface ImportJobResult {
+  manifiestoId: string;
+  masterAwb: string;
+  guias: number;
+  paquetes: number;
+  personas: number;
+  pesoTotalKg: string;
+  warnings: number;
+}
+
 export interface ImportJobProgress {
   jobId: string;
   stage: ImportJobStage;
@@ -35,6 +45,7 @@ export interface ImportJobProgress {
   etaSeconds: number | null;
   coverage: number;
   error: string | null;
+  result: ImportJobResult | null;
 }
 
 type JobRow = {
@@ -62,26 +73,24 @@ type JobRow = {
   etaSeconds: number | null;
   coverage: number;
   error: string | null;
+  resultManifiestoId: string | null;
+  resultMasterAwb: string | null;
+  resultGuias: number | null;
+  resultPaquetes: number | null;
+  resultPersonas: number | null;
+  resultPesoTotalKg: string | null;
+  resultWarnings: number | null;
 };
 
 @Injectable()
 export class ManifiestosImportacionProgressService {
-  private readonly logger = new Logger(
-    ManifiestosImportacionProgressService.name,
-  );
+  private readonly logger = new Logger(ManifiestosImportacionProgressService.name);
   private readonly queues = new Map<string, Promise<void>>();
-  // Geocoding is an external operation and may legitimately take several
-  // minutes. A 10-minute timeout could mark a healthy import as abandoned
-  // while the worker is still processing the current address.
   private readonly staleAfterMs = 30 * 60 * 1000;
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(
-    totalHouses: number,
-    totalPeople = 0,
-    totalAddresses = 0,
-  ): Promise<ImportJobProgress> {
+  async create(totalHouses: number, totalPeople = 0, totalAddresses = 0): Promise<ImportJobProgress> {
     const now = new Date();
     const jobId = randomUUID();
     await this.prisma.$executeRaw`
@@ -126,6 +135,7 @@ export class ManifiestosImportacionProgressService {
       etaSeconds: null,
       coverage: 0,
       error: null,
+      result: null,
     };
   }
 
@@ -136,23 +146,15 @@ export class ManifiestosImportacionProgressService {
     const row = rows[0];
     if (!row) return null;
 
-    if (
-      row.status === 'running' &&
-      Date.now() - row.updatedAt.getTime() > this.staleAfterMs
-    ) {
+    if (row.status === 'running' && Date.now() - row.updatedAt.getTime() > this.staleAfterMs) {
       const now = new Date();
-      const error =
-        'El trabajo no ha reportado actividad durante más de 30 minutos y fue marcado como abandonado.';
+      const error = 'El trabajo no ha reportado actividad durante más de 30 minutos y fue marcado como abandonado.';
       await this.prisma.$executeRaw`
         UPDATE "ManifiestoImportacionJob"
-        SET
-          "stage" = 'failed',
-          "status" = 'failed',
-          "message" = 'La importación fue marcada como abandonada.',
-          "completedAt" = ${now},
-          "updatedAt" = CURRENT_TIMESTAMP,
-          "error" = ${error},
-          "errors" = "errors" + 1
+        SET "stage" = 'failed', "status" = 'failed',
+            "message" = 'La importación fue marcada como abandonada.',
+            "completedAt" = ${now}, "updatedAt" = CURRENT_TIMESTAMP,
+            "error" = ${error}, "errors" = "errors" + 1
         WHERE "id" = ${jobId}::uuid AND "status" = 'running'
       `;
       row.stage = 'failed';
@@ -174,10 +176,7 @@ export class ManifiestosImportacionProgressService {
     });
   }
 
-  complete(
-    jobId: string,
-    message = 'Manifiesto importado correctamente.',
-  ): Promise<void> {
+  complete(jobId: string, message = 'Manifiesto importado correctamente.', result?: ImportJobResult): Promise<void> {
     return this.enqueue(jobId, async () => {
       const current = await this.get(jobId);
       if (!current || current.status !== 'running') return;
@@ -189,6 +188,7 @@ export class ManifiestosImportacionProgressService {
         completedAt: new Date().toISOString(),
         currentAddress: null,
         error: null,
+        result: result ?? current.result,
       });
     });
   }
@@ -217,78 +217,50 @@ export class ManifiestosImportacionProgressService {
     job.elapsedMs = Math.max(0, end - started);
 
     const minutes = job.elapsedMs / 60000;
-    job.housesPerMinute =
-      minutes > 0 ? Math.round((job.processedHouses / minutes) * 10) / 10 : 0;
+    job.housesPerMinute = minutes > 0 ? Math.round((job.processedHouses / minutes) * 10) / 10 : 0;
 
-    if (
-      job.status === 'running' &&
-      job.totalHouses > 0 &&
-      job.processedHouses > 0
-    ) {
-      job.etaSeconds = Math.max(
-        0,
-        Math.round(
-          ((job.totalHouses - job.processedHouses) / job.processedHouses) *
-            (job.elapsedMs / 1000),
-        ),
-      );
+    if (job.status === 'running' && job.totalHouses > 0 && job.processedHouses > 0) {
+      job.etaSeconds = Math.max(0, Math.round(((job.totalHouses - job.processedHouses) / job.processedHouses) * (job.elapsedMs / 1000)));
     } else {
       job.etaSeconds = job.status === 'completed' ? 0 : null;
     }
 
     const resolved = job.addressesGeocoded + job.addressesReused;
-    job.coverage =
-      job.totalAddresses > 0
-        ? Math.round((resolved / job.totalAddresses) * 1000) / 10
-        : 0;
+    job.coverage = job.totalAddresses > 0 ? Math.round((resolved / job.totalAddresses) * 1000) / 10 : 0;
 
     await this.prisma.$executeRaw`
       UPDATE "ManifiestoImportacionJob"
-      SET
-        "stage" = ${job.stage},
-        "status" = ${job.status},
-        "message" = ${job.message},
-        "totalHouses" = ${job.totalHouses},
-        "processedHouses" = ${job.processedHouses},
-        "totalPeople" = ${job.totalPeople},
-        "processedPeople" = ${job.processedPeople},
-        "totalAddresses" = ${job.totalAddresses},
-        "processedAddresses" = ${job.processedAddresses},
-        "addressesGeocoded" = ${job.addressesGeocoded},
-        "addressesReused" = ${job.addressesReused},
-        "addressesNotFound" = ${job.addressesNotFound},
-        "addressesReview" = ${job.addressesReview},
-        "errors" = ${job.errors},
-        "currentAddress" = ${job.currentAddress},
-        "updatedAt" = CURRENT_TIMESTAMP,
-        "completedAt" = ${job.completedAt ? new Date(job.completedAt) : null},
-        "elapsedMs" = ${job.elapsedMs},
-        "housesPerMinute" = ${job.housesPerMinute},
-        "etaSeconds" = ${job.etaSeconds},
-        "coverage" = ${job.coverage},
-        "error" = ${job.error}
+      SET "stage" = ${job.stage}, "status" = ${job.status}, "message" = ${job.message},
+          "totalHouses" = ${job.totalHouses}, "processedHouses" = ${job.processedHouses},
+          "totalPeople" = ${job.totalPeople}, "processedPeople" = ${job.processedPeople},
+          "totalAddresses" = ${job.totalAddresses}, "processedAddresses" = ${job.processedAddresses},
+          "addressesGeocoded" = ${job.addressesGeocoded}, "addressesReused" = ${job.addressesReused},
+          "addressesNotFound" = ${job.addressesNotFound}, "addressesReview" = ${job.addressesReview},
+          "errors" = ${job.errors}, "currentAddress" = ${job.currentAddress},
+          "updatedAt" = CURRENT_TIMESTAMP,
+          "completedAt" = ${job.completedAt ? new Date(job.completedAt) : null},
+          "elapsedMs" = ${job.elapsedMs}, "housesPerMinute" = ${job.housesPerMinute},
+          "etaSeconds" = ${job.etaSeconds}, "coverage" = ${job.coverage}, "error" = ${job.error},
+          "resultManifiestoId" = ${job.result?.manifiestoId ?? null},
+          "resultMasterAwb" = ${job.result?.masterAwb ?? null},
+          "resultGuias" = ${job.result?.guias ?? null},
+          "resultPaquetes" = ${job.result?.paquetes ?? null},
+          "resultPersonas" = ${job.result?.personas ?? null},
+          "resultPesoTotalKg" = ${job.result?.pesoTotalKg ?? null},
+          "resultWarnings" = ${job.result?.warnings ?? null}
       WHERE "id" = ${job.jobId}::uuid
     `;
   }
 
-  private enqueue(
-    jobId: string,
-    operation: () => Promise<void>,
-  ): Promise<void> {
+  private enqueue(jobId: string, operation: () => Promise<void>): Promise<void> {
     const previous = this.queues.get(jobId) ?? Promise.resolve();
     const next = previous
       .catch((error) => {
-        this.logger.error(
-          `La cola de progreso del job ${jobId} falló antes de continuar.`,
-          error instanceof Error ? error.stack : String(error),
-        );
+        this.logger.error(`La cola de progreso del job ${jobId} falló antes de continuar.`, error instanceof Error ? error.stack : String(error));
       })
       .then(operation)
       .catch((error) => {
-        this.logger.error(
-          `No se pudo persistir el progreso del job ${jobId}.`,
-          error instanceof Error ? error.stack : String(error),
-        );
+        this.logger.error(`No se pudo persistir el progreso del job ${jobId}.`, error instanceof Error ? error.stack : String(error));
       })
       .finally(() => {
         if (this.queues.get(jobId) === next) this.queues.delete(jobId);
@@ -323,6 +295,17 @@ export class ManifiestosImportacionProgressService {
       etaSeconds: row.etaSeconds,
       coverage: row.coverage,
       error: row.error,
+      result: row.resultManifiestoId && row.resultMasterAwb
+        ? {
+            manifiestoId: row.resultManifiestoId,
+            masterAwb: row.resultMasterAwb,
+            guias: row.resultGuias ?? 0,
+            paquetes: row.resultPaquetes ?? 0,
+            personas: row.resultPersonas ?? 0,
+            pesoTotalKg: row.resultPesoTotalKg ?? '0',
+            warnings: row.resultWarnings ?? 0,
+          }
+        : null,
     };
   }
 }
