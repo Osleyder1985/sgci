@@ -73,7 +73,9 @@ describe('CubaTerritorialService', () => {
   it('resuelve un municipio aunque la provincia no aparezca al final', async () => {
     const service = new CubaTerritorialService(prisma as never);
 
-    await expect(service.resolver('CALLE 51 # 123, MARIANAO')).resolves.toMatchObject({
+    await expect(
+      service.resolver('CALLE 51 # 123, MARIANAO'),
+    ).resolves.toMatchObject({
       provincia: 'La Habana',
       municipio: 'Marianao',
       confianza: 'ALTA',
@@ -83,7 +85,9 @@ describe('CubaTerritorialService', () => {
   it('resuelve una localidad y hereda municipio y provincia', async () => {
     const service = new CubaTerritorialService(prisma as never);
 
-    await expect(service.resolver('CALLE PRINCIPAL, POGOLOTTI')).resolves.toMatchObject({
+    await expect(
+      service.resolver('CALLE PRINCIPAL, POGOLOTTI'),
+    ).resolves.toMatchObject({
       provincia: 'La Habana',
       municipio: 'Marianao',
       localidad: 'Pogolotti',
