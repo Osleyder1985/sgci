@@ -70,7 +70,10 @@ export class ManifiestosImportacionProgressService {
     ManifiestosImportacionProgressService.name,
   );
   private readonly queues = new Map<string, Promise<void>>();
-  private readonly staleAfterMs = 10 * 60 * 1000;
+  // Geocoding is an external operation and may legitimately take several
+  // minutes. A 10-minute timeout could mark a healthy import as abandoned
+  // while the worker is still processing the current address.
+  private readonly staleAfterMs = 30 * 60 * 1000;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -139,7 +142,7 @@ export class ManifiestosImportacionProgressService {
     ) {
       const now = new Date();
       const error =
-        'El trabajo no ha reportado actividad durante más de 10 minutos y fue marcado como abandonado.';
+        'El trabajo no ha reportado actividad durante más de 30 minutos y fue marcado como abandonado.';
       await this.prisma.$executeRaw`
         UPDATE "ManifiestoImportacionJob"
         SET
