@@ -6,9 +6,11 @@ export interface TerritorioCubanoResuelto {
   provincia: string;
   municipio?: string;
   localidad?: string;
+  consejoPopular?: string;
   provinciaNormalizada: string;
   municipioNormalizado?: string;
   localidadNormalizada?: string;
+  consejoPopularNormalizado?: string;
   confianza: 'ALTA' | 'MEDIA';
 }
 
@@ -19,7 +21,20 @@ interface TerritorioCatalogo {
   municipioNormalizado?: string;
   localidad?: string;
   localidadNormalizada?: string;
+  consejoPopular?: string;
+  consejoPopularNormalizado?: string;
 }
+
+const CONTEXTOS_EXTRANJEROS = new Set([
+  'MIAMI',
+  'FLORIDA',
+  'NEW YORK',
+  'USA',
+  'UNITED STATES',
+  'MEXICO',
+  'MEXICO CITY',
+  'CANADA',
+]);
 
 @Injectable()
 export class CubaTerritorialService {
@@ -37,27 +52,45 @@ export class CubaTerritorialService {
       catalogo,
       (item) =>
         !item.municipio &&
+        !item.consejoPopular &&
         this.contieneTerritorio(texto, item.provinciaNormalizada),
     );
 
-    // Municipality/locality can identify the province even when the address
-    // does not explicitly contain the province (e.g. "..., Marianao").
     const municipioCoincidencias = catalogo.filter(
       (item) =>
         item.municipio &&
         !item.localidad &&
+        !item.consejoPopular &&
         this.contieneTerritorio(texto, item.municipioNormalizado!),
     );
     const municipio = this.elegirMunicipio(municipioCoincidencias, provincia);
 
+    const consejoCoincidencias = catalogo.filter(
+      (item) =>
+        item.consejoPopular &&
+        this.contieneTerritorio(texto, item.consejoPopularNormalizado!),
+    );
+    const consejoPopular = this.elegirConsejo(
+      consejoCoincidencias,
+      provincia,
+      municipio,
+    );
+    const municipioPorConsejo = consejoPopular?.municipio
+      ? consejoPopular
+      : undefined;
+    const municipioResuelto = municipio ?? municipioPorConsejo;
+
     const provinciaNormalizada =
-      provincia?.provinciaNormalizada ?? municipio?.provinciaNormalizada;
+      provincia?.provinciaNormalizada ??
+      municipioResuelto?.provinciaNormalizada;
     if (!provinciaNormalizada) {
       const localidadSinContexto = this.buscarLocalidadSinContexto(
         catalogo,
         texto,
       );
-      if (!localidadSinContexto) return null;
+      if (!localidadSinContexto || this.tieneContextoExtranjero(texto)) {
+        return null;
+      }
       return this.resultado(localidadSinContexto);
     }
 
@@ -65,25 +98,35 @@ export class CubaTerritorialService {
       (item) =>
         item.localidad &&
         item.provinciaNormalizada === provinciaNormalizada &&
-        (!municipio ||
-          item.municipioNormalizado === municipio.municipioNormalizado) &&
+        (!municipioResuelto ||
+          item.municipioNormalizado ===
+            municipioResuelto.municipioNormalizado) &&
         this.contieneTerritorio(texto, item.localidadNormalizada!),
     );
     const localidad = this.elegirLocalidad(localidades);
 
-    if (!municipio && !localidad && !this.contieneTerritorio(texto, 'CUBA')) {
+    if (
+      !municipioResuelto &&
+      !consejoPopular &&
+      !localidad &&
+      !this.contieneTerritorio(texto, 'CUBA')
+    ) {
       return null;
     }
 
     return {
-      provincia: provincia?.provincia ?? municipio!.provincia,
-      municipio: municipio?.municipio ?? localidad?.municipio,
+      provincia: provincia?.provincia ?? municipioResuelto!.provincia,
+      municipio: municipioResuelto?.municipio ?? localidad?.municipio,
       localidad: localidad?.localidad,
+      consejoPopular: consejoPopular?.consejoPopular,
       provinciaNormalizada,
       municipioNormalizado:
-        municipio?.municipioNormalizado ?? localidad?.municipioNormalizado,
+        municipioResuelto?.municipioNormalizado ??
+        localidad?.municipioNormalizado,
       localidadNormalizada: localidad?.localidadNormalizada,
-      confianza: localidad || municipio ? 'ALTA' : 'MEDIA',
+      consejoPopularNormalizado: consejoPopular?.consejoPopularNormalizado,
+      confianza:
+        localidad || municipioResuelto || consejoPopular ? 'ALTA' : 'MEDIA',
     };
   }
 
@@ -116,19 +159,61 @@ export class CubaTerritorialService {
         item,
       ]),
     );
-    // A municipality name that exists in several provinces is not enough by
-    // itself to infer the province; require context rather than guessing.
     if (!provincia && distinct.size > 1) return undefined;
+    if (!provincia && [...distinct.values()].some((item) => this.tieneContextoExtranjeroEnMunicipio(item))) {
+      return undefined;
+    }
     return [...distinct.values()].sort(
       (a, b) => this.longitudTerritorio(b) - this.longitudTerritorio(a),
     )[0];
+  }
+
+  private elegirConsejo(
+    matches: TerritorioCatalogo[],
+    provincia?: TerritorioCatalogo,
+    municipio?: TerritorioCatalogo,
+  ): TerritorioCatalogo | undefined {
+    let scoped = matches;
+    if (provincia) {
+      scoped = scoped.filter(
+        (item) =>
+          item.provinciaNormalizada === provincia.provinciaNormalizada,
+      );
+    }
+    if (municipio) {
+      scoped = scoped.filter(
+        (item) => item.municipioNormalizado === municipio.municipioNormalizado,
+      );
+    }
+    const distinct = new Map(
+      scoped.map((item) => [
+        `${item.provinciaNormalizada}:${item.municipioNormalizado}:${item.consejoPopularNormalizado}`,
+        item,
+      ]),
+    );
+    if (distinct.size !== 1) return undefined;
+    const item = [...distinct.values()][0];
+    if (!provincia && this.tieneContextoExtranjeroEnMunicipio(item)) return undefined;
+    return item;
   }
 
   private elegirLocalidad(
     matches: TerritorioCatalogo[],
   ): TerritorioCatalogo | undefined {
     if (!matches.length) return undefined;
-    return matches.sort(
+    const distinct = new Map(
+      matches.map((item) => [
+        `${item.provinciaNormalizada}:${item.municipioNormalizado}:${item.localidadNormalizada}`,
+        item,
+      ]),
+    );
+    const municipios = new Set(
+      [...distinct.values()].map((item) =>
+        `${item.provinciaNormalizada}:${item.municipioNormalizado}`,
+      ),
+    );
+    if (municipios.size > 1) return undefined;
+    return [...distinct.values()].sort(
       (a, b) => this.longitudTerritorio(b) - this.longitudTerritorio(a),
     )[0];
   }
@@ -157,19 +242,35 @@ export class CubaTerritorialService {
       provincia: item.provincia,
       municipio: item.municipio,
       localidad: item.localidad,
+      consejoPopular: item.consejoPopular,
       provinciaNormalizada: item.provinciaNormalizada,
       municipioNormalizado: item.municipioNormalizado,
       localidadNormalizada: item.localidadNormalizada,
-      confianza: item.localidad || item.municipio ? 'ALTA' : 'MEDIA',
+      consejoPopularNormalizado: item.consejoPopularNormalizado,
+      confianza:
+        item.localidad || item.municipio || item.consejoPopular
+          ? 'ALTA'
+          : 'MEDIA',
     };
   }
 
   private longitudTerritorio(item: TerritorioCatalogo): number {
     return (
       item.localidadNormalizada?.length ??
+      item.consejoPopularNormalizado?.length ??
       item.municipioNormalizado?.length ??
       item.provinciaNormalizada.length
     );
+  }
+
+  private tieneContextoExtranjero(texto: string): boolean {
+    return [...CONTEXTOS_EXTRANJEROS].some((contexto) =>
+      this.contieneTerritorio(texto, contexto),
+    );
+  }
+
+  private tieneContextoExtranjeroEnMunicipio(item: TerritorioCatalogo): boolean {
+    return item.municipio === undefined && item.consejoPopular === undefined;
   }
 
   private async obtenerCatalogo(): Promise<TerritorioCatalogo[]> {
@@ -202,6 +303,17 @@ export class CubaTerritorialService {
     >`
       SELECT "id", "nombre", "nombreNormalizado", "municipioId"
       FROM "CatalogoLocalidadCubana" WHERE "activo" = true
+    `;
+    const consejosPopulares = await this.prisma.$queryRaw<
+      Array<{
+        id: number;
+        nombre: string;
+        nombreNormalizado: string;
+        municipioId: number;
+      }>
+    >`
+      SELECT "id", "nombre", "nombreNormalizado", "municipioId"
+      FROM "CatalogoConsejoPopularCubano" WHERE "activo" = true
     `;
     const aliases = await this.prisma.$queryRaw<
       Array<{
@@ -246,6 +358,20 @@ export class CubaTerritorialService {
       });
     }
 
+    for (const consejo of consejosPopulares) {
+      const municipio = municipioPorId.get(consejo.municipioId);
+      const provincia = municipio && provinciaPorId.get(municipio.provinciaId);
+      if (!municipio || !provincia) continue;
+      catalogo.push({
+        provincia: provincia.nombre,
+        provinciaNormalizada: provincia.nombreNormalizado,
+        municipio: municipio.nombre,
+        municipioNormalizado: municipio.nombreNormalizado,
+        consejoPopular: consejo.nombre,
+        consejoPopularNormalizado: consejo.nombreNormalizado,
+      });
+    }
+
     for (const provincia of provincias) {
       catalogo.push({
         provincia: provincia.nombre,
@@ -256,10 +382,8 @@ export class CubaTerritorialService {
     for (const alias of aliases) {
       if (alias.localidadId) {
         const localidad = localidadPorId.get(alias.localidadId);
-        const municipio =
-          localidad && municipioPorId.get(localidad.municipioId);
-        const provincia =
-          municipio && provinciaPorId.get(municipio.provinciaId);
+        const municipio = localidad && municipioPorId.get(localidad.municipioId);
+        const provincia = municipio && provinciaPorId.get(municipio.provinciaId);
         if (!localidad || !municipio || !provincia) continue;
         catalogo.push({
           provincia: provincia.nombre,
@@ -271,8 +395,7 @@ export class CubaTerritorialService {
         });
       } else if (alias.municipioId) {
         const municipio = municipioPorId.get(alias.municipioId);
-        const provincia =
-          municipio && provinciaPorId.get(municipio.provinciaId);
+        const provincia = municipio && provinciaPorId.get(municipio.provinciaId);
         if (!municipio || !provincia) continue;
         catalogo.push({
           provincia: provincia.nombre,
@@ -292,7 +415,7 @@ export class CubaTerritorialService {
 
     this.cache = catalogo;
     this.logger.log(
-      `Catálogo territorial cubano cargado: ${provincias.length} provincias, ${municipios.length} municipios, ${localidades.length} localidades.`,
+      `Catálogo territorial cubano cargado: ${provincias.length} provincias, ${municipios.length} municipios, ${localidades.length} localidades, ${consejosPopulares.length} consejos populares.`,
     );
     return catalogo;
   }
