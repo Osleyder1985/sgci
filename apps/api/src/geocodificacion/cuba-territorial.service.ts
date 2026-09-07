@@ -360,8 +360,7 @@ export class CubaTerritorialService {
 
     for (const consejo of consejosPopulares) {
       const municipio = municipioPorId.get(consejo.municipioId);
-      const provincia =
-        municipio && provinciaPorId.get(municipio.provinciaId);
+      const provincia = municipio && provinciaPorId.get(municipio.provinciaId);
       if (!municipio || !provincia) continue;
       catalogo.push({
         provincia: provincia.nombre,
@@ -383,10 +382,8 @@ export class CubaTerritorialService {
     for (const alias of aliases) {
       if (alias.localidadId) {
         const localidad = localidadPorId.get(alias.localidadId);
-        const municipio =
-          localidad && municipioPorId.get(localidad.municipioId);
-        const provincia =
-          municipio && provinciaPorId.get(municipio.provinciaId);
+        const municipio = localidad && municipioPorId.get(localidad.municipioId);
+        const provincia = municipio && provinciaPorId.get(municipio.provinciaId);
         if (!localidad || !municipio || !provincia) continue;
         catalogo.push({
           provincia: provincia.nombre,
@@ -398,8 +395,7 @@ export class CubaTerritorialService {
         });
       } else if (alias.municipioId) {
         const municipio = municipioPorId.get(alias.municipioId);
-        const provincia =
-          municipio && provinciaPorId.get(municipio.provinciaId);
+        const provincia = municipio && provinciaPorId.get(municipio.provinciaId);
         if (!municipio || !provincia) continue;
         catalogo.push({
           provincia: provincia.nombre,
