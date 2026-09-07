@@ -5,6 +5,8 @@ import { ManifiestosController } from './manifiestos.controller.js';
 import { ManifiestosDiagnosticoService } from './manifiestos.diagnostico.service.js';
 import { ManifiestosImportacionProgressService } from './manifiestos.importacion.progress.service.js';
 import { ManifiestosImportacionEscalableService } from './manifiestos.importacion.escalable.service.js';
+import { ManifiestosImportacionSourceService } from './manifiestos.importacion.source.service.js';
+import { ManifiestosImportacionWorker } from './manifiestos.importacion.worker.js';
 import { ManifiestosService } from './manifiestos.service.js';
 import { ManifiestoParser } from './parsers/manifiesto.parser.js';
 
@@ -16,6 +18,8 @@ import { ManifiestoParser } from './parsers/manifiesto.parser.js';
     ManifiestosDiagnosticoService,
     ManifiestosImportacionProgressService,
     ManifiestosImportacionEscalableService,
+    ManifiestosImportacionSourceService,
+    ManifiestosImportacionWorker,
     ManifiestoParser,
   ],
   exports: [
