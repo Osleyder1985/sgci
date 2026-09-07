@@ -163,7 +163,6 @@ function seleccionarTablaTerritorial(
 function decodeHtmlEntities(valor: string): string {
   return valor
     .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
     .replace(/&#x27;/gi, "'")
@@ -172,5 +171,6 @@ function decodeHtmlEntities(valor: string): string {
     )
     .replace(/&#x([0-9a-f]+);/gi, (_, numero: string) =>
       String.fromCodePoint(parseInt(numero, 16)),
-    );
+    )
+    .replace(/&amp;/gi, '&');
 }
