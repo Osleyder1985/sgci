@@ -30,7 +30,9 @@ describe('ManifiestosImportacionEscalableService - rollback', () => {
           const tx = {
             masterAwb: {
               findUnique: vi.fn().mockResolvedValue(null),
-              create: vi.fn().mockResolvedValue({ id: 'master-1', numero: '649-31382945' }),
+              create: vi
+                .fn()
+                .mockResolvedValue({ id: 'master-1', numero: '649-31382945' }),
             },
             manifiesto: {
               create: vi.fn().mockResolvedValue({
@@ -63,28 +65,31 @@ describe('ManifiestosImportacionEscalableService - rollback', () => {
       providers: [
         ManifiestosImportacionEscalableService,
         { provide: PrismaService, useValue: prismaMock },
-        { provide: ManifiestoParser, useValue: {
-          parse: vi.fn().mockReturnValue({
-            metadata: {
-              masterAwb: '649-31382945',
-              fecha: new Date('2026-02-18'),
-              agenteTransitario: 'CAC',
-              paisOrigen: 'MEXICO',
-              consignatario: 'DESTINO',
-            },
-            total: {
-              cantidadHouses: 2,
-              cantidadSacas: 2,
-              cantidadPersonas: 0,
-              pesoTotalKg: 20,
-            },
-            rows: [
-              { numeroHouse: 'H-1', bultos: 1 },
-              { numeroHouse: 'H-2', bultos: 1 },
-            ],
-            warnings: [],
-          }),
-        } },
+        {
+          provide: ManifiestoParser,
+          useValue: {
+            parse: vi.fn().mockReturnValue({
+              metadata: {
+                masterAwb: '649-31382945',
+                fecha: new Date('2026-02-18'),
+                agenteTransitario: 'CAC',
+                paisOrigen: 'MEXICO',
+                consignatario: 'DESTINO',
+              },
+              total: {
+                cantidadHouses: 2,
+                cantidadSacas: 2,
+                cantidadPersonas: 0,
+                pesoTotalKg: 20,
+              },
+              rows: [
+                { numeroHouse: 'H-1', bultos: 1 },
+                { numeroHouse: 'H-2', bultos: 1 },
+              ],
+              warnings: [],
+            }),
+          },
+        },
         { provide: GeocodificacionService, useValue: {} },
       ],
     }).compile();
@@ -92,27 +97,43 @@ describe('ManifiestosImportacionEscalableService - rollback', () => {
     const service: any = moduleRef.get(ManifiestosImportacionEscalableService);
     service.createGuia = vi.fn().mockReturnValue({});
 
-    await expect(service.importar(Buffer.from('manifest'), 'manifest.xlsx', 'job-1'))
-      .rejects.toThrow('Fallo simulado después del House 1');
+    await expect(
+      service.importar(Buffer.from('manifest'), 'manifest.xlsx', 'job-1'),
+    ).rejects.toThrow('Fallo simulado después del House 1');
 
-    expect(cleanupTx.manifiesto.delete).toHaveBeenCalledWith({ where: { id: 'manifiesto-1' } });
-    expect(cleanupTx.masterAwb.delete).toHaveBeenCalledWith({ where: { id: 'master-1' } });
+    expect(cleanupTx.manifiesto.delete).toHaveBeenCalledWith({
+      where: { id: 'manifiesto-1' },
+    });
+    expect(cleanupTx.masterAwb.delete).toHaveBeenCalledWith({
+      where: { id: 'master-1' },
+    });
   });
 
   it('debe eliminar direcciones nuevas antes de eliminar personas nuevas', async () => {
     const calls: string[] = [];
     const tx: any = {
       direccion: {
-        deleteMany: vi.fn(async () => { calls.push('direcciones'); }),
+        deleteMany: vi.fn(async () => {
+          calls.push('direcciones');
+        }),
       },
       documentoIdentidad: {
-        deleteMany: vi.fn(async () => { calls.push('documentos'); }),
+        deleteMany: vi.fn(async () => {
+          calls.push('documentos');
+        }),
         update: vi.fn(),
       },
       persona: {
-        delete: vi.fn(async () => { calls.push('personas'); }),
+        delete: vi.fn(async () => {
+          calls.push('personas');
+        }),
       },
-      manifiesto: { delete: vi.fn(async () => { calls.push('manifiesto'); }), count: vi.fn() },
+      manifiesto: {
+        delete: vi.fn(async () => {
+          calls.push('manifiesto');
+        }),
+        count: vi.fn(),
+      },
       masterAwb: { delete: vi.fn() },
       $queryRaw: vi.fn().mockResolvedValue([{ total: 0n }]),
       $executeRaw: vi.fn(),
@@ -122,7 +143,9 @@ describe('ManifiestosImportacionEscalableService - rollback', () => {
       $transaction: vi.fn(async (callback: any) => callback(tx)),
     };
 
-    const service = Object.create(ManifiestosImportacionEscalableService.prototype) as any;
+    const service = Object.create(
+      ManifiestosImportacionEscalableService.prototype,
+    ) as any;
     service.prisma = prismaMock;
 
     await service.cleanupFailedImport({
@@ -143,7 +166,10 @@ describe('ManifiestosImportacionEscalableService - rollback', () => {
 
   it('debe restaurar el documento principal original al hacer rollback', async () => {
     const tx: any = {
-      documentoIdentidad: { update: vi.fn().mockResolvedValue(undefined), deleteMany: vi.fn() },
+      documentoIdentidad: {
+        update: vi.fn().mockResolvedValue(undefined),
+        deleteMany: vi.fn(),
+      },
       direccion: { deleteMany: vi.fn() },
       persona: { delete: vi.fn() },
       manifiesto: { delete: vi.fn(), count: vi.fn() },
@@ -151,8 +177,12 @@ describe('ManifiestosImportacionEscalableService - rollback', () => {
       $queryRaw: vi.fn().mockResolvedValue([{ total: 0n }]),
       $executeRaw: vi.fn(),
     };
-    const service = Object.create(ManifiestosImportacionEscalableService.prototype) as any;
-    service.prisma = { $transaction: vi.fn(async (callback: any) => callback(tx)) };
+    const service = Object.create(
+      ManifiestosImportacionEscalableService.prototype,
+    ) as any;
+    service.prisma = {
+      $transaction: vi.fn(async (callback: any) => callback(tx)),
+    };
 
     await service.cleanupFailedImport({
       manifiestoId: null,
