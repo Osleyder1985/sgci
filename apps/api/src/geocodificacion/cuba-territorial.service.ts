@@ -71,11 +71,7 @@ export class CubaTerritorialService {
     );
     const localidad = this.elegirLocalidad(localidades);
 
-    if (
-      !municipio &&
-      !localidad &&
-      !this.contieneTerritorio(texto, 'CUBA')
-    ) {
+    if (!municipio && !localidad && !this.contieneTerritorio(texto, 'CUBA')) {
       return null;
     }
 
