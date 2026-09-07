@@ -118,18 +118,21 @@ describe('CubaTerritorialService', () => {
     });
   });
 
-  it('resuelve un consejo popular y hereda municipio y provincia', async () => {
-    const service = new CubaTerritorialService(prisma as never);
+  it(
+    'resuelve un consejo popular y hereda municipio y provincia',
+    async () => {
+      const service = new CubaTerritorialService(prisma as never);
 
-    await expect(
-      service.resolver('CENTRO, POGOLOTTI'),
-    ).resolves.toMatchObject({
-      provincia: 'La Habana',
-      municipio: 'Marianao',
-      consejoPopular: 'Pogolotti',
-      confianza: 'ALTA',
-    });
-  });
+      await expect(
+        service.resolver('CENTRO, POGOLOTTI'),
+      ).resolves.toMatchObject({
+        provincia: 'La Habana',
+        municipio: 'Marianao',
+        consejoPopular: 'Pogolotti',
+        confianza: 'ALTA',
+      });
+    },
+  );
 
   it(
     'no confunde un municipio cubano que aparece en una dirección extranjera',
