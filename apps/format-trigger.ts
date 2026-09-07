@@ -1,1 +1,0 @@
-const trigger = { foo: "bar" };
