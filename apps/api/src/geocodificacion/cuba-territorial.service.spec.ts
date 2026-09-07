@@ -125,11 +125,14 @@ describe('CubaTerritorialService', () => {
     });
   });
 
-  it('no confunde un municipio cubano que aparece en una dirección extranjera', async () => {
-    const service = new CubaTerritorialService(prisma as never);
+  it(
+    'no confunde un municipio cubano que aparece en una dirección extranjera',
+    async () => {
+      const service = new CubaTerritorialService(prisma as never);
 
-    await expect(
-      service.resolver('CAMAGUEY STREET 10, MIAMI, FLORIDA'),
-    ).resolves.toBeNull();
-  });
+      await expect(
+        service.resolver('CAMAGUEY STREET 10, MIAMI, FLORIDA'),
+      ).resolves.toBeNull();
+    },
+  );
 });
