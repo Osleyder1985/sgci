@@ -67,6 +67,7 @@ type JobRow = {
 @Injectable()
 export class ManifiestosImportacionProgressService {
   private readonly queues = new Map<string, Promise<void>>();
+  private readonly staleAfterMs = 10 * 60 * 1000;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -126,13 +127,43 @@ export class ManifiestosImportacionProgressService {
     const rows = await this.prisma.$queryRaw<JobRow[]>`
       SELECT * FROM "ManifiestoImportacionJob" WHERE "id" = ${jobId}::uuid LIMIT 1
     `;
-    return rows[0] ? this.toProgress(rows[0]) : null;
+    const row = rows[0];
+    if (!row) return null;
+
+    if (
+      row.status === 'running' &&
+      Date.now() - row.updatedAt.getTime() > this.staleAfterMs
+    ) {
+      const now = new Date();
+      const error =
+        'El trabajo no ha reportado actividad durante más de 10 minutos y fue marcado como abandonado.';
+      await this.prisma.$executeRaw`
+        UPDATE "ManifiestoImportacionJob"
+        SET
+          "stage" = 'failed',
+          "status" = 'failed',
+          "message" = 'La importación fue marcada como abandonada.',
+          "completedAt" = ${now},
+          "updatedAt" = CURRENT_TIMESTAMP,
+          "error" = ${error},
+          "errors" = "errors" + 1
+        WHERE "id" = ${jobId}::uuid AND "status" = 'running'
+      `;
+      row.stage = 'failed';
+      row.status = 'failed';
+      row.message = 'La importación fue marcada como abandonada.';
+      row.completedAt = now;
+      row.error = error;
+      row.errors += 1;
+    }
+
+    return this.toProgress(row);
   }
 
   update(jobId: string, patch: Partial<ImportJobProgress>): Promise<void> {
     return this.enqueue(jobId, async () => {
       const current = await this.get(jobId);
-      if (!current) return;
+      if (!current || current.status !== 'running') return;
       await this.persist({ ...current, ...patch });
     });
   }
@@ -143,7 +174,7 @@ export class ManifiestosImportacionProgressService {
   ): Promise<void> {
     return this.enqueue(jobId, async () => {
       const current = await this.get(jobId);
-      if (!current) return;
+      if (!current || current.status !== 'running') return;
       await this.persist({
         ...current,
         stage: 'completed',
@@ -159,7 +190,7 @@ export class ManifiestosImportacionProgressService {
   fail(jobId: string, error: unknown): Promise<void> {
     return this.enqueue(jobId, async () => {
       const current = await this.get(jobId);
-      if (!current) return;
+      if (!current || current.status !== 'running') return;
       await this.persist({
         ...current,
         stage: 'failed',
