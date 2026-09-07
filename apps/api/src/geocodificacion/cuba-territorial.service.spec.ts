@@ -14,16 +14,41 @@ describe('CubaTerritorialService', () => {
 
       if (sql.includes('CatalogoMunicipioCubano')) {
         return [
-          { id: 1, provinciaId: 1, nombre: 'Marianao', nombreNormalizado: 'MARIANAO' },
-          { id: 2, provinciaId: 1, nombre: 'Plaza de la Revolución', nombreNormalizado: 'PLAZA DE LA REVOLUCION' },
-          { id: 3, provinciaId: 2, nombre: 'Guáimaro', nombreNormalizado: 'GUAIMARO' },
+          {
+            id: 1,
+            provinciaId: 1,
+            nombre: 'Marianao',
+            nombreNormalizado: 'MARIANAO',
+          },
+          {
+            id: 2,
+            provinciaId: 1,
+            nombre: 'Plaza de la Revolución',
+            nombreNormalizado: 'PLAZA DE LA REVOLUCION',
+          },
+          {
+            id: 3,
+            provinciaId: 2,
+            nombre: 'Guáimaro',
+            nombreNormalizado: 'GUAIMARO',
+          },
         ];
       }
 
       if (sql.includes('CatalogoLocalidadCubana')) {
         return [
-          { id: 10, municipioId: 1, nombre: 'Pogolotti', nombreNormalizado: 'POGOLOTTI' },
-          { id: 11, municipioId: 2, nombre: 'Vedado', nombreNormalizado: 'VEDADO' },
+          {
+            id: 10,
+            municipioId: 1,
+            nombre: 'Pogolotti',
+            nombreNormalizado: 'POGOLOTTI',
+          },
+          {
+            id: 11,
+            municipioId: 2,
+            nombre: 'Vedado',
+            nombreNormalizado: 'VEDADO',
+          },
         ];
       }
 
@@ -35,7 +60,9 @@ describe('CubaTerritorialService', () => {
     const service = new CubaTerritorialService(prisma as never);
 
     await expect(
-      service.resolver('CALLE 35 REPARTO ZAMORA # 12207 E/ 120 Y 120 A, MARIANAO, LA HABANA'),
+      service.resolver(
+        'CALLE 35 REPARTO ZAMORA # 12207 E/ 120 Y 120 A, MARIANAO, LA HABANA',
+      ),
     ).resolves.toMatchObject({
       provincia: 'La Habana',
       municipio: 'Marianao',
@@ -67,6 +94,8 @@ describe('CubaTerritorialService', () => {
   it('no confunde un municipio cubano que aparece en el nombre de una calle extranjera', async () => {
     const service = new CubaTerritorialService(prisma as never);
 
-    await expect(service.resolver('CAMAGUEY STREET 10, MIAMI, FLORIDA')).resolves.toBeNull();
+    await expect(
+      service.resolver('CAMAGUEY STREET 10, MIAMI, FLORIDA'),
+    ).resolves.toBeNull();
   });
 });
