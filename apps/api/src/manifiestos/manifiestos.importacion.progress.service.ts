@@ -88,7 +88,6 @@ export class ManifiestosImportacionProgressService {
     ManifiestosImportacionProgressService.name,
   );
   private readonly queues = new Map<string, Promise<void>>();
-  private readonly staleAfterMs = 30 * 60 * 1000;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -152,29 +151,6 @@ export class ManifiestosImportacionProgressService {
     const row = rows[0];
     if (!row) return null;
 
-    if (
-      row.status === 'running' &&
-      Date.now() - row.updatedAt.getTime() > this.staleAfterMs
-    ) {
-      const now = new Date();
-      const error =
-        'El trabajo no ha reportado actividad durante más de 30 minutos y fue marcado como abandonado.';
-      await this.prisma.$executeRaw`
-        UPDATE "ManifiestoImportacionJob"
-        SET "stage" = 'failed', "status" = 'failed',
-            "message" = 'La importación fue marcada como abandonada.',
-            "completedAt" = ${now}, "updatedAt" = CURRENT_TIMESTAMP,
-            "error" = ${error}, "errors" = "errors" + 1
-        WHERE "id" = ${jobId}::uuid AND "status" = 'running'
-      `;
-      row.stage = 'failed';
-      row.status = 'failed';
-      row.message = 'La importación fue marcada como abandonada.';
-      row.completedAt = now;
-      row.error = error;
-      row.errors += 1;
-    }
-
     return this.toProgress(row);
   }
 
@@ -195,48 +171,10 @@ export class ManifiestosImportacionProgressService {
       const current = await this.get(jobId);
       if (!current || current.status !== 'running') return;
 
-      let durableResult = result ?? current.result;
-      if (!durableResult) {
-        const rows = await this.prisma.$queryRaw<
-          Array<{
-            id: string;
-            masterAwb: string;
-            guias: bigint;
-            paquetes: bigint;
-            personas: number;
-            pesoTotalKg: string;
-          }>
-        >`
-          SELECT
-            m."id" AS "id",
-            awb."numero" AS "masterAwb",
-            (SELECT COUNT(*) FROM "Guia" g WHERE g."manifiestoId" = m."id") AS "guias",
-            (SELECT COUNT(*) FROM "Paquete" p INNER JOIN "Guia" g ON g."id" = p."guiaId" WHERE g."manifiestoId" = m."id") AS "paquetes",
-            m."totalPersonas" AS "personas",
-            m."pesoTotalKg"::text AS "pesoTotalKg"
-          FROM "Manifiesto" m
-          INNER JOIN "MasterAwb" awb ON awb."id" = m."masterAwbId"
-          WHERE m."createdAt" >= ${new Date(current.startedAt)}
-            AND m."cantidadHouse" = ${current.totalHouses}
-            AND m."totalPersonas" = ${current.totalPeople}
-          ORDER BY m."createdAt" DESC
-          LIMIT 1
-        `;
-        const row = rows[0];
-        if (row) {
-          durableResult = {
-            manifiestoId: row.id,
-            masterAwb: row.masterAwb,
-            guias: Number(row.guias),
-            paquetes: Number(row.paquetes),
-            personas: row.personas,
-            pesoTotalKg: row.pesoTotalKg,
-            warnings:
-              current.addressesNotFound +
-              current.addressesReview +
-              current.errors,
-          };
-        }
+      if (!result) {
+        throw new Error(
+          'No se puede completar el job de importación sin el resultado durable de la importación.',
+        );
       }
 
       await this.persist({
@@ -247,7 +185,7 @@ export class ManifiestosImportacionProgressService {
         completedAt: new Date().toISOString(),
         currentAddress: null,
         error: null,
-        result: durableResult,
+        result,
       });
     });
   }
@@ -333,6 +271,7 @@ export class ManifiestosImportacionProgressService {
           `La cola de progreso del job ${jobId} falló antes de continuar.`,
           error instanceof Error ? error.stack : String(error),
         );
+        throw error;
       })
       .then(operation)
       .catch((error) => {
@@ -340,6 +279,7 @@ export class ManifiestosImportacionProgressService {
           `No se pudo persistir el progreso del job ${jobId}.`,
           error instanceof Error ? error.stack : String(error),
         );
+        throw error;
       })
       .finally(() => {
         if (this.queues.get(jobId) === next) this.queues.delete(jobId);
