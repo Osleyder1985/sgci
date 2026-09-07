@@ -291,6 +291,12 @@ describe('ManifiestosService - direcciones', () => {
     service.geocodificacion = {};
 
     const transactionClient = {
+      masterAwb: {
+        upsert: vi.fn().mockResolvedValue({
+          id: 'master-1',
+          numero: '649-31382945',
+        }),
+      },
       manifiesto: {
         create: vi.fn().mockResolvedValue({
           id: 'manifiesto-1',
