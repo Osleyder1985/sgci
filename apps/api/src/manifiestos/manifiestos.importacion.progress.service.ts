@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service.js';
 
 export type ImportJobStage =
   | 'queued'
@@ -36,18 +37,65 @@ export interface ImportJobProgress {
   error: string | null;
 }
 
+type JobRow = {
+  id: string;
+  stage: ImportJobStage;
+  status: 'running' | 'completed' | 'failed';
+  message: string;
+  totalHouses: number;
+  processedHouses: number;
+  totalPeople: number;
+  processedPeople: number;
+  totalAddresses: number;
+  processedAddresses: number;
+  addressesGeocoded: number;
+  addressesReused: number;
+  addressesNotFound: number;
+  addressesReview: number;
+  errors: number;
+  currentAddress: string | null;
+  startedAt: Date;
+  updatedAt: Date;
+  completedAt: Date | null;
+  elapsedMs: number;
+  housesPerMinute: number;
+  etaSeconds: number | null;
+  coverage: number;
+  error: string | null;
+};
+
 @Injectable()
 export class ManifiestosImportacionProgressService {
-  private readonly jobs = new Map<string, ImportJobProgress>();
+  private readonly queues = new Map<string, Promise<void>>();
 
-  create(
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(
     totalHouses: number,
     totalPeople = 0,
     totalAddresses = 0,
-  ): ImportJobProgress {
-    const now = new Date().toISOString();
-    const job: ImportJobProgress = {
-      jobId: randomUUID(),
+  ): Promise<ImportJobProgress> {
+    const now = new Date();
+    const jobId = randomUUID();
+    await this.prisma.$executeRaw`
+      INSERT INTO "ManifiestoImportacionJob" (
+        "id", "stage", "status", "message",
+        "totalHouses", "processedHouses", "totalPeople", "processedPeople",
+        "totalAddresses", "processedAddresses", "addressesGeocoded", "addressesReused",
+        "addressesNotFound", "addressesReview", "errors", "currentAddress",
+        "startedAt", "updatedAt", "completedAt", "elapsedMs", "housesPerMinute",
+        "etaSeconds", "coverage", "error"
+      ) VALUES (
+        ${jobId}::uuid, 'queued', 'running', 'Importación en cola.',
+        ${totalHouses}, 0, ${totalPeople}, 0,
+        ${totalAddresses}, 0, 0, 0,
+        0, 0, 0, NULL,
+        ${now}, ${now}, NULL, 0, 0,
+        NULL, 0, NULL
+      )
+    `;
+    return this.toProgress({
+      id: jobId,
       stage: 'queued',
       status: 'running',
       message: 'Importación en cola.',
@@ -71,59 +119,89 @@ export class ManifiestosImportacionProgressService {
       etaSeconds: null,
       coverage: 0,
       error: null,
-    };
-    this.jobs.set(job.jobId, job);
-    return { ...job };
+    });
   }
 
-  get(jobId: string): ImportJobProgress | null {
-    const job = this.jobs.get(jobId);
-    return job ? { ...job } : null;
+  async get(jobId: string): Promise<ImportJobProgress | null> {
+    const rows = await this.prisma.$queryRaw<JobRow[]>`
+      SELECT * FROM "ManifiestoImportacionJob" WHERE "id" = ${jobId}::uuid LIMIT 1
+    `;
+    return rows[0] ? this.toProgress(rows[0]) : null;
   }
 
-  update(jobId: string, patch: Partial<ImportJobProgress>): void {
-    const job = this.jobs.get(jobId);
-    if (!job) return;
+  update(jobId: string, patch: Partial<ImportJobProgress>): Promise<void> {
+    return this.enqueue(jobId, async () => {
+      const current = await this.get(jobId);
+      if (!current) return;
 
-    Object.assign(job, patch);
+      const job = { ...current, ...patch };
+      const started = Date.parse(job.startedAt);
+      const end = job.completedAt ? Date.parse(job.completedAt) : Date.now();
+      job.elapsedMs = Math.max(0, end - started);
 
-    const started = Date.parse(job.startedAt);
-    const end = job.completedAt ? Date.parse(job.completedAt) : Date.now();
-    job.elapsedMs = Math.max(0, end - started);
+      const minutes = job.elapsedMs / 60000;
+      job.housesPerMinute =
+        minutes > 0
+          ? Math.round((job.processedHouses / minutes) * 10) / 10
+          : 0;
 
-    const minutes = job.elapsedMs / 60000;
-    job.housesPerMinute =
-      minutes > 0 ? Math.round((job.processedHouses / minutes) * 10) / 10 : 0;
+      if (
+        job.status === 'running' &&
+        job.totalHouses > 0 &&
+        job.processedHouses > 0
+      ) {
+        job.etaSeconds = Math.max(
+          0,
+          Math.round(
+            ((job.totalHouses - job.processedHouses) / job.processedHouses) *
+              (job.elapsedMs / 1000),
+          ),
+        );
+      } else {
+        job.etaSeconds = job.status === 'completed' ? 0 : null;
+      }
 
-    if (
-      job.status === 'running' &&
-      job.totalHouses > 0 &&
-      job.processedHouses > 0
-    ) {
-      job.etaSeconds = Math.max(
-        0,
-        Math.round(
-          ((job.totalHouses - job.processedHouses) / job.processedHouses) *
-            (job.elapsedMs / 1000),
-        ),
-      );
-    } else {
-      job.etaSeconds = job.status === 'completed' ? 0 : null;
-    }
+      const resolved = job.addressesGeocoded + job.addressesReused;
+      job.coverage =
+        job.totalAddresses > 0
+          ? Math.round((resolved / job.totalAddresses) * 1000) / 10
+          : 0;
 
-    const resolved = job.addressesGeocoded + job.addressesReused;
-    job.coverage =
-      job.totalAddresses > 0
-        ? Math.round((resolved / job.totalAddresses) * 1000) / 10
-        : 0;
-    job.updatedAt = new Date().toISOString();
+      await this.prisma.$executeRaw`
+        UPDATE "ManifiestoImportacionJob"
+        SET
+          "stage" = ${job.stage},
+          "status" = ${job.status},
+          "message" = ${job.message},
+          "totalHouses" = ${job.totalHouses},
+          "processedHouses" = ${job.processedHouses},
+          "totalPeople" = ${job.totalPeople},
+          "processedPeople" = ${job.processedPeople},
+          "totalAddresses" = ${job.totalAddresses},
+          "processedAddresses" = ${job.processedAddresses},
+          "addressesGeocoded" = ${job.addressesGeocoded},
+          "addressesReused" = ${job.addressesReused},
+          "addressesNotFound" = ${job.addressesNotFound},
+          "addressesReview" = ${job.addressesReview},
+          "errors" = ${job.errors},
+          "currentAddress" = ${job.currentAddress},
+          "updatedAt" = CURRENT_TIMESTAMP,
+          "completedAt" = ${job.completedAt ? new Date(job.completedAt) : null},
+          "elapsedMs" = ${job.elapsedMs},
+          "housesPerMinute" = ${job.housesPerMinute},
+          "etaSeconds" = ${job.etaSeconds},
+          "coverage" = ${job.coverage},
+          "error" = ${job.error}
+        WHERE "id" = ${jobId}::uuid
+      `;
+    });
   }
 
   complete(
     jobId: string,
     message = 'Manifiesto importado correctamente.',
-  ): void {
-    this.update(jobId, {
+  ): Promise<void> {
+    return this.update(jobId, {
       stage: 'completed',
       status: 'completed',
       message,
@@ -133,15 +211,61 @@ export class ManifiestosImportacionProgressService {
     });
   }
 
-  fail(jobId: string, error: unknown): void {
-    this.update(jobId, {
-      stage: 'failed',
-      status: 'failed',
-      message: 'La importación terminó con errores.',
-      completedAt: new Date().toISOString(),
-      errors: (this.jobs.get(jobId)?.errors ?? 0) + 1,
-      error: error instanceof Error ? error.message : String(error),
-      currentAddress: null,
+  fail(jobId: string, error: unknown): Promise<void> {
+    return this.enqueue(jobId, async () => {
+      const current = await this.get(jobId);
+      if (!current) return;
+      await this.update(jobId, {
+        stage: 'failed',
+        status: 'failed',
+        message: 'La importación terminó con errores.',
+        completedAt: new Date().toISOString(),
+        errors: current.errors + 1,
+        error: error instanceof Error ? error.message : String(error),
+        currentAddress: null,
+      });
     });
+  }
+
+  private enqueue(jobId: string, operation: () => Promise<void>): Promise<void> {
+    const previous = this.queues.get(jobId) ?? Promise.resolve();
+    const next = previous
+      .catch(() => undefined)
+      .then(operation)
+      .catch(() => undefined)
+      .finally(() => {
+        if (this.queues.get(jobId) === next) this.queues.delete(jobId);
+      });
+    this.queues.set(jobId, next);
+    return next;
+  }
+
+  private toProgress(row: JobRow): ImportJobProgress {
+    return {
+      jobId: row.id,
+      stage: row.stage,
+      status: row.status,
+      message: row.message,
+      totalHouses: row.totalHouses,
+      processedHouses: row.processedHouses,
+      totalPeople: row.totalPeople,
+      processedPeople: row.processedPeople,
+      totalAddresses: row.totalAddresses,
+      processedAddresses: row.processedAddresses,
+      addressesGeocoded: row.addressesGeocoded,
+      addressesReused: row.addressesReused,
+      addressesNotFound: row.addressesNotFound,
+      addressesReview: row.addressesReview,
+      errors: row.errors,
+      currentAddress: row.currentAddress,
+      startedAt: row.startedAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      completedAt: row.completedAt?.toISOString() ?? null,
+      elapsedMs: row.elapsedMs,
+      housesPerMinute: row.housesPerMinute,
+      etaSeconds: row.etaSeconds,
+      coverage: row.coverage,
+      error: row.error,
+    };
   }
 }
