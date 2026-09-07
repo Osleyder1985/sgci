@@ -196,7 +196,9 @@ describe('ManifiestosService - direcciones', () => {
     expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
   });
 
-  it('debe dejar la dirección pendiente y registrar un warning cuando el geocodificador falla', async () => {
+  it(
+    'debe dejar la dirección pendiente y registrar un warning cuando el geocodificador falla',
+    async () => {
     const prismaMock = {
       direccion: { findMany: vi.fn().mockResolvedValue([]) },
       $executeRaw: vi.fn(),
@@ -233,8 +235,9 @@ describe('ManifiestosService - direcciones', () => {
     expect(resultado.direccionesGeocodificadas).toBe(0);
     expect(resultado.direccionesPendientes).toBe(1);
     expect(resultado.warnings[0]).toContain('Servicio no disponible');
-    expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
-  });
+      expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
+    },
+  );
 
   it('debe ejecutar la verificación de direcciones desde importar', async () => {
     const service: any = Object.create(ManifiestosService.prototype);
