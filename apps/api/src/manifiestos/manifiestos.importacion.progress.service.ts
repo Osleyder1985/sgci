@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 export type ImportJobStage =
@@ -66,6 +66,7 @@ type JobRow = {
 
 @Injectable()
 export class ManifiestosImportacionProgressService {
+  private readonly logger = new Logger(ManifiestosImportacionProgressService.name);
   private readonly queues = new Map<string, Promise<void>>();
   private readonly staleAfterMs = 10 * 60 * 1000;
 
@@ -271,9 +272,19 @@ export class ManifiestosImportacionProgressService {
   ): Promise<void> {
     const previous = this.queues.get(jobId) ?? Promise.resolve();
     const next = previous
-      .catch(() => undefined)
+      .catch((error) => {
+        this.logger.error(
+          `La cola de progreso del job ${jobId} falló antes de continuar.`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      })
       .then(operation)
-      .catch(() => undefined)
+      .catch((error) => {
+        this.logger.error(
+          `No se pudo persistir el progreso del job ${jobId}.`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      })
       .finally(() => {
         if (this.queues.get(jobId) === next) this.queues.delete(jobId);
       });
