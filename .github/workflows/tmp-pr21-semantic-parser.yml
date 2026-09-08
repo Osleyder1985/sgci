@@ -1,0 +1,159 @@
+name: Temporary PR21 Semantic Parser Fix
+
+on:
+  push:
+    branches:
+      - fix/geocoding-semantic-territory-score
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply semantic parser correction
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('apps/api/src/geocodificacion/geocodificacion.service.ts')
+          text = path.read_text()
+
+          start = text.index('  private extraerMarcadores(')
+          end = text.index('  private limpiarComponente(', start)
+
+          replacement = r'''  private extraerMarcadores(
+    texto: string,
+    resultado: DireccionCubanaNormalizada,
+  ): void {
+    let restante = texto.trim();
+    const tieneMarcadorEdificio =
+      /\\b(?:EDIF(?:ICIO)?|BIPLANTA|MODULO)\\.?\\s*#?\\s*[A-Z0-9-]+/i.test(
+        restante,
+      );
+    const marcadores = [
+      /\\bE\\s*\\//i,
+      /\\bRPTO\\.?/i,
+      /\\#/i,
+      /\\b(?:EDIF(?:ICIO)?|BIPLANTA|MODULO)\\.?/i,
+      /\\b(?:APARTAMENTO|APTO)\\.?/i,
+    ];
+
+    type Marcador = { tipo: string; indice: number; longitud: number };
+    const encontrarSiguienteMarcador = (valor: string): Marcador | undefined => {
+      const encontrados: Marcador[] = [];
+      const definiciones: Array<[string, RegExp]> = [
+        ['E/', /\\bE\\s*\\//i],
+        ['RPTO', /\\bRPTO\\.?/i],
+        ['#', /\\#/i],
+        ['EDIFICIO', /\\b(?:EDIF(?:ICIO)?|BIPLANTA|MODULO)\\.?/i],
+        ['APARTAMENTO', /\\b(?:APARTAMENTO|APTO)\\.?/i],
+      ];
+
+      for (const [tipo, regex] of definiciones) {
+        const match = regex.exec(valor);
+        if (match?.index !== undefined) {
+          encontrados.push({
+            tipo,
+            indice: match.index,
+            longitud: match[0].length,
+          });
+        }
+      }
+
+      return encontrados.sort((a, b) => a.indice - b.indice)[0];
+    };
+
+    const limpiarValor = (valor: string): string | undefined => {
+      const limpio = valor
+        .replace(/\\s+/g, ' ')
+        .replace(/[.]\\s*$/g, '')
+        .trim();
+      return limpio || undefined;
+    };
+
+    while (restante) {
+      const marcador = encontrarSiguienteMarcador(restante);
+      if (!marcador) {
+        const calle = this.limpiarComponente(restante)
+          ?.replace(/^\\b(?:CALLE|AVENIDA|AVE)\\.?\\s+/i, '')
+          .trim();
+        resultado.calle = calle || undefined;
+        break;
+      }
+
+      const prefijo = this.limpiarComponente(restante.slice(0, marcador.indice));
+      if (prefijo && !resultado.calle) {
+        const calle = prefijo
+          .replace(/^\\b(?:CALLE|AVENIDA|AVE)\\.?\\s+/i, '')
+          .trim();
+        resultado.calle = calle || undefined;
+      }
+
+      const despues = restante.slice(marcador.indice + marcador.longitud);
+      const siguiente = encontrarSiguienteMarcador(despues);
+      const valor = siguiente
+        ? despues.slice(0, siguiente.indice)
+        : despues;
+      const valorLimpio = limpiarValor(valor);
+
+      if (marcador.tipo === 'E/' && valorLimpio) {
+        resultado.entreCalles ??= this.normalizarEntrecalles(valorLimpio);
+      } else if (marcador.tipo === '#') {
+        resultado.numeroCasa ??= valorLimpio;
+      } else if (marcador.tipo === 'EDIFICIO') {
+        resultado.edificio ??= valorLimpio;
+      } else if (marcador.tipo === 'APARTAMENTO') {
+        resultado.apartamento ??= valorLimpio;
+      } else if (marcador.tipo === 'RPTO' && valorLimpio) {
+        const token = restante.slice(
+          marcador.indice,
+          marcador.indice + marcador.longitud,
+        );
+        const esRpToPuntuado = /\\.$/.test(token);
+        if (esRpToPuntuado && tieneMarcadorEdificio) {
+          resultado.apartamento ??= valorLimpio;
+        } else {
+          resultado.reparto ??= valorLimpio;
+        }
+      }
+
+      restante = siguiente
+        ? despues.slice(siguiente.indice).trim()
+        : '';
+    }
+  }
+
+  private extraerComponente(
+    componente: string,
+    resultado: DireccionCubanaNormalizada,
+  ): void {
+    this.extraerMarcadores(componente, resultado);
+  }
+
+  private normalizarEntrecalles(texto: string): string {
+    return texto
+      .replace(/^\\s*(?:E\\s*\\/|ENTRE)\\s+/i, '')
+      .replace(/\\s+/g, ' ')
+      .trim();
+  }
+
+'''
+
+          # The raw replacement above intentionally contains escaped regexes.
+          replacement = replacement.replace('\\\\', '\\')
+          path.write_text(text[:start] + replacement + text[end:])
+          PY
+
+      - name: Commit correction
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/api/src/geocodificacion/geocodificacion.service.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "fix(geocoding): apply Cuban address semantic delimiters"
+          git push
