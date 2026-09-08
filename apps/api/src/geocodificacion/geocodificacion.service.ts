@@ -461,7 +461,7 @@ export class GeocodificacionService {
     resultado: DireccionCubanaNormalizada,
   ): void {
     const marcador =
-      /\b(?:CALLE|AVENIDA|AVE|RPTO\.?|REPARTO|EDIF(?:ICIO)?\.?|BIPLANTA|APARTAMENTO|APTO\.?|E\/)\b|#/gi;
+      /(?:\b(?:CALLE|AVENIDA|AVE|RPTO\.?|REPARTO|EDIF(?:ICIO)?\.?|BIPLANTA|APARTAMENTO|APTO\.?)\b|E\s*\/|#)/gi;
     const coincidencias = [...texto.matchAll(marcador)];
     if (!coincidencias.length) return;
 
