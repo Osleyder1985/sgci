@@ -9,6 +9,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { ManifiestosDiagnosticoService } from './manifiestos.diagnostico.service.js';
 import { ManifiestosImportacionProgressService } from './manifiestos.importacion.progress.service.js';
 import { ManifiestosImportacionEscalableService } from './manifiestos.importacion.escalable.service.js';
@@ -39,7 +40,11 @@ export class ManifiestosController {
   ) {}
 
   @Post('importar/preview')
-  @UseInterceptors(FileInterceptor('archivo'))
+  @UseInterceptors(
+    FileInterceptor('archivo', {
+      storage: memoryStorage(),
+    }),
+  )
   async preview(@UploadedFile() archivo?: UploadedManifestFile) {
     this.validarArchivo(archivo);
     const [preview, diagnostico] = await Promise.all([
@@ -53,7 +58,11 @@ export class ManifiestosController {
   }
 
   @Post('importar')
-  @UseInterceptors(FileInterceptor('archivo'))
+  @UseInterceptors(
+    FileInterceptor('archivo', {
+      storage: memoryStorage(),
+    }),
+  )
   async importar(@UploadedFile() archivo?: UploadedManifestFile) {
     this.validarArchivo(archivo);
     return this.manifiestosService.importar(
@@ -63,7 +72,11 @@ export class ManifiestosController {
   }
 
   @Post('importar/job')
-  @UseInterceptors(FileInterceptor('archivo'))
+  @UseInterceptors(
+    FileInterceptor('archivo', {
+      storage: memoryStorage(),
+    }),
+  )
   async importarJob(@UploadedFile() archivo?: UploadedManifestFile) {
     this.validarArchivo(archivo);
     const [preview, diagnostico] = await Promise.all([
