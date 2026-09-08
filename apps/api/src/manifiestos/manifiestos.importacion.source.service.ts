@@ -45,7 +45,7 @@ export class ManifiestosImportacionSourceService {
         mimetype: string;
         size: number;
         sha256: string;
-        content: Buffer;
+        content: Buffer | Uint8Array;
       }>
     >`
       SELECT "jobId", "originalname", "mimetype", "size", "sha256", "content"
@@ -55,7 +55,12 @@ export class ManifiestosImportacionSourceService {
     `;
     const row = rows[0];
     if (!row) return null;
-    return { ...row, buffer: row.content };
+
+    const buffer = Buffer.isBuffer(row.content)
+      ? row.content
+      : Buffer.from(row.content);
+
+    return { ...row, buffer };
   }
 
   async delete(jobId: string): Promise<void> {
