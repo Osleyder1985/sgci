@@ -25,6 +25,7 @@ describe('CubaAwareGeocodificacionService', () => {
             lon: '-82.41',
             display_name: 'Calle 10, Marianao, La Habana, Cuba',
             address: {
+              road: '10',
               city: 'Marianao',
               state: 'La Habana',
               country: 'Cuba',
@@ -84,6 +85,7 @@ describe('CubaAwareGeocodificacionService', () => {
             lon: '-82.41',
             display_name: 'Calle 10, Marianao, La Habana, Cuba',
             address: {
+              road: '10',
               city: 'Marianao',
               state: 'La Habana',
               country: 'Cuba',
