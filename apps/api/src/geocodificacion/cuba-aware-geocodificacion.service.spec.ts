@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CubaAwareGeocodificacionService } from './cuba-aware-geocodificacion.service.js';
 
 describe('CubaAwareGeocodificacionService', () => {
@@ -17,7 +17,7 @@ describe('CubaAwareGeocodificacionService', () => {
   it('quita el país final CUBA antes de delegar para conservar municipio y provincia', async () => {
     process.env.LOCATIONIQ_API_KEY = 'test-key';
 
-    const fetchMock = jest.fn().mockResolvedValue(
+    const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify([
           {
@@ -37,7 +37,7 @@ describe('CubaAwareGeocodificacionService', () => {
     global.fetch = fetchMock as typeof global.fetch;
 
     const territorial = {
-      resolver: jest.fn().mockResolvedValue(null),
+      resolver: vi.fn().mockResolvedValue(null),
     };
     const service = new CubaAwareGeocodificacionService(
       territorial as never,
@@ -58,11 +58,11 @@ describe('CubaAwareGeocodificacionService', () => {
   it('no intenta geocodificar una dirección cubana que solo contiene calle y país', async () => {
     process.env.LOCATIONIQ_API_KEY = 'test-key';
 
-    const fetchMock = jest.fn();
+    const fetchMock = vi.fn();
     global.fetch = fetchMock as typeof global.fetch;
 
     const territorial = {
-      resolver: jest.fn().mockResolvedValue(null),
+      resolver: vi.fn().mockResolvedValue(null),
     };
     const service = new CubaAwareGeocodificacionService(
       territorial as never,
@@ -75,7 +75,7 @@ describe('CubaAwareGeocodificacionService', () => {
   it('no agrega CUBA dos veces cuando el catálogo territorial ya resolvió la provincia', async () => {
     process.env.LOCATIONIQ_API_KEY = 'test-key';
 
-    const fetchMock = jest.fn().mockResolvedValue(
+    const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify([
           {
@@ -95,7 +95,7 @@ describe('CubaAwareGeocodificacionService', () => {
     global.fetch = fetchMock as typeof global.fetch;
 
     const territorial = {
-      resolver: jest.fn().mockResolvedValue({
+      resolver: vi.fn().mockResolvedValue({
         provincia: 'La Habana',
         municipio: 'Marianao',
         provinciaNormalizada: 'LA HABANA',
