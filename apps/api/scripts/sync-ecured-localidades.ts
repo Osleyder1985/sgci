@@ -4,6 +4,15 @@ import { Pool } from 'pg';
 
 import type { EcuredProvinceCatalog } from '../src/geocodificacion/ecured-cuba.catalog.js';
 
+const {
+  ECURED_CUBA_SYNC_PROVINCES,
+  ecuredLocalidadesUrl,
+  normalizarTerritorio,
+  parsearPaginaEcured,
+} = await import(
+  new URL('../src/geocodificacion/ecured-cuba.catalog.ts', import.meta.url).href,
+);
+
 const MUNICIPIO_ALIASES: Record<string, string> = {
   'HABANA DEL ESTE': 'LA HABANA DEL ESTE',
   'HABANA VIEJA': 'LA HABANA VIEJA',
@@ -13,16 +22,6 @@ const USER_AGENT = 'SGCI/1.0 (territorial catalog synchronization)';
 const FETCH_TIMEOUT_MS = 30_000;
 
 async function main(): Promise<void> {
-  const {
-    ECURED_CUBA_SYNC_PROVINCES,
-    ecuredLocalidadesUrl,
-    normalizarTerritorio,
-    parsearPaginaEcured,
-  } = await import(
-    new URL('../src/geocodificacion/ecured-cuba.catalog.ts', import.meta.url)
-      .href,
-  );
-
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error('DATABASE_URL no está definida.');
 
@@ -187,11 +186,7 @@ function resolverMunicipio(
     }
   >,
 ) {
-  const normalizado = nombre
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .trim();
+  const normalizado = normalizarTerritorio(nombre);
   const candidato = MUNICIPIO_ALIASES[normalizado] ?? normalizado;
   return municipioPorClave.get(`${provinciaId}:${candidato}`);
 }
@@ -201,11 +196,7 @@ async function upsertLocalidad(
   municipioId: number,
   nombre: string,
 ): Promise<void> {
-  const normalizado = nombre
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .trim();
+  const normalizado = normalizarTerritorio(nombre);
   if (!normalizado) return;
   await client.query(
     `INSERT INTO "CatalogoLocalidadCubana" ("municipioId", "nombre", "nombreNormalizado")
@@ -221,14 +212,10 @@ async function upsertConsejoPopular(
   municipioId: number,
   nombre: string,
 ): Promise<void> {
-  const normalizado = nombre
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .trim();
+  const normalizado = normalizarTerritorio(nombre);
   if (!normalizado) return;
   await client.query(
-    `INSERT INTO "CatalogoConsejoPopularCubano" ("municipioId", "nombre", "nombreNormalizado")
+    `INSERT INTO "CatalogoConsejoPopularCubana" ("municipioId", "nombre", "nombreNormalizado")
      VALUES ($1, $2, $3)
      ON CONFLICT ("municipioId", "nombreNormalizado")
      DO UPDATE SET "nombre" = EXCLUDED."nombre", "activo" = true, "updatedAt" = CURRENT_TIMESTAMP`,
