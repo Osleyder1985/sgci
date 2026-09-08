@@ -2,8 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 export type GeocodificacionDetalleEstado =
-  | 'NO_ENCONTRADA'
-  | 'REQUIERE_REVISION';
+  'NO_ENCONTRADA' | 'REQUIERE_REVISION';
 
 export interface GeocodificacionDetalle {
   estado: GeocodificacionDetalleEstado;
@@ -72,9 +71,7 @@ export class ManifiestosImportacionGeocodificacionDetalleService {
     `;
 
     const value = rows[0]?.geocodingDetails;
-    return Array.isArray(value)
-      ? (value as GeocodificacionDetalle[])
-      : [];
+    return Array.isArray(value) ? (value as GeocodificacionDetalle[]) : [];
   }
 
   async limpiar(jobId: string): Promise<void> {

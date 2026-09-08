@@ -101,9 +101,9 @@ export default function ImportarManifiestoPage() {
         method: "POST",
         body,
       });
-      const data = (await response.json().catch(() => null)) as
-        | PreviewResponse
-        | null;
+      const data = (await response
+        .json()
+        .catch(() => null)) as PreviewResponse | null;
       if (!response.ok || !data?.ok) {
         throw new Error(
           data?.mensaje ?? `El servidor respondió HTTP ${response.status}.`,
@@ -181,9 +181,9 @@ export default function ImportarManifiestoPage() {
         `${apiUrl}/api/guias/importar/job/${progress.jobId}/geocodificacion`,
         { cache: "no-store" },
       );
-      const data = (await response.json().catch(() => null)) as
-        | GeocodingDetailsResponse
-        | null;
+      const data = (await response
+        .json()
+        .catch(() => null)) as GeocodingDetailsResponse | null;
       if (!response.ok || !data?.ok) {
         throw new Error(
           "No fue posible cargar los detalles de geocodificación.",
@@ -211,7 +211,9 @@ export default function ImportarManifiestoPage() {
           { cache: "no-store" },
         );
         if (response.ok) {
-          setProgress((await response.json() as { progress: Progress }).progress);
+          setProgress(
+            ((await response.json()) as { progress: Progress }).progress,
+          );
         }
       } catch {
         // conserva el último estado
@@ -265,9 +267,7 @@ export default function ImportarManifiestoPage() {
     ? Math.round((p.processedAddresses / p.totalAddresses) * 100)
     : 0;
   const geocodingDone =
-    !!p &&
-    p.status === "completed" &&
-    p.processedAddresses >= p.totalAddresses;
+    !!p && p.status === "completed" && p.processedAddresses >= p.totalAddresses;
 
   return (
     <main className="min-h-screen bg-[#f4f7fb] pb-16 text-slate-900">
@@ -344,7 +344,9 @@ export default function ImportarManifiestoPage() {
             </div>
 
             <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-black">Diagnóstico antes de ejecutar</h2>
+              <h2 className="text-xl font-black">
+                Diagnóstico antes de ejecutar
+              </h2>
               <div className="mt-5 grid gap-3 md:grid-cols-5">
                 <Stage title="Archivo" text="Recibido" done />
                 <Stage title="Parser" text="Estructura válida" done />
@@ -380,13 +382,17 @@ export default function ImportarManifiestoPage() {
                 <table className="min-w-[900px] w-full text-left text-sm">
                   <thead className="sticky top-0 bg-slate-100 text-xs uppercase text-slate-500">
                     <tr>
-                      {["House", "Destinatario", "Carnet", "Dirección", "Destino"].map(
-                        (title) => (
-                          <th key={title} className="px-4 py-3">
-                            {title}
-                          </th>
-                        ),
-                      )}
+                      {[
+                        "House",
+                        "Destinatario",
+                        "Carnet",
+                        "Dirección",
+                        "Destino",
+                      ].map((title) => (
+                        <th key={title} className="px-4 py-3">
+                          {title}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
