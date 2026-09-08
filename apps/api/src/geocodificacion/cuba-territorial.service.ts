@@ -44,7 +44,7 @@ export class CubaTerritorialService {
   constructor(private readonly prisma: PrismaService) {}
 
   async resolver(direccion: string): Promise<TerritorioCubanoResuelto | null> {
-    const texto = this.normalizar(direccion);
+    const texto = this.extraerContextoTerritorial(direccion);
     if (!texto) return null;
 
     if (
@@ -137,6 +137,20 @@ export class CubaTerritorialService {
       confianza:
         localidad || municipioResuelto || consejoPopular ? 'ALTA' : 'MEDIA',
     };
+  }
+
+  private extraerContextoTerritorial(direccion: string): string {
+    const partes = direccion
+      .toUpperCase()
+      .replace(/\s*\([^)]*ZONA[^)]*\)\s*/gi, ' ')
+      .split(',')
+      .map((parte) => parte.trim())
+      .filter(Boolean);
+
+    if (partes.at(-1) === 'CUBA') partes.pop();
+
+    const contexto = partes.length > 2 ? partes.slice(-2) : partes;
+    return this.normalizar(contexto.join(' '));
   }
 
   private buscarUnico(
