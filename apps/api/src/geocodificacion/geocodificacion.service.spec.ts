@@ -72,6 +72,35 @@ describe('GeocodificacionService', () => {
       }
     ).obtenerMotivoIncompatibilidad(resultado, esperado);
 
+  const calcularPuntuacion = (
+    resultado: {
+      lat: number;
+      lon: number;
+      displayName: string;
+      address?: {
+        road?: string;
+        houseNumber?: string;
+        municipality?: string;
+        city?: string;
+        town?: string;
+        village?: string;
+        suburb?: string;
+        state?: string;
+        country?: string;
+        postcode?: string;
+      };
+    },
+    esperado: ReturnType<typeof normalizar>,
+  ) =>
+    (
+      service as unknown as {
+        calcularPuntuacion: (
+          result: typeof resultado,
+          expected: typeof esperado,
+        ) => { total: number; maximo: 5; estrellas: number };
+      }
+    ).calcularPuntuacion(resultado, esperado);
+
   it('normaliza calle, número, entrecalles, municipio y provincia y elimina Zona', () => {
     const result = normalizar(
       'CALLE VICENTE SOMONTE # 16 E/ AGRAMONTE Y MARTI, GUAIMARO, CAMAGUEY (Zona 4)',
@@ -247,6 +276,7 @@ describe('GeocodificacionService', () => {
 
   it('acepta municipio cuando LocationIQ lo devuelve en suburb', () => {
     const esperado = normalizar('AVENIDA 37, MARIANAO, LA HABANA');
+    esperado.codigosPostales = ['11500'];
 
     expect(
       resultadoCompatible(
