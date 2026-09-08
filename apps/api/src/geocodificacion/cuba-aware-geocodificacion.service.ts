@@ -8,7 +8,9 @@ import { CubaTerritorialService } from './cuba-territorial.service.js';
 
 @Injectable()
 export class CubaAwareGeocodificacionService extends GeocodificacionService {
-  private readonly logger = new Logger(CubaAwareGeocodificacionService.name);
+  private readonly diagnosticLogger = new Logger(
+    CubaAwareGeocodificacionService.name,
+  );
 
   constructor(private readonly territorial: CubaTerritorialService) {
     super();
@@ -18,7 +20,7 @@ export class CubaAwareGeocodificacionService extends GeocodificacionService {
     direccion: string,
     pais?: string | null,
   ): Promise<GeocodingResult | null> {
-    this.logger.log(
+    this.diagnosticLogger.log(
       `[GEOCODIFICACION][ORIGINAL] ${JSON.stringify(direccion)}`,
     );
 
@@ -43,7 +45,7 @@ export class CubaAwareGeocodificacionService extends GeocodificacionService {
 
       const direccionEnriquecida = partes.join(', ');
 
-      this.logger.log(
+      this.diagnosticLogger.log(
         `[GEOCODIFICACION][TERRITORIO] ${JSON.stringify({
           localidad: territorio.localidad,
           consejoPopular: territorio.consejoPopular,
