@@ -47,9 +47,16 @@ export class CubaTerritorialService {
     const texto = this.normalizar(direccion);
     if (!texto) return null;
 
+    const segmentos = direccion
+      .split(',')
+      .map((segmento) => this.normalizar(segmento))
+      .filter(Boolean);
+    const segmentosTerritoriales = this.obtenerSegmentosTerritoriales(segmentos);
+    const textoTerritorial = segmentosTerritoriales.join(' ');
+
     if (
-      this.tieneContextoExtranjero(texto) &&
-      !this.contieneTerritorio(texto, 'CUBA')
+      this.tieneContextoExtranjero(textoTerritorial) &&
+      !this.contieneTerritorio(textoTerritorial, 'CUBA')
     ) {
       return null;
     }
@@ -60,7 +67,7 @@ export class CubaTerritorialService {
       (item) =>
         !item.municipio &&
         !item.consejoPopular &&
-        this.contieneTerritorio(texto, item.provinciaNormalizada),
+        segmentosTerritoriales.includes(item.provinciaNormalizada),
     );
 
     const municipioCoincidencias = catalogo.filter(
@@ -68,24 +75,24 @@ export class CubaTerritorialService {
         item.municipio &&
         !item.localidad &&
         !item.consejoPopular &&
-        this.contieneTerritorio(texto, item.municipioNormalizado!),
+        segmentosTerritoriales.includes(item.municipioNormalizado!),
     );
     const municipio = this.elegirMunicipio(
       municipioCoincidencias,
       provincia,
-      texto,
+      textoTerritorial,
     );
 
     const consejoCoincidencias = catalogo.filter(
       (item) =>
         item.consejoPopular &&
-        this.contieneTerritorio(texto, item.consejoPopularNormalizado!),
+        segmentosTerritoriales.includes(item.consejoPopularNormalizado!),
     );
     const consejoPopular = this.elegirConsejo(
       consejoCoincidencias,
       provincia,
       municipio,
-      texto,
+      textoTerritorial,
     );
     const municipioResuelto = municipio ?? consejoPopular;
 
@@ -95,9 +102,10 @@ export class CubaTerritorialService {
     if (!provinciaNormalizada) {
       const localidadSinContexto = this.buscarLocalidadSinContexto(
         catalogo,
-        texto,
+        textoTerritorial,
+        segmentosTerritoriales,
       );
-      if (!localidadSinContexto || this.tieneContextoExtranjero(texto)) {
+      if (!localidadSinContexto || this.tieneContextoExtranjero(textoTerritorial)) {
         return null;
       }
       return this.resultado(localidadSinContexto);
@@ -110,7 +118,7 @@ export class CubaTerritorialService {
         (!municipioResuelto ||
           item.municipioNormalizado ===
             municipioResuelto.municipioNormalizado) &&
-        this.contieneTerritorio(texto, item.localidadNormalizada!),
+        segmentosTerritoriales.includes(item.localidadNormalizada!),
     );
     const localidad = this.elegirLocalidad(localidades);
 
@@ -118,7 +126,7 @@ export class CubaTerritorialService {
       !municipioResuelto &&
       !consejoPopular &&
       !localidad &&
-      !this.contieneTerritorio(texto, 'CUBA')
+      !segmentosTerritoriales.includes('CUBA')
     ) {
       return null;
     }
@@ -137,6 +145,17 @@ export class CubaTerritorialService {
       confianza:
         localidad || municipioResuelto || consejoPopular ? 'ALTA' : 'MEDIA',
     };
+  }
+
+  private obtenerSegmentosTerritoriales(segmentos: string[]): string[] {
+    if (!segmentos.length) return [];
+
+    const resultado = [...segmentos];
+    if (resultado.at(-1) === 'CUBA') {
+      resultado.pop();
+    }
+
+    return resultado.slice(-3);
   }
 
   private buscarUnico(
@@ -229,11 +248,12 @@ export class CubaTerritorialService {
   private buscarLocalidadSinContexto(
     catalogo: TerritorioCatalogo[],
     texto: string,
+    segmentosTerritoriales: string[],
   ): TerritorioCatalogo | undefined {
     const matches = catalogo.filter(
       (item) =>
         item.localidad &&
-        this.contieneTerritorio(texto, item.localidadNormalizada!),
+        segmentosTerritoriales.includes(item.localidadNormalizada!),
     );
     const distinct = new Map(
       matches.map((item) => [
@@ -242,6 +262,7 @@ export class CubaTerritorialService {
       ]),
     );
     if (distinct.size !== 1) return undefined;
+    if (this.tieneContextoExtranjero(texto)) return undefined;
     return [...distinct.values()][0];
   }
 
