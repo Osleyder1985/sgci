@@ -1,5 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import {
+  CODIGOS_POSTALES_CUBA,
+  clavePostal,
+} from './codigos-postales-cuba';
+
 export interface GeocodingResult {
   lat: number;
   lon: number;
@@ -45,6 +50,7 @@ interface DireccionCubanaNormalizada {
   reparto?: string;
   municipio?: string;
   provincia?: string;
+  codigosPostales?: readonly string[];
   canonica: string;
 }
 
@@ -101,6 +107,70 @@ export class GeocodificacionService {
     return null;
   }
 
+  private async buscarLocationIqEstructurado(
+    direccion: DireccionCubanaNormalizada,
+    codigoPostal: string,
+  ): Promise<GeocodingResult | null> {
+    await this.respetarLimiteSolicitudes();
+
+    const url = new URL(this.obtenerUrlBusquedaEstructurada());
+
+    if (!this.apiKey) {
+      throw new Error(
+        'LOCATIONIQ_API_KEY no está configurada. No se puede consultar LocationIQ.',
+      );
+    }
+
+    url.searchParams.set('key', this.apiKey);
+    url.searchParams.set('format', 'json');
+    url.searchParams.set('addressdetails', '1');
+    url.searchParams.set('limit', '1');
+    url.searchParams.set('accept-language', 'es');
+    url.searchParams.set('countrycodes', 'cu');
+    url.searchParams.set('country', 'CUBA');
+    url.searchParams.set('postalcode', codigoPostal);
+
+    const street = [
+      direccion.calle,
+      direccion.numeroCasa ? `# ${direccion.numeroCasa}` : undefined,
+      direccion.entreCalles ? `E/ ${direccion.entreCalles}` : undefined,
+      direccion.apartamento
+        ? `APARTAMENTO ${direccion.apartamento}`
+        : undefined,
+      direccion.edificio ? `EDIFICIO ${direccion.edificio}` : undefined,
+      direccion.reparto ? `REPARTO ${direccion.reparto}` : undefined,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    if (street) {
+      url.searchParams.set('street', street);
+    }
+    if (direccion.municipio) {
+      url.searchParams.set('city', direccion.municipio);
+    }
+    if (direccion.provincia) {
+      url.searchParams.set('state', direccion.provincia);
+    }
+
+    const etiqueta = [
+      street,
+      direccion.municipio,
+      direccion.provincia,
+      codigoPostal,
+      'CUBA',
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    return this.ejecutarBusquedaLocationIq(
+      url,
+      etiqueta,
+      direccion.canonica,
+      direccion,
+    );
+  }
+
   private async buscarLocationIq(
     query: string,
     textoFallback: string,
@@ -127,6 +197,20 @@ export class GeocodificacionService {
       url.searchParams.set('countrycodes', 'cu');
     }
 
+    return this.ejecutarBusquedaLocationIq(
+      url,
+      query,
+      textoFallback,
+      direccionEsperada,
+    );
+  }
+
+  private async ejecutarBusquedaLocationIq(
+    url: URL,
+    etiqueta: string,
+    textoFallback: string,
+    direccionEsperada: DireccionCubanaNormalizada,
+  ): Promise<GeocodingResult | null> {
     try {
       this.lastRequestAt = Date.now();
 
@@ -139,7 +223,9 @@ export class GeocodificacionService {
       });
 
       if (response.status === 404) {
-        this.logger.debug(`LocationIQ no encontró resultados para "${query}".`);
+        this.logger.debug(
+          `LocationIQ no encontró resultados para "${etiqueta}".`,
+        );
         return null;
       }
 
@@ -180,7 +266,7 @@ export class GeocodificacionService {
 
       if (!this.esResultadoCompatible(resultado, direccionEsperada)) {
         this.logger.warn(
-          `LocationIQ devolvió una ubicación incompatible con la dirección solicitada: "${query}" -> "${resultado.displayName}".`,
+          `LocationIQ devolvió una ubicación incompatible con la dirección solicitada: "${etiqueta}" -> "${resultado.displayName}".`,
         );
         return null;
       }
@@ -188,13 +274,37 @@ export class GeocodificacionService {
       return resultado;
     } catch (error) {
       this.logger.warn(
-        `No fue posible geocodificar "${query}": ${
+        `No fue posible geocodificar "${etiqueta}": ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
 
       throw error;
     }
+  }
+
+  private obtenerUrlBusquedaEstructurada(): string {
+    const base = this.baseUrl.replace(/\/$/, '');
+
+    if (/\/search$/i.test(base)) {
+      return `${base}/structured`;
+    }
+
+    return base;
+  }
+
+  private resolverCodigosPostales(
+    direccion: DireccionCubanaNormalizada,
+  ): readonly string[] {
+    if (!direccion.provincia || !direccion.municipio) {
+      return [];
+    }
+
+    return (
+      CODIGOS_POSTALES_CUBA[
+        clavePostal(direccion.provincia, direccion.municipio)
+      ] ?? []
+    );
   }
 
   private esResultadoCompatible(
