@@ -1,0 +1,120 @@
+name: Implement LocationIQ precision phase
+
+on:
+  push:
+    branches:
+      - fix/geocoding-locationiq-precision-score
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Apply implementation
+        shell: python
+        run: |
+          from pathlib import Path
+
+          service = Path('apps/api/src/geocodificacion/geocodificacion.service.ts')
+          text = service.read_text()
+
+          text = text.replace(
+              "export interface GeocodingResult {\n  lat: number;",
+              "export interface PuntuacionGeocodificacion {\n  total: number;\n  maximo: 5;\n  estrellas: number;\n  coincidencias: {\n    pais: boolean;\n    provincia: boolean;\n    municipio: boolean;\n    codigoPostal: boolean;\n    direccion: boolean;\n  };\n}\n\nexport interface GeocodingResult {\n  lat: number;",
+          )
+          text = text.replace(
+              "  displayName: string;\n  address?: {",
+              "  displayName: string;\n  puntuacion?: PuntuacionGeocodificacion;\n  address?: {",
+              1,
+          )
+          text = text.replace(
+              "    municipality?: string;\n    state?: string;",
+              "    municipality?: string;\n    suburb?: string;\n    state?: string;",
+              1,
+          )
+          text = text.replace(
+              "  municipality?: string;\n  state?: string;\n  country?: string;",
+              "  municipality?: string;\n  suburb?: string;\n  state?: string;\n  country?: string;",
+              1,
+          )
+
+          text = text.replace(
+              "          municipality: firstResult.address?.municipality,\n          state: firstResult.address?.state,",
+              "          municipality: firstResult.address?.municipality,\n          suburb: firstResult.address?.suburb,\n          state: firstResult.address?.state,",
+          )
+
+          old = '''      const motivoRechazo = this.obtenerMotivoIncompatibilidad(\n        resultado,\n        direccionEsperada,\n      );\n\n      if (motivoRechazo) {\n        this.logger.warn(\n          `[GEOCODIFICACION][VALIDACION][RECHAZADA] ${JSON.stringify({\n            etiqueta,\n            displayName: resultado.displayName,\n            motivo: motivoRechazo,\n          })}`,\n        );\n        return null;\n      }\n\n      this.logger.log(\n        `[GEOCODIFICACION][VALIDACION][ACEPTADA] ${JSON.stringify({\n          etiqueta,\n          displayName: resultado.displayName,\n        })}`,\n      );\n\n      return resultado;'''
+          new = '''      resultado.puntuacion = this.calcularPuntuacion(\n        resultado,\n        direccionEsperada,\n      );\n\n      const motivoRechazo = this.obtenerMotivoIncompatibilidad(\n        resultado,\n        direccionEsperada,\n      );\n\n      if (motivoRechazo) {\n        this.logger.warn(\n          `[GEOCODIFICACION][VALIDACION][RECHAZADA] ${JSON.stringify({\n            etiqueta,\n            displayName: resultado.displayName,\n            puntuacion: resultado.puntuacion,\n            motivo: motivoRechazo,\n          })}`,\n        );\n        return null;\n      }\n\n      if (\n        resultado.puntuacion.total < 3 &&\n        this.esDireccionCubana(textoFallback, direccionEsperada)\n      ) {\n        this.logger.warn(\n          `[GEOCODIFICACION][VALIDACION][RECHAZADA] ${JSON.stringify({\n            etiqueta,\n            displayName: resultado.displayName,\n            puntuacion: resultado.puntuacion,\n            motivo: 'puntuacion insuficiente para una dirección cubana',\n          })}`,\n        );\n        return null;\n      }\n\n      this.logger.log(\n        `[GEOCODIFICACION][VALIDACION][ACEPTADA] ${JSON.stringify({\n          etiqueta,\n          displayName: resultado.displayName,\n          puntuacion: resultado.puntuacion,\n        })}`,\n      );\n\n      return resultado;'''
+          if old not in text:
+              raise SystemExit('validation block not found')
+          text = text.replace(old, new, 1)
+
+          marker = '''  private obtenerMotivoIncompatibilidad(\n'''
+          method = '''  private calcularPuntuacion(\n    resultado: GeocodingResult,\n    esperado: DireccionCubanaNormalizada,\n  ): PuntuacionGeocodificacion {\n    const normalizar = (value?: string) =>\n      (value ?? '')\n        .toUpperCase()\n        .normalize('NFD')\n        .replace(/[\\u0300-\\u036f]/g, '')\n        .replace(/[^A-Z0-9]+/g, ' ')\n        .trim();\n\n    const paisEsperado = this.esProvinciaCubana(normalizar(esperado.provincia))\n      ? 'CUBA'\n      : undefined;\n    const provinciaEsperada = normalizar(esperado.provincia);\n    const municipioEsperado = normalizar(esperado.municipio);\n    const codigosEsperados = new Set(\n      (esperado.codigosPostales ?? []).map(normalizar),\n    );\n\n    const municipiosRecibidos = [\n      resultado.address?.municipality,\n      resultado.address?.suburb,\n      resultado.address?.city,\n      resultado.address?.town,\n      resultado.address?.village,\n    ].map(normalizar);\n\n    const paisRecibido = normalizar(resultado.address?.country);\n    const provinciaRecibida = normalizar(resultado.address?.state);\n    const codigoRecibido = normalizar(resultado.address?.postcode);\n\n    const pais = !paisEsperado || paisRecibido === paisEsperado;\n    const provincia =\n      !provinciaEsperada || provinciaRecibida === provinciaEsperada;\n    const municipio =\n      !municipioEsperado || municipiosRecibidos.includes(municipioEsperado);\n    const codigoPostal =\n      !codigosEsperados.size || codigosEsperados.has(codigoRecibido);\n\n    const viaEsperada = normalizar(esperado.calle);\n    const viaRecibida = normalizar(resultado.address?.road);\n    const numeroEsperado = normalizar(esperado.numeroCasa);\n    const numeroRecibido = normalizar(resultado.address?.houseNumber);\n    const direccion =\n      (!viaEsperada || !viaRecibida || viaEsperada === viaRecibida) &&\n      (!numeroEsperado || !numeroRecibido || numeroEsperado === numeroRecibido);\n\n    const coincidencias = {\n      pais,\n      provincia,\n      municipio,\n      codigoPostal,\n      direccion,\n    };\n\n    return {\n      total: Object.values(coincidencias).filter(Boolean).length,\n      maximo: 5,\n      estrellas: Object.values(coincidencias).filter(Boolean).length,\n      coincidencias,\n    };\n  }\n\n'''
+          if marker not in text:
+              raise SystemExit('score insertion marker not found')
+          text = text.replace(marker, method + marker, 1)
+
+          old = '''    const municipio = normalizar(\n      resultado.address?.municipality ??\n        resultado.address?.city ??\n        resultado.address?.town ??\n        resultado.address?.village,\n    );\n    const provinciaEsperada = normalizar(esperado.provincia);\n    const municipioEsperado = normalizar(esperado.municipio);'''
+          new = '''    const municipiosRecibidos = [\n      resultado.address?.municipality,\n      resultado.address?.suburb,\n      resultado.address?.city,\n      resultado.address?.town,\n      resultado.address?.village,\n    ].filter((value): value is string => Boolean(value));\n    const municipiosNormalizados = municipiosRecibidos.map(normalizar);\n    const provinciaEsperada = normalizar(esperado.provincia);\n    const municipioEsperado = normalizar(esperado.municipio);'''
+          if old not in text:
+              raise SystemExit('municipality validation block not found')
+          text = text.replace(old, new, 1)
+          old = '''    if (municipioEsperado && municipio && municipio !== municipioEsperado) {\n      return `municipio incompatible: esperado=\\"${esperado.municipio}\\", recibido=\\"${resultado.address?.municipality ?? resultado.address?.city ?? resultado.address?.town ?? resultado.address?.village ?? ''}\\"`;\n    }'''
+          new = '''    if (\n      municipioEsperado &&\n      municipiosNormalizados.length > 0 &&\n      !municipiosNormalizados.includes(municipioEsperado)\n    ) {\n      return `municipio incompatible: esperado=\\"${esperado.municipio}\\", recibido=\\"${municipiosRecibidos.join(' / ')}\\"`;\n    }'''
+          if old not in text:
+              raise SystemExit('municipality mismatch block not found')
+          text = text.replace(old, new, 1)
+
+          service.write_text(text)
+
+          spec = Path('apps/api/src/geocodificacion/geocodificacion.service.spec.ts')
+          tests = spec.read_text()
+          tests = tests.replace(
+              "          municipality?: string;\n          city?: string;",
+              "          municipality?: string;\n          suburb?: string;\n          city?: string;",
+              1,
+          )
+          tests = tests.replace(
+              "          village?: string;\n          state?: string;",
+              "          village?: string;\n          state?: string;\n          postcode?: string;\n          road?: string;\n          houseNumber?: string;",
+              1,
+          )
+          helper = '''\n  const calcularPuntuacion = (\n    resultado: Parameters<\n      InstanceType<typeof GeocodificacionService>['calcularPuntuacion']\n    >[0],\n    esperado: ReturnType<typeof normalizar>,\n  ) =>\n    (\n      service as unknown as {\n        calcularPuntuacion: (\n          result: typeof resultado,\n          expected: typeof esperado,\n        ) => {\n          total: number;\n          maximo: 5;\n          estrellas: number;\n          coincidencias: Record<string, boolean>;\n        };\n      }\n    ).calcularPuntuacion(resultado, esperado);\n'''
+          # Use a simpler structural helper because private methods cannot be referenced in Parameters at runtime/type level.
+          helper = '''\n  const calcularPuntuacion = (\n    resultado: {\n      lat: number;\n      lon: number;\n      displayName: string;\n      address?: {\n        road?: string;\n        houseNumber?: string;\n        municipality?: string;\n        suburb?: string;\n        city?: string;\n        town?: string;\n        village?: string;\n        state?: string;\n        country?: string;\n        postcode?: string;\n      };\n    },\n    esperado: ReturnType<typeof normalizar>,\n  ) =>\n    (\n      service as unknown as {\n        calcularPuntuacion: (\n          result: typeof resultado,\n          expected: typeof esperado,\n        ) => { total: number; maximo: 5; estrellas: number };\n      }\n    ).calcularPuntuacion(resultado, esperado);\n'''
+          anchor = "  it('normaliza calle, número, entrecalles, municipio y provincia y elimina Zona', () => {"
+          if anchor not in tests:
+              raise SystemExit('test anchor not found')
+          tests = tests.replace(anchor, helper + "\n" + anchor, 1)
+          extra = '''\n\n  it('calcula 5/5 cuando LocationIQ coincide en país, provincia, municipio, CP y dirección', () => {\n    const esperado = normalizar(\n      'CALLE VICENTE SOMONTE # 16, GUAIMARO, CAMAGUEY',\n    );\n    esperado.codigosPostales = ['72510'];\n\n    const puntuacion = calcularPuntuacion(\n      {\n        lat: 21.05,\n        lon: -77.35,\n        displayName: 'Calle Vicente Somonte 16, Guáimaro, Camagüey, Cuba',\n        address: {\n          road: 'Vicente Somonte',\n          houseNumber: '16',\n          municipality: 'Guáimaro',\n          state: 'Camagüey',\n          country: 'Cuba',\n          postcode: '72510',\n        },\n      },\n      esperado,\n    );\n\n    expect(puntuacion).toMatchObject({\n      total: 5,\n      maximo: 5,\n      estrellas: 5,\n    });\n  });\n\n  it('cuenta suburb como coincidencia municipal y no confunde un municipio incorrecto', () => {\n    const esperado = normalizar('CALLE 10, MARIANAO, LA HABANA');\n\n    expect(\n      calcularPuntuacion(\n        {\n          lat: 23.07,\n          lon: -82.43,\n          displayName: 'Calle 10, Marianao, La Habana, Cuba',\n          address: {\n            suburb: 'Marianao',\n            state: 'La Habana',\n            country: 'Cuba',\n          },\n        },\n        esperado,\n      ).coincidencias.municipio,\n    ).toBe(true);\n  });\n'''
+          tests = tests.rsplit('\n});', 1)[0] + extra + '\n});\n'
+          spec.write_text(tests)
+      - name: Format
+        run: npx --yes prettier@3.9.6 --write apps/api/src/geocodificacion/geocodificacion.service.ts apps/api/src/geocodificacion/geocodificacion.service.spec.ts
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test geocoding
+        run: npm run test --workspace=@sgci/api -- src/geocodificacion/geocodificacion.service.spec.ts
+
+      - name: Commit implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/api/src/geocodificacion/geocodificacion.service.ts apps/api/src/geocodificacion/geocodificacion.service.spec.ts
+          git commit -m "fix(geocoding): enforce LocationIQ precision score" || exit 0
+          git push origin HEAD:fix/geocoding-locationiq-precision-score
