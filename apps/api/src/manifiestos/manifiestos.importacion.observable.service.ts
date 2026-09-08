@@ -18,9 +18,10 @@ export class ManifiestosImportacionObservableService extends ManifiestosImportac
     super(prisma, parser, geocodificacion, progress);
   }
 
-  override async importar(buffer: Buffer, originalname: string, jobId: string) {
-    const response = await super.importar(buffer, originalname, jobId);
-    await this.detalles.guardarDesdeWarnings(jobId, response.warnings);
-    return response;
+  protected override async persistImportWarnings(
+    jobId: string,
+    warnings: string[],
+  ): Promise<void> {
+    await this.detalles.guardarDesdeWarnings(jobId, warnings);
   }
 }
