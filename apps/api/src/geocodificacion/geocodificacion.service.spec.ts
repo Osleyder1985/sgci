@@ -53,6 +53,7 @@ describe('GeocodificacionService', () => {
       displayName: string;
       address?: {
         municipality?: string;
+        county?: string;
         city?: string;
         town?: string;
         village?: string;
@@ -344,5 +345,51 @@ describe('GeocodificacionService', () => {
       esperado,
     );
     expect(puntuacion.coincidencias.municipio).toBe(true);
+  });
+
+  it('usa county para validar el municipio aunque city sea una ciudad superior', () => {
+    const esperado = normalizar(
+      'CALLE OBISPO # 103, LA HABANA VIEJA, LA HABANA',
+    );
+
+    expect(
+      resultadoCompatible(
+        {
+          lat: 23.136,
+          lon: -82.356,
+          displayName: 'Obispo, Catedral, La Habana Vieja, La Habana, Cuba',
+          address: {
+            city: 'La Habana',
+            county: 'La Habana Vieja',
+            state: 'La Habana',
+            country: 'Cuba',
+          },
+        },
+        esperado,
+      ),
+    ).toBeNull();
+  });
+
+  it('rechaza county incompatible aunque city coincida con la provincia', () => {
+    const esperado = normalizar(
+      'CALLE OBISPO # 103, LA HABANA VIEJA, LA HABANA',
+    );
+
+    expect(
+      resultadoCompatible(
+        {
+          lat: 23.13,
+          lon: -82.4,
+          displayName: 'Otra dirección, Centro Habana, La Habana, Cuba',
+          address: {
+            city: 'La Habana',
+            county: 'Centro Habana',
+            state: 'La Habana',
+            country: 'Cuba',
+          },
+        },
+        esperado,
+      ),
+    ).not.toBeNull();
   });
 });
