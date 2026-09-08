@@ -1,0 +1,101 @@
+name: Harden LocationIQ precision
+
+on:
+  push:
+    branches:
+      - fix/geocoding-locationiq-precision-score
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - name: Patch implementation
+        shell: python
+        run: |
+          from pathlib import Path
+
+          service = Path('apps/api/src/geocodificacion/geocodificacion.service.ts')
+          text = service.read_text()
+
+          text = text.replace(
+              "    municipality?: string;\n    suburb?: string;\n    state?: string;",
+              "    municipality?: string;\n    suburb?: string;\n    county?: string;\n    state?: string;",
+              1,
+          )
+          text = text.replace(
+              "  municipality?: string;\n  suburb?: string;\n  state?: string;",
+              "  municipality?: string;\n  suburb?: string;\n  county?: string;\n  state?: string;",
+              1,
+          )
+          text = text.replace(
+              "          municipality: firstResult.address?.municipality,\n          suburb: firstResult.address?.suburb,\n          state: firstResult.address?.state,",
+              "          municipality: firstResult.address?.municipality,\n          suburb: firstResult.address?.suburb,\n          county: firstResult.address?.county,\n          state: firstResult.address?.state,",
+              1,
+          )
+          old = '''    const street = [\n      direccion.calle,\n      direccion.numeroCasa ? `# ${direccion.numeroCasa}` : undefined,\n      direccion.entreCalles ? `E/ ${direccion.entreCalles}` : undefined,\n      direccion.apartamento\n        ? `APARTAMENTO ${direccion.apartamento}`\n        : undefined,\n      direccion.edificio ? `EDIFICIO ${direccion.edificio}` : undefined,\n      direccion.reparto ? `REPARTO ${direccion.reparto}` : undefined,\n    ]\n      .filter(Boolean)\n      .join(', ');'''
+          new = '''    const street = [\n      direccion.calle,\n      direccion.numeroCasa ? `# ${direccion.numeroCasa}` : undefined,\n    ]\n      .filter(Boolean)\n      .join(', ');'''
+          if old not in text:
+              raise SystemExit('structured street block not found')
+          text = text.replace(old, new, 1)
+          text = text.replace(
+              "    url.searchParams.set('addressdetails', '1');\n    url.searchParams.set('limit', '1');",
+              "    url.searchParams.set('addressdetails', '1');\n    url.searchParams.set('normalizeaddress', '1');\n    url.searchParams.set('limit', '1');",
+              1,
+          )
+
+          start = text.index('  private calcularPuntuacion(')
+          end = text.index('  private obtenerMotivoIncompatibilidad(', start)
+          method = '''  private calcularPuntuacion(\n    resultado: GeocodingResult,\n    esperado: DireccionCubanaNormalizada,\n  ): PuntuacionGeocodificacion {\n    const normalizar = (value?: string) =>\n      (value ?? '')\n        .toUpperCase()\n        .normalize('NFD')\n        .replace(/[\\u0300-\\u036f]/g, '')\n        .replace(/[^A-Z0-9]+/g, ' ')\n        .trim();\n\n    const esCuba = this.esProvinciaCubana(normalizar(esperado.provincia));\n    const provinciaEsperada = normalizar(esperado.provincia);\n    const municipioEsperado = normalizar(esperado.municipio);\n    const codigosEsperados = new Set(\n      (esperado.codigosPostales ?? []).map(normalizar),\n    );\n    const municipiosRecibidos = [\n      resultado.address?.municipality,\n      resultado.address?.county,\n      resultado.address?.suburb,\n      resultado.address?.city,\n      resultado.address?.town,\n      resultado.address?.village,\n    ].map(normalizar).filter(Boolean);\n\n    const paisRecibido = normalizar(resultado.address?.country);\n    const provinciaRecibida = normalizar(resultado.address?.state);\n    const codigoRecibido = normalizar(resultado.address?.postcode);\n    const pais = !esCuba ? true : paisRecibido === 'CUBA';\n    const provincia = !provinciaEsperada\n      ? true\n      : provinciaRecibida === provinciaEsperada;\n    const municipio = !municipioEsperado\n      ? true\n      : municipiosRecibidos.includes(municipioEsperado);\n    const codigoPostal = !codigosEsperados.size\n      ? true\n      : codigosEsperados.has(codigoRecibido);\n\n    const viaEsperada = normalizar(esperado.calle);\n    const viaRecibida = normalizar(resultado.address?.road);\n    const numeroEsperado = normalizar(esperado.numeroCasa);\n    const numeroRecibido = normalizar(resultado.address?.houseNumber);\n    const calleCoincide = !viaEsperada\n      ? true\n      : viaRecibida === viaEsperada;\n    const numeroCoincide = !numeroEsperado\n      ? true\n      : numeroRecibido === numeroEsperado;\n    const direccion = calleCoincide && numeroCoincide;\n\n    const coincidencias = {\n      pais,\n      provincia,\n      municipio,\n      codigoPostal,\n      direccion,\n    };\n    const total = Object.values(coincidencias).filter(Boolean).length;\n    return { total, maximo: 5, estrellas: total, coincidencias };\n  }\n\n'''
+          text = text[:start] + method + text[end:]
+
+          # Explicit address contradictions are not acceptable for a precise result.
+          marker = "    if (\n      municipioEsperado &&\n      municipiosNormalizados.length > 0 &&\n      !municipiosNormalizados.includes(municipioEsperado)\n    ) {"
+          insert = '''    if (\n      municipioEsperado &&\n      municipiosNormalizados.length > 0 &&\n      !municipiosNormalizados.includes(municipioEsperado)\n    ) {'''
+          # Keep existing municipality block unchanged; add road/number checks before its return.
+          needle = "    if (provinciaEsperada && provincia && provincia !== provinciaEsperada) {\n      return `provincia incompatible: esperada=\\\"${esperado.provincia}\\\", recibida=\\\"${resultado.address?.state ?? ''}\\\"`;\n    }\n\n"
+          addition = needle + '''    const calleEsperada = normalizar(esperado.calle);\n    const calleRecibida = normalizar(resultado.address?.road);\n    if (calleEsperada && calleRecibida && calleEsperada !== calleRecibida) {\n      return `calle incompatible: esperada=\\\"${esperado.calle}\\\", recibida=\\\"${resultado.address?.road ?? ''}\\\"`;\n    }\n\n    const numeroEsperado = normalizar(esperado.numeroCasa);\n    const numeroRecibido = normalizar(resultado.address?.houseNumber);\n    if (numeroEsperado && numeroRecibido && numeroEsperado !== numeroRecibido) {\n      return `numero incompatible: esperado=\\\"${esperado.numeroCasa}\\\", recibido=\\\"${resultado.address?.houseNumber ?? ''}\\\"`;\n    }\n\n'''
+          if needle not in text:
+              raise SystemExit('territorial validation anchor not found')
+          text = text.replace(needle, addition, 1)
+
+          service.write_text(text)
+
+          spec = Path('apps/api/src/geocodificacion/geocodificacion.service.spec.ts')
+          tests = spec.read_text()
+          tests = tests.replace(
+              "          municipality?: string;\n          suburb?: string;\n          city?: string;",
+              "          municipality?: string;\n          suburb?: string;\n          county?: string;\n          city?: string;",
+              1,
+          )
+          tests = tests.replace(
+              "        address: { suburb: 'Marianao', state: 'La Habana', country: 'Cuba' },",
+              "        address: { suburb: 'Marianao', state: 'La Habana', country: 'Cuba' },",
+              1,
+          )
+          extra = '''\n\n  it('no cuenta evidencia ausente como coincidencia de dirección', () => {\n    const esperado = normalizar('CALLE BENAVIDES # 219, CIEGO DE AVILA, CUBA');\n    const puntuacion = calcularPuntuacion(\n      { lat: 21.84, lon: -78.75, displayName: 'Benavides, Ciego de Ávila, Cuba', address: { road: 'Benavides', city: 'Ciego de Ávila', state: 'Ciego de Ávila', country: 'Cuba' } },\n      esperado,\n    );\n    expect(puntuacion.coincidencias.direccion).toBe(false);\n  });\n\n  it('marca como no coincidente un número de casa explícitamente diferente', () => {\n    const esperado = normalizar('CALLE BENAVIDES # 219, CIEGO DE AVILA, CUBA');\n    const puntuacion = calcularPuntuacion(\n      { lat: 21.84, lon: -78.75, displayName: '5 Benavides, Ciego de Ávila, Cuba', address: { road: 'Benavides', houseNumber: '5', city: 'Ciego de Ávila', state: 'Ciego de Ávila', country: 'Cuba' } },\n      esperado,\n    );\n    expect(puntuacion.coincidencias.direccion).toBe(false);\n  });\n\n  it('prefiere county como evidencia municipal cuando está disponible', () => {\n    const esperado = normalizar('CALLE OBISPO # 103, LA HABANA VIEJA, LA HABANA');\n    const puntuacion = calcularPuntuacion(\n      { lat: 23.13, lon: -82.36, displayName: 'Obispo 103, La Habana Vieja, Cuba', address: { road: 'Obispo', houseNumber: '103', city: 'La Habana', county: 'La Habana Vieja', state: 'La Habana', country: 'Cuba' } },\n      esperado,\n    );\n    expect(puntuacion.coincidencias.municipio).toBe(true);\n  });\n'''
+          tests = tests.rsplit('\n});', 1)[0] + extra + '\n});\n'
+          spec.write_text(tests)
+      - name: Format and test
+        run: |
+          npx --yes prettier@3.9.6 --write apps/api/src/geocodificacion/geocodificacion.service.ts apps/api/src/geocodificacion/geocodificacion.service.spec.ts
+          npm ci
+          npm run test --workspace=@sgci/api -- src/geocodificacion/geocodificacion.service.spec.ts
+      - name: Commit and cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/harden-locationiq-precision.yml
+          git add apps/api/src/geocodificacion/geocodificacion.service.ts apps/api/src/geocodificacion/geocodificacion.service.spec.ts .github/workflows
+          git commit -m "fix(geocoding): harden LocationIQ precision validation"
+          git push origin HEAD:fix/geocoding-locationiq-precision-score
