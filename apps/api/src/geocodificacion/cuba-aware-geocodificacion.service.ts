@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import {
   GeocodificacionService,
@@ -8,6 +8,10 @@ import { CubaTerritorialService } from './cuba-territorial.service.js';
 
 @Injectable()
 export class CubaAwareGeocodificacionService extends GeocodificacionService {
+  private readonly diagnosticLogger = new Logger(
+    CubaAwareGeocodificacionService.name,
+  );
+
   constructor(private readonly territorial: CubaTerritorialService) {
     super();
   }
@@ -16,6 +20,10 @@ export class CubaAwareGeocodificacionService extends GeocodificacionService {
     direccion: string,
     pais?: string | null,
   ): Promise<GeocodingResult | null> {
+    this.diagnosticLogger.log(
+      `[GEOCODIFICACION][ORIGINAL] ${JSON.stringify(direccion)}`,
+    );
+
     const territorio = await this.territorial.resolver(direccion);
 
     if (territorio) {
@@ -36,6 +44,16 @@ export class CubaAwareGeocodificacionService extends GeocodificacionService {
       partes.push(territorio.provincia);
 
       const direccionEnriquecida = partes.join(', ');
+
+      this.diagnosticLogger.log(
+        `[GEOCODIFICACION][TERRITORIO] ${JSON.stringify({
+          localidad: territorio.localidad,
+          consejoPopular: territorio.consejoPopular,
+          municipio: territorio.municipio,
+          provincia: territorio.provincia,
+          direccionEnriquecida,
+        })}`,
+      );
 
       return super.geocodificar(direccionEnriquecida, 'CUBA');
     }

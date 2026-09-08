@@ -63,12 +63,12 @@ describe('GeocodificacionService', () => {
   ) =>
     (
       service as unknown as {
-        esResultadoCompatible: (
+        obtenerMotivoIncompatibilidad: (
           result: typeof resultado,
           expected: typeof esperado,
-        ) => boolean;
+        ) => string | null;
       }
-    ).esResultadoCompatible(resultado, esperado);
+    ).obtenerMotivoIncompatibilidad(resultado, esperado);
 
   it('normaliza calle, número, entrecalles, municipio y provincia y elimina Zona', () => {
     const result = normalizar(
@@ -175,7 +175,7 @@ describe('GeocodificacionService', () => {
         },
         esperado,
       ),
-    ).toBe(false);
+    ).not.toBeNull();
   });
 
   it('rechaza un resultado de LocationIQ fuera de Cuba para una dirección cubana', () => {
@@ -197,7 +197,7 @@ describe('GeocodificacionService', () => {
         },
         esperado,
       ),
-    ).toBe(false);
+    ).not.toBeNull();
   });
 
   it('acepta un resultado de LocationIQ compatible por municipio, provincia y país', () => {
@@ -219,6 +219,6 @@ describe('GeocodificacionService', () => {
         },
         esperado,
       ),
-    ).toBe(true);
+    ).toBeNull();
   });
 });
