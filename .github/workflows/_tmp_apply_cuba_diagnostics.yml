@@ -1,0 +1,94 @@
+name: _tmp_apply_cuba_diagnostics
+
+on:
+  push:
+    branches:
+      - fix/geocoding-cuba-territory-diagnostics
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply diagnostic changes
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          aware = Path('apps/api/src/geocodificacion/cuba-aware-geocodificacion.service.ts')
+          text = aware.read_text()
+          text = text.replace(
+              "import { Injectable } from '@nestjs/common';",
+              "import { Injectable, Logger } from '@nestjs/common';",
+          )
+          text = text.replace(
+              "export class CubaAwareGeocodificacionService extends GeocodificacionService {\n  constructor",
+              "export class CubaAwareGeocodificacionService extends GeocodificacionService {\n  private readonly logger = new Logger(CubaAwareGeocodificacionService.name);\n\n  constructor",
+          )
+          text = text.replace(
+              "  ): Promise<GeocodingResult | null> {\n    const territorio = await this.territorial.resolver(direccion);",
+              "  ): Promise<GeocodingResult | null> {\n    this.logger.log(`[GEOCODIFICACION][ORIGINAL] ${JSON.stringify(direccion)}`);\n\n    const territorio = await this.territorial.resolver(direccion);",
+          )
+          text = text.replace(
+              "      const direccionEnriquecida = partes.join(', ');\n\n      return super.geocodificar(direccionEnriquecida, 'CUBA');",
+              "      const direccionEnriquecida = partes.join(', ');\n\n      this.logger.log(\n        `[GEOCODIFICACION][TERRITORIO] ${JSON.stringify({\n          localidad: territorio.localidad,\n          consejoPopular: territorio.consejoPopular,\n          municipio: territorio.municipio,\n          provincia: territorio.provincia,\n          direccionEnriquecida,\n        })}`,\n      );\n\n      return super.geocodificar(direccionEnriquecida, 'CUBA');",
+          )
+          aware.write_text(text)
+
+          geo = Path('apps/api/src/geocodificacion/geocodificacion.service.ts')
+          text = geo.read_text()
+          text = text.replace(
+              "    this.logger.log(\n      `Geocodificando: \\\"${texto}\\\" -> \\\"${normalizada.canonica}\\\"${",
+              "    this.logger.log(\n      `[GEOCODIFICACION][NORMALIZADOR] \\\"${texto}\\\" -> \\\"${normalizada.canonica}\\\"${",
+          )
+          text = text.replace(
+              "    return this.ejecutarBusquedaLocationIq(\n      url,\n      etiqueta,\n      direccion.canonica,\n      direccion,\n    );",
+              "    const urlDiagnostico = new URL(url);\n    urlDiagnostico.searchParams.delete('key');\n    this.logger.debug(\n      `[GEOCODIFICACION][CONSULTA_ESTRUCTURADA] ${urlDiagnostico.toString()}`,\n    );\n\n    return this.ejecutarBusquedaLocationIq(\n      url,\n      etiqueta,\n      direccion.canonica,\n      direccion,\n    );",
+              1,
+          )
+          text = text.replace(
+              "    return this.ejecutarBusquedaLocationIq(\n      url,\n      query,\n      textoFallback,\n      direccionEsperada,\n    );",
+              "    const urlDiagnostico = new URL(url);\n    urlDiagnostico.searchParams.delete('key');\n    this.logger.debug(\n      `[GEOCODIFICACION][CONSULTA_FALLBACK] ${urlDiagnostico.toString()}`,\n    );\n\n    return this.ejecutarBusquedaLocationIq(\n      url,\n      query,\n      textoFallback,\n      direccionEsperada,\n    );",
+              1,
+          )
+          text = text.replace(
+              "      const result = (await response.json()) as LocationIqResult[];\n      const firstResult = result?.[0];",
+              "      const result = (await response.json()) as LocationIqResult[];\n      this.logger.debug(\n        `[GEOCODIFICACION][LOCATIONIQ][RESPUESTA] ${JSON.stringify({ etiqueta, respuesta: result })}`,\n      );\n      const firstResult = result?.[0];",
+          )
+          old = re.compile(r"  private esResultadoCompatible\([\\s\\S]*?\n  private normalizarDireccionCubana", re.M)
+          new = '''  private obtenerMotivoIncompatibilidad(\n    resultado: GeocodingResult,\n    esperado: DireccionCubanaNormalizada,\n  ): string | null {\n    if (!esperado.provincia && !esperado.municipio) {\n      return null;\n    }\n\n    const normalizar = (value?: string) =>\n      (value ?? '')\n        .toUpperCase()\n        .normalize('NFD')\n        .replace(/[\\u0300-\\u036f]/g, '')\n        .replace(/[^A-Z0-9]+/g, ' ')\n        .trim();\n\n    const pais = normalizar(resultado.address?.country);\n    const provincia = normalizar(resultado.address?.state);\n    const municipio = normalizar(\n      resultado.address?.municipality ??\n        resultado.address?.city ??\n        resultado.address?.town ??\n        resultado.address?.village,\n    );\n    const provinciaEsperada = normalizar(esperado.provincia);\n    const municipioEsperado = normalizar(esperado.municipio);\n\n    if (provinciaEsperada && provincia && provincia !== provinciaEsperada) {\n      return `provincia incompatible: esperada=\\"${esperado.provincia}\\", recibida=\\"${resultado.address?.state ?? ''}\\"`;\n    }\n\n    if (municipioEsperado && municipio && municipio !== municipioEsperado) {\n      return `municipio incompatible: esperado=\\"${esperado.municipio}\\", recibido=\\"${resultado.address?.municipality ?? resultado.address?.city ?? resultado.address?.town ?? resultado.address?.village ?? ''}\\"`;\n    }\n\n    const esCubaEsperado = this.esProvinciaCubana(provinciaEsperada);\n    if (esCubaEsperado && pais && pais !== 'CUBA') {\n      return `país incompatible: esperado=\\"CUBA\\", recibido=\\"${resultado.address?.country ?? ''}\\"`;\n    }\n\n    if (esCubaEsperado && !pais && !provincia) {\n      return 'respuesta sin país ni provincia para una dirección cubana';\n    }\n\n    return null;\n  }\n\n  private normalizarDireccionCubana'''
+          text, count = old.subn(new, text, count=1)
+          if count != 1:
+              raise SystemExit('No se encontró esResultadoCompatible para reemplazar')
+          text = text.replace(
+              "      if (!this.esResultadoCompatible(resultado, direccionEsperada)) {\n        this.logger.warn(\n          `LocationIQ devolvió una ubicación incompatible con la dirección solicitada: \\\"${etiqueta}\\\" -> \\\"${resultado.displayName}\\\".`,\n        );\n        return null;\n      }",
+              "      const motivoRechazo = this.obtenerMotivoIncompatibilidad(\n        resultado,\n        direccionEsperada,\n      );\n\n      if (motivoRechazo) {\n        this.logger.warn(\n          `[GEOCODIFICACION][VALIDACION][RECHAZADA] ${JSON.stringify({\n            etiqueta,\n            displayName: resultado.displayName,\n            motivo: motivoRechazo,\n          })}`,\n        );\n        return null;\n      }\n\n      this.logger.log(\n        `[GEOCODIFICACION][VALIDACION][ACEPTADA] ${JSON.stringify({\n          etiqueta,\n          displayName: resultado.displayName,\n        })}`,\n      );",
+          )
+          geo.write_text(text)
+
+          print('Cambios diagnósticos aplicados')
+
+      - name: Format with repository Prettier 3.9.6
+        run: npx prettier@3.9.6 --write apps/api/src/geocodificacion/cuba-aware-geocodificacion.service.ts apps/api/src/geocodificacion/geocodificacion.service.ts
+
+      - name: Verify and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx prettier@3.9.6 --check apps/api/src/geocodificacion/cuba-aware-geocodificacion.service.ts apps/api/src/geocodificacion/geocodificacion.service.ts
+          git diff --check
+          git status --short
+          git rm .github/workflows/_tmp_apply_cuba_diagnostics.yml
+          git add apps/api/src/geocodificacion/cuba-aware-geocodificacion.service.ts apps/api/src/geocodificacion/geocodificacion.service.ts
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(geocoding): add temporary Cuba diagnostics'
+          git push origin HEAD:fix/geocoding-cuba-territory-diagnostics
