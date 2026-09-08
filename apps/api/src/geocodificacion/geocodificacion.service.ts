@@ -89,11 +89,25 @@ export class GeocodificacionService {
     const esCuba = this.esDireccionCubana(texto, normalizada);
     const paisBusqueda = esCuba ? 'CUBA' : pais?.trim();
 
+    if (esCuba) {
+      normalizada.codigosPostales = this.resolverCodigosPostales(normalizada);
+    }
+
     this.logger.log(
-      `Geocodificando: "${texto}" -> "${normalizada.canonica}"${
+      `Geocodificando: "${texto}" -> "${normalizada.canonica}"${ 
         esCuba ? ' | país=CUBA' : paisBusqueda ? ` | país=${paisBusqueda}` : ''
-      }`,
+      }${normalizada.codigosPostales?.length ? ` | CP=${normalizada.codigosPostales.join('/')}` : ''}`,
     );
+
+    if (esCuba && normalizada.codigosPostales?.length) {
+      for (const codigoPostal of normalizada.codigosPostales) {
+        const resultado = await this.buscarLocationIqEstructurado(
+          normalizada,
+          codigoPostal,
+        );
+        if (resultado) return resultado;
+      }
+    }
 
     for (const query of this.construirConsultas(normalizada, paisBusqueda)) {
       const resultado = await this.buscarLocationIq(
