@@ -7,7 +7,8 @@ import { ManifiestosImportacionProgressService } from './manifiestos.importacion
 import { ManifiestoParser } from './parsers/manifiesto.parser.js';
 
 @Injectable()
-export class ManifiestosImportacionObservableService extends ManifiestosImportacionEscalableService {
+export class ManifiestosImportacionObservableService
+  extends ManifiestosImportacionEscalableService {
   constructor(
     prisma: PrismaService,
     parser: ManifiestoParser,
