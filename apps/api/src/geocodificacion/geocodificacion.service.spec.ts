@@ -70,6 +70,40 @@ describe('GeocodificacionService', () => {
       }
     ).obtenerMotivoIncompatibilidad(resultado, esperado);
 
+  const calcularPuntuacion = (
+    resultado: {
+      lat: number;
+      lon: number;
+      displayName: string;
+      address?: {
+        road?: string;
+        houseNumber?: string;
+        municipality?: string;
+        suburb?: string;
+        city?: string;
+        town?: string;
+        village?: string;
+        state?: string;
+        country?: string;
+        postcode?: string;
+      };
+    },
+    esperado: ReturnType<typeof normalizar>,
+  ) =>
+    (
+      service as unknown as {
+        calcularPuntuacion: (
+          result: typeof resultado,
+          expected: typeof esperado,
+        ) => {
+          total: number;
+          maximo: 5;
+          estrellas: number;
+          coincidencias: Record<string, boolean>;
+        };
+      }
+    ).calcularPuntuacion(resultado, esperado);
+
   it('normaliza calle, número, entrecalles, municipio y provincia y elimina Zona', () => {
     const result = normalizar(
       'CALLE VICENTE SOMONTE # 16 E/ AGRAMONTE Y MARTI, GUAIMARO, CAMAGUEY (Zona 4)',
@@ -271,5 +305,43 @@ describe('GeocodificacionService', () => {
         esperado,
       ),
     ).toBeNull();
+  });
+
+  it('calcula 5/5 cuando LocationIQ coincide en país, provincia, municipio, CP y dirección', () => {
+    const esperado = normalizar(
+      'CALLE VICENTE SOMONTE # 16, GUAIMARO, CAMAGUEY',
+    );
+    esperado.codigosPostales = ['72510'];
+    const puntuacion = calcularPuntuacion(
+      {
+        lat: 21.05,
+        lon: -77.35,
+        displayName: 'Calle Vicente Somonte 16, Guáimaro, Camagüey, Cuba',
+        address: {
+          road: 'Vicente Somonte',
+          houseNumber: '16',
+          municipality: 'Guáimaro',
+          state: 'Camagüey',
+          country: 'Cuba',
+          postcode: '72510',
+        },
+      },
+      esperado,
+    );
+    expect(puntuacion).toMatchObject({ total: 5, maximo: 5, estrellas: 5 });
+  });
+
+  it('usa suburb para validar el municipio', () => {
+    const esperado = normalizar('CALLE 10, MARIANAO, LA HABANA');
+    const puntuacion = calcularPuntuacion(
+      {
+        lat: 23.07,
+        lon: -82.43,
+        displayName: 'Calle 10, Marianao, La Habana, Cuba',
+        address: { suburb: 'Marianao', state: 'La Habana', country: 'Cuba' },
+      },
+      esperado,
+    );
+    expect(puntuacion.coincidencias.municipio).toBe(true);
   });
 });
