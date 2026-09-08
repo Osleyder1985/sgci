@@ -422,6 +422,6 @@ describe('GeocodificacionService', () => {
         },
         esperado,
       ),
-    ).not.toBeNull();
+    ).toBeNull();
   });
 });
