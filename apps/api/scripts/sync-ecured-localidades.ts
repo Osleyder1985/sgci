@@ -16,6 +16,7 @@ const {
 const MUNICIPIO_ALIASES: Record<string, string> = {
   'HABANA DEL ESTE': 'LA HABANA DEL ESTE',
   'HABANA VIEJA': 'LA HABANA VIEJA',
+  'SANTA ISABEL DE LAS LAJAS': 'LAJAS',
 };
 
 const USER_AGENT = 'SGCI/1.0 (territorial catalog synchronization)';
