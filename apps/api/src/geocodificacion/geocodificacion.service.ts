@@ -94,9 +94,13 @@ export class GeocodificacionService {
     }
 
     this.logger.log(
-      `Geocodificando: "${texto}" -> "${normalizada.canonica}"${ 
+      `Geocodificando: "${texto}" -> "${normalizada.canonica}"${
         esCuba ? ' | país=CUBA' : paisBusqueda ? ` | país=${paisBusqueda}` : ''
-      }${normalizada.codigosPostales?.length ? ` | CP=${normalizada.codigosPostales.join('/')}` : ''}`,
+      }${
+        normalizada.codigosPostales?.length
+          ? ` | CP=${normalizada.codigosPostales.join('/')}`
+          : ''
+      }`,
     );
 
     if (esCuba && normalizada.codigosPostales?.length) {
