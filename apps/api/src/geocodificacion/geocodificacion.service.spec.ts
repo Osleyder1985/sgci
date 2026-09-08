@@ -15,6 +15,7 @@ describe('GeocodificacionService', () => {
           reparto?: string;
           municipio?: string;
           provincia?: string;
+          codigosPostales?: string[];
           canonica: string;
         };
       }

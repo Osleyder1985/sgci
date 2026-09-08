@@ -28,6 +28,7 @@ export interface GeocodingResult {
     village?: string;
     municipality?: string;
     suburb?: string;
+    county?: string;
     state?: string;
     country?: string;
     postcode?: string;
@@ -42,6 +43,7 @@ interface LocationIqAddress {
   village?: string;
   municipality?: string;
   suburb?: string;
+  county?: string;
   state?: string;
   country?: string;
   postcode?: string;
@@ -155,6 +157,7 @@ export class GeocodificacionService {
     url.searchParams.set('key', this.apiKey);
     url.searchParams.set('format', 'json');
     url.searchParams.set('addressdetails', '1');
+    url.searchParams.set('normalizeaddress', '1');
     url.searchParams.set('limit', '1');
     url.searchParams.set('accept-language', 'es');
     url.searchParams.set('countrycodes', 'cu');
@@ -164,12 +167,6 @@ export class GeocodificacionService {
     const street = [
       direccion.calle,
       direccion.numeroCasa ? `# ${direccion.numeroCasa}` : undefined,
-      direccion.entreCalles ? `E/ ${direccion.entreCalles}` : undefined,
-      direccion.apartamento
-        ? `APARTAMENTO ${direccion.apartamento}`
-        : undefined,
-      direccion.edificio ? `EDIFICIO ${direccion.edificio}` : undefined,
-      direccion.reparto ? `REPARTO ${direccion.reparto}` : undefined,
     ]
       .filter(Boolean)
       .join(', ');
@@ -308,6 +305,7 @@ export class GeocodificacionService {
           village: firstResult.address?.village,
           municipality: firstResult.address?.municipality,
           suburb: firstResult.address?.suburb,
+          county: firstResult.address?.county,
           state: firstResult.address?.state,
           country: firstResult.address?.country,
           postcode: firstResult.address?.postcode,
@@ -406,10 +404,7 @@ export class GeocodificacionService {
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/[^A-Z0-9]+/g, ' ')
         .trim();
-
-    const paisEsperado = this.esProvinciaCubana(normalizar(esperado.provincia))
-      ? 'CUBA'
-      : undefined;
+    const esCuba = this.esProvinciaCubana(normalizar(esperado.provincia));
     const provinciaEsperada = normalizar(esperado.provincia);
     const municipioEsperado = normalizar(esperado.municipio);
     const codigosEsperados = new Set(
@@ -417,28 +412,32 @@ export class GeocodificacionService {
     );
     const municipiosRecibidos = [
       resultado.address?.municipality,
+      resultado.address?.county,
       resultado.address?.suburb,
       resultado.address?.city,
       resultado.address?.town,
       resultado.address?.village,
-    ].map(normalizar);
-    const paisRecibido = normalizar(resultado.address?.country);
-    const provinciaRecibida = normalizar(resultado.address?.state);
-    const codigoRecibido = normalizar(resultado.address?.postcode);
-    const pais = !paisEsperado || paisRecibido === paisEsperado;
+    ]
+      .map(normalizar)
+      .filter(Boolean);
+    const pais = !esCuba
+      ? true
+      : normalizar(resultado.address?.country) === 'CUBA';
     const provincia =
-      !provinciaEsperada || provinciaRecibida === provinciaEsperada;
+      !provinciaEsperada ||
+      normalizar(resultado.address?.state) === provinciaEsperada;
     const municipio =
       !municipioEsperado || municipiosRecibidos.includes(municipioEsperado);
     const codigoPostal =
-      !codigosEsperados.size || codigosEsperados.has(codigoRecibido);
-    const viaEsperada = normalizar(esperado.calle);
-    const viaRecibida = normalizar(resultado.address?.road);
+      !codigosEsperados.size ||
+      codigosEsperados.has(normalizar(resultado.address?.postcode));
+    const calle =
+      !normalizar(esperado.calle) ||
+      normalizar(resultado.address?.road) === normalizar(esperado.calle);
     const numeroEsperado = normalizar(esperado.numeroCasa);
     const numeroRecibido = normalizar(resultado.address?.houseNumber);
-    const direccion =
-      (!viaEsperada || !viaRecibida || viaEsperada === viaRecibida) &&
-      (!numeroEsperado || !numeroRecibido || numeroEsperado === numeroRecibido);
+    const numero = !numeroEsperado || numeroRecibido === numeroEsperado;
+    const direccion = calle && numero;
     const coincidencias = {
       pais,
       provincia,
@@ -481,6 +480,18 @@ export class GeocodificacionService {
 
     if (provinciaEsperada && provincia && provincia !== provinciaEsperada) {
       return `provincia incompatible: esperada="${esperado.provincia}", recibida="${resultado.address?.state ?? ''}"`;
+    }
+
+    const calleEsperada = normalizar(esperado.calle);
+    const calleRecibida = normalizar(resultado.address?.road);
+    if (calleEsperada && calleRecibida && calleEsperada !== calleRecibida) {
+      return `calle incompatible: esperada="${esperado.calle}", recibida="${resultado.address?.road ?? ''}"`;
+    }
+
+    const numeroEsperado = normalizar(esperado.numeroCasa);
+    const numeroRecibido = normalizar(resultado.address?.houseNumber);
+    if (numeroEsperado && numeroRecibido && numeroEsperado !== numeroRecibido) {
+      return `numero incompatible: esperado="${esperado.numeroCasa}", recibido="${resultado.address?.houseNumber ?? ''}"`;
     }
 
     if (
