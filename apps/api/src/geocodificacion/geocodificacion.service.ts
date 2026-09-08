@@ -476,7 +476,9 @@ export class GeocodificacionService {
       const marcador = coincidencia[0].toUpperCase().replace(/\s+/g, ' ');
       const inicioValor = (coincidencia.index ?? 0) + coincidencia[0].length;
       const finValor = coincidencias[i + 1]?.index ?? texto.length;
-      const valor = this.limpiarValorMarcador(texto.slice(inicioValor, finValor));
+      const valor = this.limpiarValorMarcador(
+        texto.slice(inicioValor, finValor),
+      );
 
       if (!valor) continue;
 
@@ -503,7 +505,8 @@ export class GeocodificacionService {
       if (/^RPTO|^REPARTO/i.test(marcador)) {
         const despuesDeEntrecalles =
           Boolean(resultado.entreCalles) &&
-          (resultado.edificio !== undefined || resultado.apartamento !== undefined);
+          (resultado.edificio !== undefined ||
+            resultado.apartamento !== undefined);
 
         if (despuesDeEntrecalles && !resultado.apartamento) {
           resultado.apartamento = this.primerToken(valor);
