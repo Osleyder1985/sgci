@@ -394,10 +394,7 @@ export class GeocodificacionService {
         .replace(/[^A-Z0-9]+/g, ' ')
         .trim();
 
-    const esperadoPais = this.esDireccionCubana(
-      esperado.canonica,
-      esperado,
-    )
+    const esperadoPais = this.esDireccionCubana(esperado.canonica, esperado)
       ? 'CUBA'
       : undefined;
     const esperadoProvincia = normalizar(esperado.provincia);
@@ -420,8 +417,7 @@ export class GeocodificacionService {
       !esperadoProvincia ||
       normalizar(resultado.address?.state) === esperadoProvincia;
     const municipio =
-      !esperadoMunicipio ||
-      municipiosRecibidos.includes(esperadoMunicipio);
+      !esperadoMunicipio || municipiosRecibidos.includes(esperadoMunicipio);
     const codigoPostal =
       !esperadosPostales.size ||
       esperadosPostales.has(normalizar(resultado.address?.postcode));
@@ -547,7 +543,9 @@ export class GeocodificacionService {
         resultado.numeroCasa,
         resultado.reparto ? `REPARTO ${resultado.reparto}` : undefined,
         resultado.edificio ? `EDIFICIO ${resultado.edificio}` : undefined,
-        resultado.apartamento ? `APARTAMENTO ${resultado.apartamento}` : undefined,
+        resultado.apartamento
+          ? `APARTAMENTO ${resultado.apartamento}`
+          : undefined,
         resultado.entreCalles ? `E/ ${resultado.entreCalles}` : undefined,
         resultado.municipio,
         resultado.provincia,
@@ -579,7 +577,12 @@ export class GeocodificacionService {
         .replace(/\s+/g, ' ')
         .trim();
 
-      if (!valor && clave !== 'CALLE' && clave !== 'AVENIDA' && clave !== 'AVE') {
+      if (
+        !valor &&
+        clave !== 'CALLE' &&
+        clave !== 'AVENIDA' &&
+        clave !== 'AVE'
+      ) {
         continue;
       }
 
@@ -644,7 +647,9 @@ export class GeocodificacionService {
       nombreVia || undefined,
       direccion.reparto ? `REPARTO ${direccion.reparto}` : undefined,
       direccion.edificio ? `EDIFICIO ${direccion.edificio}` : undefined,
-      direccion.apartamento ? `APARTAMENTO ${direccion.apartamento}` : undefined,
+      direccion.apartamento
+        ? `APARTAMENTO ${direccion.apartamento}`
+        : undefined,
       direccion.entreCalles ? `E/ ${direccion.entreCalles}` : undefined,
       direccion.municipio,
       direccion.provincia,
