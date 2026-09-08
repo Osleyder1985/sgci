@@ -91,7 +91,7 @@ export class GeocodificacionService {
     }
 
     this.logger.log(
-      `[GEOCODIFICACION][NORMALIZADOR] \"${texto}\" -> \"${normalizada.canonica}\"${
+      `[GEOCODIFICACION][NORMALIZADOR] "${texto}" -> "${normalizada.canonica}"${
         esCuba ? ' | país=CUBA' : paisBusqueda ? ` | país=${paisBusqueda}` : ''
       }${
         normalizada.codigosPostales?.length
@@ -251,7 +251,7 @@ export class GeocodificacionService {
 
       if (response.status === 404) {
         this.logger.debug(
-          `LocationIQ no encontró resultados para \"${etiqueta}\".`,
+          `LocationIQ no encontró resultados para "${etiqueta}".`,
         );
         return null;
       }
@@ -323,7 +323,7 @@ export class GeocodificacionService {
       return resultado;
     } catch (error) {
       this.logger.warn(
-        `No fue posible geocodificar \"${etiqueta}\": ${
+        `No fue posible geocodificar "${etiqueta}": ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
@@ -384,16 +384,16 @@ export class GeocodificacionService {
     const municipioEsperado = normalizar(esperado.municipio);
 
     if (provinciaEsperada && provincia && provincia !== provinciaEsperada) {
-      return `provincia incompatible: esperada=\"${esperado.provincia}\", recibida=\"${resultado.address?.state ?? ''}\"`;
+      return `provincia incompatible: esperada="${esperado.provincia}", recibida="${resultado.address?.state ?? ''}"`;
     }
 
     if (municipioEsperado && municipio && municipio !== municipioEsperado) {
-      return `municipio incompatible: esperado=\"${esperado.municipio}\", recibido=\"${resultado.address?.municipality ?? resultado.address?.city ?? resultado.address?.town ?? resultado.address?.village ?? ''}\"`;
+      return `municipio incompatible: esperado="${esperado.municipio}", recibido="${resultado.address?.municipality ?? resultado.address?.city ?? resultado.address?.town ?? resultado.address?.village ?? ''}"`;
     }
 
     const esCubaEsperado = this.esProvinciaCubana(provinciaEsperada);
     if (esCubaEsperado && pais && pais !== 'CUBA') {
-      return `país incompatible: esperado=\"CUBA\", recibido=\"${resultado.address?.country ?? ''}\"`;
+      return `país incompatible: esperado="CUBA", recibido="${resultado.address?.country ?? ''}"`;
     }
 
     if (esCubaEsperado && !pais && !provincia) {
@@ -480,6 +480,13 @@ export class GeocodificacionService {
       const valor = this.limpiarValorMarcador(
         texto.slice(inicioValor, finValor),
       );
+
+      if (marcador === 'CALLE') {
+        if (valor && !resultado.calle) {
+          resultado.calle = valor;
+        }
+        continue;
+      }
 
       if (!valor) continue;
 
