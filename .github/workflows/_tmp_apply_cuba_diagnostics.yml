@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/geocoding-cuba-territory-diagnostics
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -72,8 +75,6 @@ jobs:
               "      const motivoRechazo = this.obtenerMotivoIncompatibilidad(\n        resultado,\n        direccionEsperada,\n      );\n\n      if (motivoRechazo) {\n        this.logger.warn(\n          `[GEOCODIFICACION][VALIDACION][RECHAZADA] ${JSON.stringify({\n            etiqueta,\n            displayName: resultado.displayName,\n            motivo: motivoRechazo,\n          })}`,\n        );\n        return null;\n      }\n\n      this.logger.log(\n        `[GEOCODIFICACION][VALIDACION][ACEPTADA] ${JSON.stringify({\n          etiqueta,\n          displayName: resultado.displayName,\n        })}`,\n      );",
           )
           geo.write_text(text)
-
-          print('Cambios diagnósticos aplicados')
 
       - name: Format with repository Prettier 3.9.6
         run: npx prettier@3.9.6 --write apps/api/src/geocodificacion/cuba-aware-geocodificacion.service.ts apps/api/src/geocodificacion/geocodificacion.service.ts
