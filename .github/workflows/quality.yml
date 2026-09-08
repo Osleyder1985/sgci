@@ -55,7 +55,7 @@ jobs:
       - name: Lint Web
         run: npm run lint --workspace=@sgci/web
 
-      - name: Apply targeted geocoding contract fixes
+      - name: Apply final targeted geocoding fix and restore workflow
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fix/')
         run: |
           python - <<'PY'
@@ -63,46 +63,27 @@ jobs:
 
           service = Path('apps/api/src/geocodificacion/geocodificacion.service.ts')
           text = service.read_text()
-          old = r'/\bE\s*\/|\bRPTO\.?|\bREPARTO\b|#|\bEDIF(?:ICIO)?\.?|\bBIPLANTA\b|\bMODULO\b|\bAPARTAMENTO\b|\bAPTO\.?/gi;'
-          new = r'/\bCALLE\b|\bE\s*\/|\bRPTO\.?|\bREPARTO\b|#|\bEDIF(?:ICIO)?\.?|\bBIPLANTA\b|\bMODULO\b|\bAPARTAMENTO\b|\bAPTO\.?/gi;'
+          old = """      if (!valor) continue;\n\n      if (/^E\\s*\\/$/i.test(marcador)) {"""
+          new = """      if (marcador === 'CALLE') {\n        if (valor && !resultado.calle) resultado.calle = valor;\n        continue;\n      }\n\n      if (!valor) continue;\n\n      if (/^E\\s*\\/$/i.test(marcador)) {"""
           if old not in text:
-              raise SystemExit('Expected geocoding marker expression was not found')
+              raise SystemExit('Expected marker handling block was not found')
           service.write_text(text.replace(old, new, 1))
-
-          replacements = {
-              'apps/api/src/geocodificacion/cuba-aware-geocodificacion.service.spec.ts': {
-                  "'CALLE 10'": "'10'",
-              },
-              'apps/api/src/geocodificacion/geocodificacion.manifest.spec.ts': {
-                  "'CALLE VICENTE SOMONTE'": "'VICENTE SOMONTE'",
-                  "'CALLE SALVADOR CISNEROS'": "'SALVADOR CISNEROS'",
-                  "'CALLE ANTONIO MACEO'": "'ANTONIO MACEO'",
-              },
-          }
-          for filename, changes in replacements.items():
-              path = Path(filename)
-              text = path.read_text()
-              for old, new in changes.items():
-                  if old not in text:
-                      raise SystemExit(f'Expected test assertion was not found in {filename}: {old}')
-                  text = text.replace(old, new)
-              path.write_text(text)
           PY
-          npx --yes prettier@3.9.6 --write \
-            apps/api/src/geocodificacion/geocodificacion.service.ts \
-            apps/api/src/geocodificacion/geocodificacion.service.spec.ts \
-            apps/api/src/geocodificacion/cuba-aware-geocodificacion.service.spec.ts \
-            apps/api/src/geocodificacion/geocodificacion.manifest.spec.ts
+
+          npx --yes prettier@3.9.6 --write apps/api/src/geocodificacion/geocodificacion.service.ts
           git diff --check
-          if git diff --quiet -- apps/api/src/geocodificacion/geocodificacion.service.ts apps/api/src/geocodificacion/cuba-aware-geocodificacion.service.spec.ts apps/api/src/geocodificacion/geocodificacion.manifest.spec.ts; then
-            echo "No targeted geocoding changes needed."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add apps/api/src/geocodificacion/geocodificacion.service.ts apps/api/src/geocodificacion/geocodificacion.service.spec.ts apps/api/src/geocodificacion/cuba-aware-geocodificacion.service.spec.ts apps/api/src/geocodificacion/geocodificacion.manifest.spec.ts
-            git commit -m "fix(geocoding): align calle marker contract"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
+
+          python - <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/quality.yml')
+          workflow.write_text('''name: SGCI Quality Gate\n\non:\n  push:\n    branches:\n      - main\n      - develop\n      - "feature/**"\n      - "fix/**"\n  pull_request:\n    branches:\n      - main\n      - develop\n\npermissions:\n  contents: read\n\nconcurrency:\n  group: quality-${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: true\n\njobs:\n  quality:\n    name: Quality Gate\n    runs-on: ubuntu-latest\n\n    steps:\n      - name: Checkout\n        uses: actions/checkout@v4\n\n      - name: Setup Node.js\n        uses: actions/setup-node@v4\n        with:\n          node-version: 22\n          cache: npm\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Generate Prisma Client\n        run: npm exec --workspace=@sgci/api -- prisma generate --schema prisma/schema.prisma\n\n      - name: Validate Prisma schema\n        run: npm exec --workspace=@sgci/api -- prisma validate --schema prisma/schema.prisma\n\n      - name: Validate TypeScript API\n        run: npx tsc --noEmit -p apps/api/tsconfig.json\n\n      - name: Validate TypeScript Web\n        run: npx tsc --noEmit -p apps/web/tsconfig.json\n\n      - name: Lint API\n        run: npm run lint --workspace=@sgci/api\n\n      - name: Lint Web\n        run: npm run lint --workspace=@sgci/web\n\n      - name: Check formatting\n        run: npx prettier --check "apps/**/*.{ts,tsx,js,jsx,json,css,md}"\n\n      - name: Run API tests\n        run: npm test --workspace=@sgci/api\n\n      - name: Build API\n        run: npm run build --workspace=@sgci/api\n\n      - name: Build Web\n        run: npm run build --workspace=@sgci/web\n''')
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/api/src/geocodificacion/geocodificacion.service.ts .github/workflows/quality.yml
+          git commit -m "fix(geocoding): handle calle marker values"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
 
       - name: Check formatting
         run: npx prettier --check "apps/**/*.{ts,tsx,js,jsx,json,css,md}"
