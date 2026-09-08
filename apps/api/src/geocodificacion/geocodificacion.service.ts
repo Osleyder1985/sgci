@@ -91,7 +91,7 @@ export class GeocodificacionService {
     }
 
     this.logger.log(
-      `[GEOCODIFICACION][NORMALIZADOR] "${texto}" -> "${normalizada.canonica}"${
+      `[GEOCODIFICACION][NORMALIZADOR] \"${texto}\" -> \"${normalizada.canonica}\"${
         esCuba ? ' | país=CUBA' : paisBusqueda ? ` | país=${paisBusqueda}` : ''
       }${
         normalizada.codigosPostales?.length
@@ -180,7 +180,7 @@ export class GeocodificacionService {
 
     const urlDiagnostico = new URL(url);
     urlDiagnostico.searchParams.delete('key');
-    this.logger.debug(
+    this.logger.log(
       `[GEOCODIFICACION][CONSULTA_ESTRUCTURADA] ${urlDiagnostico.toString()}`,
     );
 
@@ -220,7 +220,7 @@ export class GeocodificacionService {
 
     const urlDiagnostico = new URL(url);
     urlDiagnostico.searchParams.delete('key');
-    this.logger.debug(
+    this.logger.log(
       `[GEOCODIFICACION][CONSULTA_FALLBACK] ${urlDiagnostico.toString()}`,
     );
 
@@ -251,7 +251,7 @@ export class GeocodificacionService {
 
       if (response.status === 404) {
         this.logger.debug(
-          `LocationIQ no encontró resultados para "${etiqueta}".`,
+          `LocationIQ no encontró resultados para \"${etiqueta}\".`,
         );
         return null;
       }
@@ -261,7 +261,7 @@ export class GeocodificacionService {
       }
 
       const result = (await response.json()) as LocationIqResult[];
-      this.logger.debug(
+      this.logger.log(
         `[GEOCODIFICACION][LOCATIONIQ][RESPUESTA] ${JSON.stringify({
           etiqueta,
           respuesta: result,
@@ -323,7 +323,7 @@ export class GeocodificacionService {
       return resultado;
     } catch (error) {
       this.logger.warn(
-        `No fue posible geocodificar "${etiqueta}": ${
+        `No fue posible geocodificar \"${etiqueta}\": ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
@@ -384,16 +384,16 @@ export class GeocodificacionService {
     const municipioEsperado = normalizar(esperado.municipio);
 
     if (provinciaEsperada && provincia && provincia !== provinciaEsperada) {
-      return `provincia incompatible: esperada="${esperado.provincia}", recibida="${resultado.address?.state ?? ''}"`;
+      return `provincia incompatible: esperada=\"${esperado.provincia}\", recibida=\"${resultado.address?.state ?? ''}\"`;
     }
 
     if (municipioEsperado && municipio && municipio !== municipioEsperado) {
-      return `municipio incompatible: esperado="${esperado.municipio}", recibido="${resultado.address?.municipality ?? resultado.address?.city ?? resultado.address?.town ?? resultado.address?.village ?? ''}"`;
+      return `municipio incompatible: esperado=\"${esperado.municipio}\", recibido=\"${resultado.address?.municipality ?? resultado.address?.city ?? resultado.address?.town ?? resultado.address?.village ?? ''}\"`;
     }
 
     const esCubaEsperado = this.esProvinciaCubana(provinciaEsperada);
     if (esCubaEsperado && pais && pais !== 'CUBA') {
-      return `país incompatible: esperado="CUBA", recibido="${resultado.address?.country ?? ''}"`;
+      return `país incompatible: esperado=\"CUBA\", recibido=\"${resultado.address?.country ?? ''}\"`;
     }
 
     if (esCubaEsperado && !pais && !provincia) {
@@ -472,9 +472,7 @@ export class GeocodificacionService {
       restante = restante.slice(0, reparto.index).trim();
     }
 
-    const edificio = restante.match(
-      /\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i,
-    );
+    const edificio = restante.match(/\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i);
     if (edificio) {
       resultado.edificio = edificio[1];
       restante = `${restante.slice(0, edificio.index)} ${restante.slice(
