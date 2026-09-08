@@ -2,12 +2,16 @@ import 'dotenv/config';
 
 import { Pool } from 'pg';
 
-import {
+import type { EcuredProvinceCatalog } from '../src/geocodificacion/ecured-cuba.catalog.js';
+
+const {
   ECURED_CUBA_SYNC_PROVINCES,
   ecuredLocalidadesUrl,
   normalizarTerritorio,
   parsearPaginaEcured,
-} from '../src/geocodificacion/ecured-cuba.catalog.js';
+} = await import(
+  new URL('../src/geocodificacion/ecured-cuba.catalog.ts', import.meta.url).href
+);
 
 const MUNICIPIO_ALIASES: Record<string, string> = {
   'HABANA DEL ESTE': 'LA HABANA DEL ESTE',
@@ -58,10 +62,8 @@ async function main(): Promise<void> {
     const catalogos: Array<{
       provincia: string;
       provinciaDbId: number;
-      localidades: ReturnType<typeof parsearPaginaEcured>['localidades'];
-      consejosPopulares: ReturnType<
-        typeof parsearPaginaEcured
-      >['consejosPopulares'];
+      localidades: EcuredProvinceCatalog['localidades'];
+      consejosPopulares: EcuredProvinceCatalog['consejosPopulares'];
     }> = [];
 
     for (const provincia of ECURED_CUBA_SYNC_PROVINCES) {
