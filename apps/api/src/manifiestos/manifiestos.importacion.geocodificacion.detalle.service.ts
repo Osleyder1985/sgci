@@ -16,10 +16,7 @@ export interface GeocodificacionDetalle {
 export class ManifiestosImportacionGeocodificacionDetalleService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async guardarDesdeWarnings(
-    jobId: string,
-    warnings: string[],
-  ): Promise<void> {
+  async guardarDesdeWarnings(jobId: string, warnings: string[]): Promise<void> {
     const detalles: GeocodificacionDetalle[] = warnings.flatMap(
       (warning): GeocodificacionDetalle[] => {
         const notFound = warning.match(
@@ -75,7 +72,9 @@ export class ManifiestosImportacionGeocodificacionDetalleService {
     `;
 
     const value = rows[0]?.geocodingDetails;
-    return Array.isArray(value) ? (value as GeocodificacionDetalle[]) : [];
+    return Array.isArray(value)
+      ? (value as GeocodificacionDetalle[])
+      : [];
   }
 
   async limpiar(jobId: string): Promise<void> {
