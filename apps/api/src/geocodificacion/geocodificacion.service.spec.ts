@@ -7,6 +7,7 @@ describe('GeocodificacionService', () => {
     (
       service as unknown as {
         normalizarDireccionCubana: (value: string) => {
+          tipoVia?: string;
           calle?: string;
           numeroCasa?: string;
           entreCalles?: string;
@@ -15,6 +16,7 @@ describe('GeocodificacionService', () => {
           reparto?: string;
           municipio?: string;
           provincia?: string;
+          codigosPostales?: readonly string[];
           canonica: string;
         };
       }
@@ -55,6 +57,7 @@ describe('GeocodificacionService', () => {
         city?: string;
         town?: string;
         village?: string;
+        suburb?: string;
         state?: string;
         country?: string;
       };
@@ -70,20 +73,50 @@ describe('GeocodificacionService', () => {
       }
     ).obtenerMotivoIncompatibilidad(resultado, esperado);
 
+  const calcularPuntuacion = (
+    resultado: {
+      lat: number;
+      lon: number;
+      displayName: string;
+      address?: {
+        road?: string;
+        houseNumber?: string;
+        municipality?: string;
+        city?: string;
+        town?: string;
+        village?: string;
+        suburb?: string;
+        state?: string;
+        country?: string;
+        postcode?: string;
+      };
+    },
+    esperado: ReturnType<typeof normalizar>,
+  ) =>
+    (
+      service as unknown as {
+        calcularPuntuacion: (
+          result: typeof resultado,
+          expected: typeof esperado,
+        ) => { total: number; maximo: 5; estrellas: number };
+      }
+    ).calcularPuntuacion(resultado, esperado);
+
   it('normaliza calle, número, entrecalles, municipio y provincia y elimina Zona', () => {
     const result = normalizar(
       'CALLE VICENTE SOMONTE # 16 E/ AGRAMONTE Y MARTI, GUAIMARO, CAMAGUEY (Zona 4)',
     );
 
     expect(result).toMatchObject({
-      calle: 'CALLE VICENTE SOMONTE',
+      tipoVia: 'CALLE',
+      calle: 'VICENTE SOMONTE',
       numeroCasa: '16',
       entreCalles: 'AGRAMONTE Y MARTI',
       municipio: 'GUAIMARO',
       provincia: 'CAMAGUEY',
     });
     expect(result.canonica).toBe(
-      'CALLE VICENTE SOMONTE, 16, AGRAMONTE Y MARTI, GUAIMARO, CAMAGUEY',
+      'CALLE VICENTE SOMONTE, 16, E/ AGRAMONTE Y MARTI, GUAIMARO, CAMAGUEY',
     );
   });
 
@@ -214,6 +247,46 @@ describe('GeocodificacionService', () => {
           address: {
             municipality: 'Guáimaro',
             state: 'Camagüey',
+            country: 'Cuba',
+          },
+        },
+        esperado,
+      ),
+    ).toBeNull();
+  });
+
+  it('separa los delimitadores semánticos y elimina las palabras clave de los valores', () => {
+    const result = normalizar(
+      'AVENIDA 37 RPTO COCOSOLO # 14011 EDIF 18A APARTAMENTO B6 E/ 140 Y 142, MARIANAO, LA HABANA',
+    );
+
+    expect(result).toMatchObject({
+      tipoVia: 'AVENIDA',
+      calle: '37',
+      reparto: 'COCOSOLO',
+      numeroCasa: '14011',
+      edificio: '18A',
+      apartamento: 'B6',
+      entreCalles: '140 Y 142',
+      municipio: 'MARIANAO',
+      provincia: 'LA HABANA',
+    });
+  });
+
+  it('acepta municipio cuando LocationIQ lo devuelve en suburb', () => {
+    const esperado = normalizar('AVENIDA 37, MARIANAO, LA HABANA');
+    esperado.codigosPostales = ['11500'];
+
+    expect(
+      resultadoCompatible(
+        {
+          lat: 23.07,
+          lon: -82.43,
+          displayName: 'Avenida 37, Marianao, La Habana, Cuba',
+          address: {
+            municipality: 'Diez de Octubre',
+            suburb: 'Marianao',
+            state: 'La Habana',
             country: 'Cuba',
           },
         },

@@ -2,10 +2,24 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { CODIGOS_POSTALES_CUBA, clavePostal } from './codigos-postales-cuba.js';
 
+export interface PuntuacionGeocodificacion {
+  total: number;
+  maximo: 5;
+  estrellas: number;
+  coincidencias: {
+    pais: boolean;
+    provincia: boolean;
+    municipio: boolean;
+    codigoPostal: boolean;
+    direccion: boolean;
+  };
+}
+
 export interface GeocodingResult {
   lat: number;
   lon: number;
   displayName: string;
+  puntuacion?: PuntuacionGeocodificacion;
   address?: {
     road?: string;
     houseNumber?: string;
@@ -13,6 +27,7 @@ export interface GeocodingResult {
     town?: string;
     village?: string;
     municipality?: string;
+    suburb?: string;
     state?: string;
     country?: string;
     postcode?: string;
@@ -26,6 +41,7 @@ interface LocationIqAddress {
   town?: string;
   village?: string;
   municipality?: string;
+  suburb?: string;
   state?: string;
   country?: string;
   postcode?: string;
@@ -39,6 +55,7 @@ interface LocationIqResult {
 }
 
 interface DireccionCubanaNormalizada {
+  tipoVia?: string;
   calle?: string;
   numeroCasa?: string;
   entreCalles?: string;
@@ -145,18 +162,10 @@ export class GeocodificacionService {
     url.searchParams.set('country', 'CUBA');
     url.searchParams.set('postalcode', codigoPostal);
 
-    const street = [
-      direccion.calle,
-      direccion.numeroCasa ? `# ${direccion.numeroCasa}` : undefined,
-      direccion.entreCalles ? `E/ ${direccion.entreCalles}` : undefined,
-      direccion.apartamento
-        ? `APARTAMENTO ${direccion.apartamento}`
-        : undefined,
-      direccion.edificio ? `EDIFICIO ${direccion.edificio}` : undefined,
-      direccion.reparto ? `REPARTO ${direccion.reparto}` : undefined,
-    ]
+    const nombreVia = [direccion.tipoVia, direccion.calle]
       .filter(Boolean)
-      .join(', ');
+      .join(' ');
+    const street = [direccion.numeroCasa, nombreVia].filter(Boolean).join(', ');
 
     if (street) {
       url.searchParams.set('street', street);
@@ -291,11 +300,27 @@ export class GeocodificacionService {
           town: firstResult.address?.town,
           village: firstResult.address?.village,
           municipality: firstResult.address?.municipality,
+          suburb: firstResult.address?.suburb,
           state: firstResult.address?.state,
           country: firstResult.address?.country,
           postcode: firstResult.address?.postcode,
         },
       };
+
+      resultado.puntuacion = this.calcularPuntuacion(
+        resultado,
+        direccionEsperada,
+      );
+
+      this.logger.log(
+        `[GEOCODIFICACION][PUNTUACION] ${JSON.stringify({
+          etiqueta,
+          displayName: resultado.displayName,
+          puntuacion: `${resultado.puntuacion.total}/5`,
+          estrellas: resultado.puntuacion.estrellas,
+          coincidencias: resultado.puntuacion.coincidencias,
+        })}`,
+      );
 
       const motivoRechazo = this.obtenerMotivoIncompatibilidad(
         resultado,
@@ -317,6 +342,7 @@ export class GeocodificacionService {
         `[GEOCODIFICACION][VALIDACION][ACEPTADA] ${JSON.stringify({
           etiqueta,
           displayName: resultado.displayName,
+          puntuacion: resultado.puntuacion,
         })}`,
       );
 
@@ -356,13 +382,78 @@ export class GeocodificacionService {
     );
   }
 
+  private calcularPuntuacion(
+    resultado: GeocodingResult,
+    esperado: DireccionCubanaNormalizada,
+  ): PuntuacionGeocodificacion {
+    const normalizar = (value?: string) =>
+      (value ?? '')
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Z0-9]+/g, ' ')
+        .trim();
+
+    const esperadoPais = this.esDireccionCubana(esperado.canonica, esperado)
+      ? 'CUBA'
+      : undefined;
+    const esperadoProvincia = normalizar(esperado.provincia);
+    const esperadoMunicipio = normalizar(esperado.municipio);
+    const esperadosPostales = new Set(
+      (esperado.codigosPostales ?? []).map((codigo) => normalizar(codigo)),
+    );
+
+    const municipiosRecibidos = [
+      resultado.address?.municipality,
+      resultado.address?.suburb,
+      resultado.address?.city,
+      resultado.address?.town,
+      resultado.address?.village,
+    ].map(normalizar);
+
+    const pais =
+      !esperadoPais || normalizar(resultado.address?.country) === esperadoPais;
+    const provincia =
+      !esperadoProvincia ||
+      normalizar(resultado.address?.state) === esperadoProvincia;
+    const municipio =
+      !esperadoMunicipio || municipiosRecibidos.includes(esperadoMunicipio);
+    const codigoPostal =
+      !esperadosPostales.size ||
+      esperadosPostales.has(normalizar(resultado.address?.postcode));
+
+    const viaEsperada = normalizar(
+      [esperado.tipoVia, esperado.calle].filter(Boolean).join(' '),
+    );
+    const numeroEsperado = normalizar(esperado.numeroCasa);
+    const viaRecibida = normalizar(resultado.address?.road);
+    const numeroRecibido = normalizar(resultado.address?.houseNumber);
+    const direccion =
+      (!viaEsperada || viaRecibida === viaEsperada) &&
+      (!numeroEsperado || numeroRecibido === numeroEsperado);
+
+    const coincidencias = {
+      pais,
+      provincia,
+      municipio,
+      codigoPostal,
+      direccion,
+    };
+    const total = Object.values(coincidencias).filter(Boolean).length;
+
+    return {
+      total,
+      maximo: 5,
+      estrellas: total,
+      coincidencias,
+    };
+  }
+
   private obtenerMotivoIncompatibilidad(
     resultado: GeocodingResult,
     esperado: DireccionCubanaNormalizada,
   ): string | null {
-    if (!esperado.provincia && !esperado.municipio) {
-      return null;
-    }
+    if (!esperado.provincia && !esperado.municipio) return null;
 
     const normalizar = (value?: string) =>
       (value ?? '')
@@ -374,26 +465,32 @@ export class GeocodificacionService {
 
     const pais = normalizar(resultado.address?.country);
     const provincia = normalizar(resultado.address?.state);
-    const municipio = normalizar(
-      resultado.address?.municipality ??
-        resultado.address?.city ??
-        resultado.address?.town ??
-        resultado.address?.village,
-    );
     const provinciaEsperada = normalizar(esperado.provincia);
     const municipioEsperado = normalizar(esperado.municipio);
+    const municipiosRecibidos = [
+      resultado.address?.municipality,
+      resultado.address?.suburb,
+      resultado.address?.city,
+      resultado.address?.town,
+      resultado.address?.village,
+    ].filter((value): value is string => Boolean(value));
+    const municipiosNormalizados = municipiosRecibidos.map(normalizar);
 
     if (provinciaEsperada && provincia && provincia !== provinciaEsperada) {
-      return `provincia incompatible: esperada=\"${esperado.provincia}\", recibida=\"${resultado.address?.state ?? ''}\"`;
+      return `provincia incompatible: esperada="${esperado.provincia}", recibida="${resultado.address?.state ?? ''}"`;
     }
 
-    if (municipioEsperado && municipio && municipio !== municipioEsperado) {
-      return `municipio incompatible: esperado=\"${esperado.municipio}\", recibido=\"${resultado.address?.municipality ?? resultado.address?.city ?? resultado.address?.town ?? resultado.address?.village ?? ''}\"`;
+    if (
+      municipioEsperado &&
+      municipiosNormalizados.length &&
+      !municipiosNormalizados.includes(municipioEsperado)
+    ) {
+      return `municipio incompatible: esperado="${esperado.municipio}", recibido="${municipiosRecibidos.join(' / ')}"`;
     }
 
     const esCubaEsperado = this.esProvinciaCubana(provinciaEsperada);
     if (esCubaEsperado && pais && pais !== 'CUBA') {
-      return `país incompatible: esperado=\"CUBA\", recibido=\"${resultado.address?.country ?? ''}\"`;
+      return `país incompatible: esperado="CUBA", recibido="${resultado.address?.country ?? ''}"`;
     }
 
     if (esCubaEsperado && !pais && !provincia) {
@@ -410,46 +507,51 @@ export class GeocodificacionService {
       .toUpperCase()
       .replace(/[\r\n]+/g, ' ')
       .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\s*\([^)]*ZONA[^)]*\)\s*$/i, '')
       .trim();
-    const sinZona = limpia
-      .replace(/\s*\(\s*ZONA\s*\d+\s*\)\s*$/i, '')
-      .replace(/\s+ZONA\s*\d+\s*$/i, '')
-      .trim();
-    const partes = sinZona
+
+    const partes = limpia
       .split(',')
       .map((parte) => parte.trim().replace(/\s+/g, ' '))
       .filter(Boolean);
-    const resultado: DireccionCubanaNormalizada = { canonica: '' };
 
+    if (partes.at(-1) === 'CUBA') partes.pop();
+
+    const resultado: DireccionCubanaNormalizada = { canonica: '' };
     if (partes.length >= 2) {
-      resultado.provincia = this.limpiarComponente(partes[partes.length - 1]);
-      resultado.municipio = this.limpiarComponente(partes[partes.length - 2]);
+      resultado.provincia = this.limpiarProvincia(partes.at(-1)!);
+      resultado.municipio = this.limpiarComponente(partes.at(-2)!);
     }
 
     const principales = partes.length >= 2 ? partes.slice(0, -2) : partes;
-    this.extraerMarcadores(principales[0] ?? '', resultado);
-    for (const componente of principales.slice(1)) {
-      this.extraerComponente(componente, resultado);
+    for (const componente of principales) {
+      this.extraerMarcadores(componente, resultado);
     }
+
     if (resultado.provincia) {
       resultado.provincia = this.limpiarProvincia(resultado.provincia);
     }
 
+    const nombreVia = [resultado.tipoVia, resultado.calle]
+      .filter(Boolean)
+      .join(' ');
+
     resultado.canonica =
       [
-        resultado.calle,
+        nombreVia || undefined,
         resultado.numeroCasa,
-        resultado.entreCalles,
+        resultado.reparto ? `REPARTO ${resultado.reparto}` : undefined,
+        resultado.edificio ? `EDIFICIO ${resultado.edificio}` : undefined,
         resultado.apartamento
           ? `APARTAMENTO ${resultado.apartamento}`
           : undefined,
-        resultado.edificio ? `EDIFICIO ${resultado.edificio}` : undefined,
-        resultado.reparto ? `REPARTO ${resultado.reparto}` : undefined,
+        resultado.entreCalles ? `E/ ${resultado.entreCalles}` : undefined,
         resultado.municipio,
         resultado.provincia,
       ]
         .filter(Boolean)
-        .join(', ') || sinZona;
+        .join(', ') || limpia;
 
     return resultado;
   }
@@ -458,94 +560,58 @@ export class GeocodificacionService {
     texto: string,
     resultado: DireccionCubanaNormalizada,
   ): void {
-    let restante = texto.trim();
+    const marcador =
+      /(?:\b(?:CALLE|AVENIDA|AVE|RPTO\.?|REPARTO|EDIF(?:ICIO)?\.?|BIPLANTA|APARTAMENTO|APTO\.?)\b|E\s*\/|#)/gi;
+    const coincidencias = [...texto.matchAll(marcador)];
+    if (!coincidencias.length) return;
 
-    const entre = restante.match(/\bE\s*\/\s*(.+)$/i);
-    if (entre) {
-      resultado.entreCalles = this.normalizarEntrecalles(entre[1]);
-      restante = restante.slice(0, entre.index).trim();
+    for (let i = 0; i < coincidencias.length; i += 1) {
+      const actual = coincidencias[i];
+      const siguiente = coincidencias[i + 1];
+      const clave = actual[0].replace(/\./g, '').toUpperCase();
+      const inicio = (actual.index ?? 0) + actual[0].length;
+      const fin = siguiente?.index ?? texto.length;
+      const valor = texto
+        .slice(inicio, fin)
+        .replace(/^[\s,.:]+|[\s,.:]+$/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (
+        !valor &&
+        clave !== 'CALLE' &&
+        clave !== 'AVENIDA' &&
+        clave !== 'AVE'
+      ) {
+        continue;
+      }
+
+      if (clave === 'CALLE' || clave === 'AVENIDA' || clave === 'AVE') {
+        resultado.tipoVia ??= clave === 'AVE' ? 'AVENIDA' : clave;
+        if (valor) resultado.calle ??= valor;
+      } else if (clave === 'RPTO' || clave === 'REPARTO') {
+        if (valor) resultado.reparto ??= valor;
+      } else if (clave === '#') {
+        if (valor) resultado.numeroCasa ??= valor;
+      } else if (
+        clave === 'EDIF' ||
+        clave === 'EDIFICIO' ||
+        clave === 'BIPLANTA'
+      ) {
+        if (valor) resultado.edificio ??= valor;
+      } else if (clave === 'APARTAMENTO' || clave === 'APTO') {
+        if (valor) resultado.apartamento ??= valor;
+      } else if (clave === 'E/') {
+        if (valor) resultado.entreCalles ??= this.normalizarEntrecalles(valor);
+      }
     }
-
-    const reparto = restante.match(/\bRPTO\.?\s+(.+)$/i);
-    if (reparto) {
-      resultado.reparto = reparto[1].trim();
-      restante = restante.slice(0, reparto.index).trim();
-    }
-
-    const edificio = restante.match(/\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i);
-    if (edificio) {
-      resultado.edificio = edificio[1];
-      restante = `${restante.slice(0, edificio.index)} ${restante.slice(
-        (edificio.index ?? 0) + edificio[0].length,
-      )}`.trim();
-    }
-
-    const apartamento = restante.match(
-      /\b(?:APARTAMENTO|APTO\.?)\s*#?\s*([A-Z0-9-]+)/i,
-    );
-    if (apartamento) {
-      resultado.apartamento = apartamento[1];
-      restante = `${restante.slice(0, apartamento.index)} ${restante.slice(
-        (apartamento.index ?? 0) + apartamento[0].length,
-      )}`.trim();
-    }
-
-    const numero = restante.match(/#\s*([A-Z0-9-]+)/i);
-    if (numero) {
-      resultado.numeroCasa = numero[1];
-      restante = `${restante.slice(0, numero.index)} ${restante.slice(
-        (numero.index ?? 0) + numero[0].length,
-      )}`.trim();
-    }
-
-    const calle = this.limpiarComponente(restante);
-    resultado.calle = calle && calle !== 'CALLE' ? calle : undefined;
   }
 
   private extraerComponente(
     componente: string,
     resultado: DireccionCubanaNormalizada,
   ): void {
-    const texto = componente.trim();
-    if (!texto) return;
-
-    const apartamento = texto.match(
-      /^\b(?:APARTAMENTO|APTO\.?)\s*#?\s*([A-Z0-9-]+)\s*$/i,
-    );
-    if (apartamento) {
-      resultado.apartamento ??= apartamento[1];
-      return;
-    }
-
-    const edificio = texto.match(
-      /^\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)\s*$/i,
-    );
-    if (edificio) {
-      resultado.edificio ??= edificio[1];
-      return;
-    }
-
-    const reparto = texto.match(/^\bRPTO\.?\s+(.+)$/i);
-    if (reparto) {
-      resultado.reparto ??= reparto[1].trim();
-      return;
-    }
-
-    const entre = texto.match(/^\bE\s*\/\s*(.+)$/i);
-    if (entre) {
-      resultado.entreCalles ??= this.normalizarEntrecalles(entre[1]);
-      return;
-    }
-
-    const numero = texto.match(/^#\s*([A-Z0-9-]+)$/i);
-    if (numero) {
-      resultado.numeroCasa ??= numero[1];
-      return;
-    }
-
-    if (!resultado.entreCalles && /\b.+\s+Y\s+.+\b/i.test(texto)) {
-      resultado.entreCalles = this.normalizarEntrecalles(texto);
-    }
+    this.extraerMarcadores(componente, resultado);
   }
 
   private normalizarEntrecalles(texto: string): string {
@@ -572,24 +638,28 @@ export class GeocodificacionService {
     pais?: string,
   ): string[] {
     const sufijoPais = pais ? `, ${pais}` : '';
+    const nombreVia = [direccion.tipoVia, direccion.calle]
+      .filter(Boolean)
+      .join(' ');
+
     const completa = [
-      direccion.calle,
       direccion.numeroCasa,
-      direccion.entreCalles,
+      nombreVia || undefined,
+      direccion.reparto ? `REPARTO ${direccion.reparto}` : undefined,
+      direccion.edificio ? `EDIFICIO ${direccion.edificio}` : undefined,
       direccion.apartamento
         ? `APARTAMENTO ${direccion.apartamento}`
         : undefined,
-      direccion.edificio ? `EDIFICIO ${direccion.edificio}` : undefined,
-      direccion.reparto ? `REPARTO ${direccion.reparto}` : undefined,
+      direccion.entreCalles ? `E/ ${direccion.entreCalles}` : undefined,
       direccion.municipio,
       direccion.provincia,
     ]
       .filter(Boolean)
       .join(', ');
+
     const simplificada = [
-      direccion.calle,
       direccion.numeroCasa,
-      direccion.reparto ? `REPARTO ${direccion.reparto}` : undefined,
+      nombreVia || undefined,
       direccion.municipio,
       direccion.provincia,
     ]
@@ -599,7 +669,7 @@ export class GeocodificacionService {
     return [
       ...new Set(
         [
-          `${completa}${sufijoPais}`.trim(),
+          completa ? `${completa}${sufijoPais}`.trim() : '',
           simplificada && simplificada !== completa
             ? `${simplificada}${sufijoPais}`.trim()
             : '',
