@@ -51,7 +51,8 @@ export class CubaTerritorialService {
       .split(',')
       .map((segmento) => this.normalizar(segmento))
       .filter(Boolean);
-    const segmentosTerritoriales = this.obtenerSegmentosTerritoriales(segmentos);
+    const segmentosTerritoriales =
+      this.obtenerSegmentosTerritoriales(segmentos);
     const textoTerritorial = segmentosTerritoriales.join(' ');
 
     if (
@@ -105,7 +106,10 @@ export class CubaTerritorialService {
         textoTerritorial,
         segmentosTerritoriales,
       );
-      if (!localidadSinContexto || this.tieneContextoExtranjero(textoTerritorial)) {
+      if (
+        !localidadSinContexto ||
+        this.tieneContextoExtranjero(textoTerritorial)
+      ) {
         return null;
       }
       return this.resultado(localidadSinContexto);
