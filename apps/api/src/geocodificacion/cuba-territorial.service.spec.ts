@@ -131,3 +131,14 @@ describe('CubaTerritorialService', () => {
     ).resolves.toBeNull();
   });
 });
+
+
+  it('no interpreta un nombre territorial dentro de RPTO como municipio o provincia', async () => {
+    const service = new CubaTerritorialService(prisma as never);
+
+    await expect(
+      service.resolver(
+        'CALLE EDIFICIO 428, RPTO CAMILO CIENFUEGOS # 5 E/ 1RA B, HABANA DEL ESTE, LA HABANA',
+      ),
+    ).resolves.toBeNull();
+  });
