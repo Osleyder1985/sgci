@@ -130,8 +130,6 @@ describe('CubaTerritorialService', () => {
       service.resolver('CAMAGUEY STREET 10, MIAMI, FLORIDA'),
     ).resolves.toBeNull();
   });
-});
-
 
   it('no interpreta un nombre territorial dentro de RPTO como municipio o provincia', async () => {
     const service = new CubaTerritorialService(prisma as never);
@@ -142,3 +140,4 @@ describe('CubaTerritorialService', () => {
       ),
     ).resolves.toBeNull();
   });
+});
