@@ -46,9 +46,8 @@ export class CubaAwareGeocodificacionService extends GeocodificacionService {
       .filter(Boolean);
     const ultimoComponente = partesOriginales.at(-1)?.toUpperCase();
     const esCubaExplicito =
-      ultimoComponente
-        ?.normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '') === 'CUBA';
+      ultimoComponente?.normalize('NFD').replace(/[\u0300-\u036f]/g, '') ===
+      'CUBA';
 
     if (esCubaExplicito) {
       if (partesOriginales.length < 3) {
