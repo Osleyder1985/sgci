@@ -1,1 +1,0 @@
-La fuente persistida de un manifiesto se normaliza a Buffer al recuperarse desde PostgreSQL para mantener el contrato del parser XLSX.
