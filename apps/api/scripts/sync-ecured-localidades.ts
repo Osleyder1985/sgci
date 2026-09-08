@@ -2,6 +2,9 @@ import 'dotenv/config';
 
 import { Pool } from 'pg';
 
+// Node 24 executes this script directly with --experimental-strip-types.
+// The runtime requires the .ts extension, while the shared API tsconfig rejects it.
+// @ts-expect-error TS5097: intentional runtime .ts import for this standalone script.
 import {
   ECURED_CUBA_SYNC_PROVINCES,
   ecuredLocalidadesUrl,
