@@ -6,6 +6,8 @@ import { ManifiestosDiagnosticoService } from './manifiestos.diagnostico.service
 import { ManifiestosImportacionProgressService } from './manifiestos.importacion.progress.service.js';
 import { ManifiestosImportacionProgressDisplayService } from './manifiestos.importacion.progress.display.service.js';
 import { ManifiestosImportacionEscalableService } from './manifiestos.importacion.escalable.service.js';
+import { ManifiestosImportacionObservableService } from './manifiestos.importacion.observable.service.js';
+import { ManifiestosImportacionGeocodificacionDetalleService } from './manifiestos.importacion.geocodificacion.detalle.service.js';
 import { ManifiestosImportacionSourceService } from './manifiestos.importacion.source.service.js';
 import { ManifiestosImportacionWorker } from './manifiestos.importacion.worker.js';
 import { ManifiestosService } from './manifiestos.service.js';
@@ -21,7 +23,12 @@ import { ManifiestoParser } from './parsers/manifiesto.parser.js';
       provide: ManifiestosImportacionProgressService,
       useClass: ManifiestosImportacionProgressDisplayService,
     },
-    ManifiestosImportacionEscalableService,
+    {
+      provide: ManifiestosImportacionEscalableService,
+      useClass: ManifiestosImportacionObservableService,
+    },
+    ManifiestosImportacionObservableService,
+    ManifiestosImportacionGeocodificacionDetalleService,
     ManifiestosImportacionSourceService,
     ManifiestosImportacionWorker,
     ManifiestoParser,

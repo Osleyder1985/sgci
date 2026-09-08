@@ -13,6 +13,7 @@ import { memoryStorage } from 'multer';
 import { ManifiestosDiagnosticoService } from './manifiestos.diagnostico.service.js';
 import { ManifiestosImportacionProgressService } from './manifiestos.importacion.progress.service.js';
 import { ManifiestosImportacionEscalableService } from './manifiestos.importacion.escalable.service.js';
+import { ManifiestosImportacionGeocodificacionDetalleService } from './manifiestos.importacion.geocodificacion.detalle.service.js';
 import { ManifiestosImportacionSourceService } from './manifiestos.importacion.source.service.js';
 import { ManifiestosService } from './manifiestos.service.js';
 
@@ -37,6 +38,7 @@ export class ManifiestosController {
     private readonly scalableImport: ManifiestosImportacionEscalableService,
     private readonly progress: ManifiestosImportacionProgressService,
     private readonly source: ManifiestosImportacionSourceService,
+    private readonly geocodificacionDetalles: ManifiestosImportacionGeocodificacionDetalleService,
   ) {}
 
   @Post('importar/preview')
@@ -129,6 +131,25 @@ export class ManifiestosController {
       );
     }
     return { ok: true, progress: job };
+  }
+
+  @Get('importar/job/:jobId/geocodificacion')
+  async getGeocodificacionDetalles(@Param('jobId') jobId: string) {
+    const job = await this.progress.get(jobId);
+    if (!job) {
+      throw new NotFoundException(
+        'No existe el trabajo de importación solicitado.',
+      );
+    }
+
+    return {
+      ok: true,
+      jobId,
+      total: job.addressesNotFound + job.addressesReview,
+      noEncontradas: job.addressesNotFound,
+      revision: job.addressesReview,
+      detalles: await this.geocodificacionDetalles.obtener(jobId),
+    };
   }
 
   private validarArchivo(

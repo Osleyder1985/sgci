@@ -282,6 +282,8 @@ export class ManifiestosImportacionEscalableService {
         warnings: [...parsed.warnings, ...direcciones.warnings],
       };
 
+      await this.persistImportWarnings(jobId, response.warnings);
+
       importCompleted = true;
 
       await this.progress?.complete(jobId, response.mensaje, {
@@ -341,6 +343,11 @@ export class ManifiestosImportacionEscalableService {
       throw new BadRequestException(String(error));
     }
   }
+
+  protected async persistImportWarnings(
+    _jobId: string,
+    _warnings: string[],
+  ): Promise<void> {}
 
   private async cleanupFailedImport(ctx: ImportRollbackContext) {
     if (
