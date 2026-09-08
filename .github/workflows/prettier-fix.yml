@@ -1,0 +1,44 @@
+name: Temporary Prettier Fix
+
+on:
+  push:
+    branches:
+      - "fix/geocoding-locationiq-structured-postalcode"
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: fix/geocoding-locationiq-structured-postalcode
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Format with exact project Prettier
+        run: npx --yes prettier@3.9.6 --write apps/api/src/geocodificacion/geocodificacion.service.ts
+
+      - name: Verify formatting with exact Prettier
+        run: npx --yes prettier@3.9.6 --check apps/api/src/geocodificacion/geocodificacion.service.ts
+
+      - name: Commit formatted file and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/api/src/geocodificacion/geocodificacion.service.ts .github/workflows/prettier-fix.yml
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "style(geocoding): apply Prettier 3.9.6"
+          git push origin HEAD:fix/geocoding-locationiq-structured-postalcode
