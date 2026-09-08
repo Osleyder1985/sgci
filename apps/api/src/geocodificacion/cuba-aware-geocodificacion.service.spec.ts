@@ -49,7 +49,9 @@ describe('CubaAwareGeocodificacionService', () => {
     });
 
     const url = fetchMock.mock.calls[0]?.[0] as URL;
-    expect(url.searchParams.get('q')).toBe('CALLE 10, MARIANAO, LA HABANA');
+    expect(url.searchParams.get('q')).toBe(
+      'CALLE 10, MARIANAO, LA HABANA, CUBA',
+    );
     expect(url.searchParams.get('countrycodes')).toBe('cu');
   });
 
@@ -104,6 +106,6 @@ describe('CubaAwareGeocodificacionService', () => {
     await service.geocodificar('CALLE 10', 'MEXICO');
 
     const url = fetchMock.mock.calls[0]?.[0] as URL;
-    expect(url.searchParams.get('q')).toBe('CALLE 10, MARIANAO, LA HABANA');
+    expect(url.searchParams.get('q')).toBe('CALLE 10, MARIANAO, LA HABANA, CUBA');
   });
 });
