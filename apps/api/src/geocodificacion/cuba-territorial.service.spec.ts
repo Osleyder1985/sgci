@@ -9,6 +9,8 @@ describe('CubaTerritorialService', () => {
         return [
           { id: 1, nombre: 'La Habana', nombreNormalizado: 'LA HABANA' },
           { id: 2, nombre: 'Camagüey', nombreNormalizado: 'CAMAGUEY' },
+          { id: 3, nombre: 'Granma', nombreNormalizado: 'GRANMA' },
+          { id: 4, nombre: 'Cienfuegos', nombreNormalizado: 'CIENFUEGOS' },
         ];
       }
 
@@ -37,6 +39,18 @@ describe('CubaTerritorialService', () => {
             provinciaId: 2,
             nombre: 'Camagüey',
             nombreNormalizado: 'CAMAGUEY',
+          },
+          {
+            id: 5,
+            provinciaId: 3,
+            nombre: 'Manzanillo',
+            nombreNormalizado: 'MANZANILLO',
+          },
+          {
+            id: 6,
+            provinciaId: 4,
+            nombre: 'Cienfuegos',
+            nombreNormalizado: 'CIENFUEGOS',
           },
         ];
       }
@@ -129,5 +143,29 @@ describe('CubaTerritorialService', () => {
     await expect(
       service.resolver('CAMAGUEY STREET 10, MIAMI, FLORIDA'),
     ).resolves.toBeNull();
+  });
+
+  it('no confunde CIENFUEGOS dentro de una entrecalle con el territorio de la dirección', async () => {
+    const service = new CubaTerritorialService(prisma as never);
+
+    await expect(
+      service.resolver(
+        'CALLE 17, MODULO 5, RPTO NUEVO MANZANILLO E/ AVE CAMILO CIENFUEGOS Y 8VA RPTO. B, MANZANILLO, GRANMA',
+      ),
+    ).resolves.toMatchObject({
+      provincia: 'Granma',
+      municipio: 'Manzanillo',
+    });
+  });
+
+  it('resuelve correctamente cuando municipio y provincia tienen el mismo nombre', async () => {
+    const service = new CubaTerritorialService(prisma as never);
+
+    await expect(
+      service.resolver('CALLE 10 # 5, CIENFUEGOS, CIENFUEGOS'),
+    ).resolves.toMatchObject({
+      provincia: 'Cienfuegos',
+      municipio: 'Cienfuegos',
+    });
   });
 });
