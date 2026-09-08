@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { CubaAwareGeocodificacionService } from './cuba-aware-geocodificacion.service.js';
 
 describe('CubaAwareGeocodificacionService', () => {
