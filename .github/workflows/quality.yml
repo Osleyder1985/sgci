@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -56,7 +58,7 @@ jobs:
         run: npm run lint --workspace=@sgci/web
 
       - name: Apply final targeted geocoding fix and restore workflow
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fix/')
+        if: github.event_name == 'pull_request'
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -83,7 +85,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add apps/api/src/geocodificacion/geocodificacion.service.ts .github/workflows/quality.yml
           git commit -m "fix(geocoding): handle calle marker values"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_HEAD_REF}"
 
       - name: Check formatting
         run: npx prettier --check "apps/**/*.{ts,tsx,js,jsx,json,css,md}"
