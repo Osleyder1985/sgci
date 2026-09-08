@@ -94,7 +94,7 @@ export class GeocodificacionService {
     }
 
     this.logger.log(
-      `Geocodificando: "${texto}" -> "${normalizada.canonica}"${
+      `Geocodificando: \"${texto}\" -> \"${normalizada.canonica}\"${
         esCuba ? ' | país=CUBA' : paisBusqueda ? ` | país=${paisBusqueda}` : ''
       }${
         normalizada.codigosPostales?.length
@@ -242,7 +242,7 @@ export class GeocodificacionService {
 
       if (response.status === 404) {
         this.logger.debug(
-          `LocationIQ no encontró resultados para "${etiqueta}".`,
+          `LocationIQ no encontró resultados para \"${etiqueta}\".`,
         );
         return null;
       }
@@ -284,7 +284,7 @@ export class GeocodificacionService {
 
       if (!this.esResultadoCompatible(resultado, direccionEsperada)) {
         this.logger.warn(
-          `LocationIQ devolvió una ubicación incompatible con la dirección solicitada: "${etiqueta}" -> "${resultado.displayName}".`,
+          `LocationIQ devolvió una ubicación incompatible con la dirección solicitada: \"${etiqueta}\" -> \"${resultado.displayName}\".`,
         );
         return null;
       }
@@ -292,7 +292,7 @@ export class GeocodificacionService {
       return resultado;
     } catch (error) {
       this.logger.warn(
-        `No fue posible geocodificar "${etiqueta}": ${
+        `No fue posible geocodificar \"${etiqueta}\": ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
@@ -441,7 +441,9 @@ export class GeocodificacionService {
       restante = restante.slice(0, reparto.index).trim();
     }
 
-    const edificio = restante.match(/\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i);
+    const edificio = restante.match(
+      /\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i,
+    );
     if (edificio) {
       resultado.edificio = edificio[1];
       restante = `${restante.slice(0, edificio.index)} ${restante.slice(
