@@ -49,9 +49,12 @@ describe('CubaAwareGeocodificacionService', () => {
     });
 
     const url = fetchMock.mock.calls[0]?.[0] as URL;
-    expect(url.searchParams.get('q')).toBe(
-      'CALLE 10, MARIANAO, LA HABANA, CUBA',
-    );
+    expect(url.searchParams.get('q')).toBeNull();
+    expect(url.searchParams.get('street')).toBe('CALLE 10');
+    expect(url.searchParams.get('city')).toBe('MARIANAO');
+    expect(url.searchParams.get('state')).toBe('LA HABANA');
+    expect(url.searchParams.get('postalcode')).toBe('11500');
+    expect(url.searchParams.get('country')).toBe('CUBA');
     expect(url.searchParams.get('countrycodes')).toBe('cu');
   });
 
@@ -103,11 +106,18 @@ describe('CubaAwareGeocodificacionService', () => {
     };
     const service = new CubaAwareGeocodificacionService(territorial as never);
 
-    await service.geocodificar('CALLE 10', 'MEXICO');
+    await expect(service.geocodificar('CALLE 10', 'MEXICO')).resolves.toMatchObject({
+      lat: 23.08,
+      lon: -82.41,
+    });
 
     const url = fetchMock.mock.calls[0]?.[0] as URL;
-    expect(url.searchParams.get('q')).toBe(
-      'CALLE 10, MARIANAO, LA HABANA, CUBA',
-    );
+    expect(url.searchParams.get('q')).toBeNull();
+    expect(url.searchParams.get('street')).toBe('CALLE 10');
+    expect(url.searchParams.get('city')).toBe('MARIANAO');
+    expect(url.searchParams.get('state')).toBe('LA HABANA');
+    expect(url.searchParams.get('postalcode')).toBe('11500');
+    expect(url.searchParams.get('country')).toBe('CUBA');
+    expect(url.searchParams.get('countrycodes')).toBe('cu');
   });
 });
