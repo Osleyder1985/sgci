@@ -2,7 +2,9 @@ import 'dotenv/config';
 
 import { Pool } from 'pg';
 
-import type { EcuredProvinceCatalog } from '../src/geocodificacion/ecured-cuba.catalog.js';
+import type {
+  EcuredProvinceCatalog,
+} from '../src/geocodificacion/ecured-cuba.catalog.js';
 
 const {
   ECURED_CUBA_SYNC_PROVINCES,
