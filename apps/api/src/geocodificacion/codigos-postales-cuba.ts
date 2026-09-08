@@ -1,4 +1,6 @@
-export type CodigosPostalesPorMunicipio = Readonly<Record<string, readonly string[]>>;
+export type CodigosPostalesPorMunicipio = Readonly<
+  Record<string, readonly string[]>
+>;
 
 export function normalizarClavePostal(valor?: string): string {
   return (valor ?? '')
