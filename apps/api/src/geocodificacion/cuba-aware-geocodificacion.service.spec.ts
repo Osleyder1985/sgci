@@ -106,7 +106,9 @@ describe('CubaAwareGeocodificacionService', () => {
     };
     const service = new CubaAwareGeocodificacionService(territorial as never);
 
-    await expect(service.geocodificar('CALLE 10', 'MEXICO')).resolves.toMatchObject({
+    await expect(
+      service.geocodificar('CALLE 10', 'MEXICO'),
+    ).resolves.toMatchObject({
       lat: 23.08,
       lon: -82.41,
     });
