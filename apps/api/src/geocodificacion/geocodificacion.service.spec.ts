@@ -319,7 +319,7 @@ describe('GeocodificacionService', () => {
     ).not.toBeNull();
   });
 
-  it('acepta un resultado de LocationIQ compatible por municipio, provincia y país', () => {
+  it('rechaza un resultado que solo coincide por municipio, provincia y país', () => {
     const esperado = normalizar(
       'CALLE VICENTE SOMONTE # 16 E/ AGRAMONTE Y MARTI, GUAIMARO, CAMAGUEY',
     );
@@ -338,7 +338,7 @@ describe('GeocodificacionService', () => {
         },
         esperado,
       ),
-    ).toBeNull();
+    ).not.toBeNull();
   });
 
   it('calcula 5/5 cuando LocationIQ coincide en país, provincia, municipio, CP y dirección', () => {
@@ -399,7 +399,7 @@ describe('GeocodificacionService', () => {
         },
         esperado,
       ),
-    ).toBeNull();
+    ).not.toBeNull();
   });
 
   it('rechaza county incompatible aunque city coincida con la provincia', () => {

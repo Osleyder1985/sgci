@@ -490,10 +490,18 @@ export class GeocodificacionService {
       return `calle incompatible: esperada="${esperado.calle}", recibida="${resultado.address?.road ?? ''}"`;
     }
 
+    if (calleEsperada && !calleRecibida) {
+      return `sin evidencia de calle: esperada="${esperado.calle}"`;
+    }
+
     const numeroEsperado = normalizar(esperado.numeroCasa);
     const numeroRecibido = normalizar(resultado.address?.houseNumber);
     if (numeroEsperado && numeroRecibido && numeroEsperado !== numeroRecibido) {
       return `numero incompatible: esperado="${esperado.numeroCasa}", recibido="${resultado.address?.houseNumber ?? ''}"`;
+    }
+
+    if (numeroEsperado && !numeroRecibido) {
+      return `sin evidencia de numero: esperado="${esperado.numeroCasa}"`;
     }
 
     if (
