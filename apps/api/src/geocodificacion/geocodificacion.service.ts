@@ -91,7 +91,7 @@ export class GeocodificacionService {
     }
 
     this.logger.log(
-      `[GEOCODIFICACION][NORMALIZADOR] \"${texto}\" -> \"${normalizada.canonica}\"${
+      `[GEOCODIFICACION][NORMALIZADOR] "${texto}" -> "${normalizada.canonica}"${
         esCuba ? ' | país=CUBA' : paisBusqueda ? ` | país=${paisBusqueda}` : ''
       }${
         normalizada.codigosPostales?.length
@@ -251,7 +251,7 @@ export class GeocodificacionService {
 
       if (response.status === 404) {
         this.logger.debug(
-          `LocationIQ no encontró resultados para \"${etiqueta}\".`,
+          `LocationIQ no encontró resultados para "${etiqueta}".`,
         );
         return null;
       }
@@ -323,7 +323,7 @@ export class GeocodificacionService {
       return resultado;
     } catch (error) {
       this.logger.warn(
-        `No fue posible geocodificar \"${etiqueta}\": ${
+        `No fue posible geocodificar "${etiqueta}": ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
@@ -384,16 +384,16 @@ export class GeocodificacionService {
     const municipioEsperado = normalizar(esperado.municipio);
 
     if (provinciaEsperada && provincia && provincia !== provinciaEsperada) {
-      return `provincia incompatible: esperada=\"${esperado.provincia}\", recibida=\"${resultado.address?.state ?? ''}\"`;
+      return `provincia incompatible: esperada="${esperado.provincia}", recibida="${resultado.address?.state ?? ''}"`;
     }
 
     if (municipioEsperado && municipio && municipio !== municipioEsperado) {
-      return `municipio incompatible: esperado=\"${esperado.municipio}\", recibido=\"${resultado.address?.municipality ?? resultado.address?.city ?? resultado.address?.town ?? resultado.address?.village ?? ''}\"`;
+      return `municipio incompatible: esperado="${esperado.municipio}", recibido="${resultado.address?.municipality ?? resultado.address?.city ?? resultado.address?.town ?? resultado.address?.village ?? ''}"`;
     }
 
     const esCubaEsperado = this.esProvinciaCubana(provinciaEsperada);
     if (esCubaEsperado && pais && pais !== 'CUBA') {
-      return `país incompatible: esperado=\"CUBA\", recibido=\"${resultado.address?.country ?? ''}\"`;
+      return `país incompatible: esperado="CUBA", recibido="${resultado.address?.country ?? ''}"`;
     }
 
     if (esCubaEsperado && !pais && !provincia) {
@@ -427,9 +427,8 @@ export class GeocodificacionService {
     }
 
     const principales = partes.length >= 2 ? partes.slice(0, -2) : partes;
-    this.extraerMarcadores(principales[0] ?? '', resultado);
-    for (const componente of principales.slice(1)) {
-      this.extraerComponente(componente, resultado);
+    for (const componente of principales) {
+      this.extraerMarcadores(componente, resultado);
     }
     if (resultado.provincia) {
       resultado.provincia = this.limpiarProvincia(resultado.provincia);
@@ -458,100 +457,102 @@ export class GeocodificacionService {
     texto: string,
     resultado: DireccionCubanaNormalizada,
   ): void {
-    let restante = texto.trim();
+    const marcadores =
+      /\bCALLE\b|\bE\s*\/|\bRPTO\.?|\bREPARTO\b|#|\bEDIF(?:ICIO)?\.?|\bBIPLANTA\b|\bMODULO\b|\bAPARTAMENTO\b|\bAPTO\.?/gi;
+    const coincidencias = [...texto.matchAll(marcadores)];
 
-    const entre = restante.match(/\bE\s*\/\s*(.+)$/i);
-    if (entre) {
-      resultado.entreCalles = this.normalizarEntrecalles(entre[1]);
-      restante = restante.slice(0, entre.index).trim();
+    if (!coincidencias.length) {
+      const calle = this.limpiarCalle(texto);
+      if (calle && !resultado.calle) resultado.calle = calle;
+      return;
     }
 
-    const reparto = restante.match(/\bRPTO\.?\s+(.+)$/i);
-    if (reparto) {
-      resultado.reparto = reparto[1].trim();
-      restante = restante.slice(0, reparto.index).trim();
+    const prefijo = this.limpiarCalle(texto.slice(0, coincidencias[0].index));
+    if (prefijo && !resultado.calle) {
+      resultado.calle = prefijo;
     }
 
-    const edificio = restante.match(/\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i);
-    if (edificio) {
-      resultado.edificio = edificio[1];
-      restante = `${restante.slice(0, edificio.index)} ${restante.slice(
-        (edificio.index ?? 0) + edificio[0].length,
-      )}`.trim();
-    }
+    for (let i = 0; i < coincidencias.length; i += 1) {
+      const coincidencia = coincidencias[i];
+      const marcador = coincidencia[0].toUpperCase().replace(/\s+/g, ' ');
+      const inicioValor = (coincidencia.index ?? 0) + coincidencia[0].length;
+      const finValor = coincidencias[i + 1]?.index ?? texto.length;
+      const valor = this.limpiarValorMarcador(
+        texto.slice(inicioValor, finValor),
+      );
 
-    const apartamento = restante.match(
-      /\b(?:APARTAMENTO|APTO\.?)\s*#?\s*([A-Z0-9-]+)/i,
-    );
-    if (apartamento) {
-      resultado.apartamento = apartamento[1];
-      restante = `${restante.slice(0, apartamento.index)} ${restante.slice(
-        (apartamento.index ?? 0) + apartamento[0].length,
-      )}`.trim();
-    }
+      if (marcador === 'CALLE') {
+        if (valor && !resultado.calle) {
+          resultado.calle = valor;
+        }
+        continue;
+      }
 
-    const numero = restante.match(/#\s*([A-Z0-9-]+)/i);
-    if (numero) {
-      resultado.numeroCasa = numero[1];
-      restante = `${restante.slice(0, numero.index)} ${restante.slice(
-        (numero.index ?? 0) + numero[0].length,
-      )}`.trim();
-    }
+      if (!valor) continue;
 
-    const calle = this.limpiarComponente(restante);
-    resultado.calle = calle && calle !== 'CALLE' ? calle : undefined;
+      if (/^E\s*\/$/i.test(marcador)) {
+        resultado.entreCalles ??= this.normalizarEntrecalles(valor);
+        continue;
+      }
+
+      if (marcador === '#') {
+        resultado.numeroCasa ??= this.primerToken(valor);
+        continue;
+      }
+
+      if (/^EDIF|^BIPLANTA|^MODULO/i.test(marcador)) {
+        resultado.edificio ??= this.primerToken(valor);
+        continue;
+      }
+
+      if (/^APARTAMENTO|^APTO/i.test(marcador)) {
+        resultado.apartamento ??= this.primerToken(valor);
+        continue;
+      }
+
+      if (/^RPTO|^REPARTO/i.test(marcador)) {
+        const despuesDeEntrecalles =
+          Boolean(resultado.entreCalles) &&
+          (resultado.edificio !== undefined ||
+            resultado.apartamento !== undefined);
+
+        if (despuesDeEntrecalles && !resultado.apartamento) {
+          resultado.apartamento = this.primerToken(valor);
+        } else if (!resultado.reparto) {
+          resultado.reparto = valor;
+        } else if (!resultado.apartamento && resultado.edificio) {
+          resultado.apartamento = this.primerToken(valor);
+        }
+      }
+    }
   }
 
-  private extraerComponente(
-    componente: string,
-    resultado: DireccionCubanaNormalizada,
-  ): void {
-    const texto = componente.trim();
-    if (!texto) return;
+  private limpiarCalle(texto?: string): string | undefined {
+    if (!texto) return undefined;
 
-    const apartamento = texto.match(
-      /^\b(?:APARTAMENTO|APTO\.?)\s*#?\s*([A-Z0-9-]+)\s*$/i,
-    );
-    if (apartamento) {
-      resultado.apartamento ??= apartamento[1];
-      return;
-    }
+    return this.limpiarValorMarcador(texto)
+      ?.replace(/^(?:CALLE)\s+/i, '')
+      .trim();
+  }
 
-    const edificio = texto.match(
-      /^\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)\s*$/i,
-    );
-    if (edificio) {
-      resultado.edificio ??= edificio[1];
-      return;
-    }
+  private limpiarValorMarcador(texto: string): string | undefined {
+    const limpio = texto
+      .replace(/[()]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/^[,.;:]+|[,.;:]+$/g, '')
+      .trim();
+    return limpio || undefined;
+  }
 
-    const reparto = texto.match(/^\bRPTO\.?\s+(.+)$/i);
-    if (reparto) {
-      resultado.reparto ??= reparto[1].trim();
-      return;
-    }
-
-    const entre = texto.match(/^\bE\s*\/\s*(.+)$/i);
-    if (entre) {
-      resultado.entreCalles ??= this.normalizarEntrecalles(entre[1]);
-      return;
-    }
-
-    const numero = texto.match(/^#\s*([A-Z0-9-]+)$/i);
-    if (numero) {
-      resultado.numeroCasa ??= numero[1];
-      return;
-    }
-
-    if (!resultado.entreCalles && /\b.+\s+Y\s+.+\b/i.test(texto)) {
-      resultado.entreCalles = this.normalizarEntrecalles(texto);
-    }
+  private primerToken(texto: string): string | undefined {
+    return texto.split(/\s+/).find(Boolean);
   }
 
   private normalizarEntrecalles(texto: string): string {
     return texto
       .replace(/^\s*(?:E\s*\/|ENTRE)\s+/i, '')
       .replace(/\s+/g, ' ')
+      .replace(/\s+(?:RPTO\.?|REPARTO)\b.*$/i, '')
       .trim();
   }
 
@@ -624,7 +625,7 @@ export class GeocodificacionService {
     const ultimoComponente = normalizarTexto(original.split(',').at(-1) ?? '');
     const municipio = normalizarTexto(normalizada.municipio ?? '');
     const tieneMarcadorCubano =
-      /\bE\s*\/|\bRPTO\.?|\bEDIF(?:ICIO)?\.?|\bAPTO\.?|\bAPARTAMENTO\b|#/.test(
+      /\bE\s*\/|\bRPTO\.?|\bREPARTO\b|\bEDIF(?:ICIO)?\.?|\bBIPLANTA\b|\bMODULO\b|\bAPTO\.?|\bAPARTAMENTO\b|#/.test(
         normalizarTexto(original),
       );
 

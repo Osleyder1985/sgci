@@ -76,14 +76,14 @@ describe('GeocodificacionService', () => {
     );
 
     expect(result).toMatchObject({
-      calle: 'CALLE VICENTE SOMONTE',
+      calle: 'VICENTE SOMONTE',
       numeroCasa: '16',
       entreCalles: 'AGRAMONTE Y MARTI',
       municipio: 'GUAIMARO',
       provincia: 'CAMAGUEY',
     });
     expect(result.canonica).toBe(
-      'CALLE VICENTE SOMONTE, 16, AGRAMONTE Y MARTI, GUAIMARO, CAMAGUEY',
+      'VICENTE SOMONTE, 16, AGRAMONTE Y MARTI, GUAIMARO, CAMAGUEY',
     );
   });
 
@@ -121,10 +121,61 @@ describe('GeocodificacionService', () => {
       'CALLE 12 # 8 E/ 3RA Y 5TA, PLAZA, LA HABANA (Zona 1)',
     );
 
+    expect(result.calle).toBe('12');
     expect(result.numeroCasa).toBe('8');
     expect(result.entreCalles).toBe('3RA Y 5TA');
     expect(result.municipio).toBe('PLAZA');
     expect(result.provincia).toBe('LA HABANA');
+  });
+
+  it('interpreta CALLE como marcador y no la incluye en el nombre de la calle', () => {
+    expect(
+      normalizar('CALLE MASO. REPARTO EL CRISTO # 320 ALTO E/').calle,
+    ).toBe('MASO.');
+  });
+
+  it('interpreta el nombre de la calle antes de RPTO aunque no exista número', () => {
+    expect(normalizar('CALLE SEGUNDA REPARTO PEDRO DIAZ COELLO').calle).toBe(
+      'SEGUNDA',
+    );
+  });
+
+  it('separa RPTO. posterior a E/ y lo interpreta como apartamento cuando existe MODULO', () => {
+    const result = normalizar(
+      'CALLE 17, MODULO 5, RPTO NUEVO MANZANILLO E/ AVE CAMILO CIENFUEGOS Y 8VA RPTO. B, MANZANILLO, GRANMA',
+    );
+
+    expect(result).toMatchObject({
+      calle: '17',
+      edificio: '5',
+      reparto: 'NUEVO MANZANILLO',
+      entreCalles: 'AVE CAMILO CIENFUEGOS Y 8VA',
+      apartamento: 'B',
+      municipio: 'MANZANILLO',
+      provincia: 'GRANMA',
+    });
+    expect(result.entreCalles).not.toContain('RPTO');
+    expect(result.canonica).toBe(
+      '17, AVE CAMILO CIENFUEGOS Y 8VA, APARTAMENTO B, EDIFICIO 5, REPARTO NUEVO MANZANILLO, MANZANILLO, GRANMA',
+    );
+  });
+
+  it('reconoce BIPLANTA como marcador de edificio', () => {
+    const result = normalizar(
+      'CALLE 4, BIPLANTA 12, RPTO VERSALLES, SANTIAGO DE CUBA, SANTIAGO DE CUBA',
+    );
+
+    expect(result.edificio).toBe('12');
+    expect(result.reparto).toBe('VERSALLES');
+  });
+
+  it('no convierte RPTO. en apartamento si no existe edificio', () => {
+    const result = normalizar(
+      'CALLE 4, RPTO. B, SANTIAGO DE CUBA, SANTIAGO DE CUBA',
+    );
+
+    expect(result.reparto).toBe('B');
+    expect(result.apartamento).toBeUndefined();
   });
 
   it('no inventa componentes ausentes al construir consultas', () => {

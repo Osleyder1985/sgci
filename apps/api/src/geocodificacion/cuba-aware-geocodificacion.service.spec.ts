@@ -50,7 +50,7 @@ describe('CubaAwareGeocodificacionService', () => {
 
     const url = fetchMock.mock.calls[0]?.[0] as URL;
     expect(url.searchParams.get('q')).toBeNull();
-    expect(url.searchParams.get('street')).toBe('CALLE 10');
+    expect(url.searchParams.get('street')).toBe('10');
     expect(url.searchParams.get('city')).toBe('MARIANAO');
     expect(url.searchParams.get('state')).toBe('LA HABANA');
     expect(url.searchParams.get('postalcode')).toBe('11500');
@@ -106,16 +106,14 @@ describe('CubaAwareGeocodificacionService', () => {
     };
     const service = new CubaAwareGeocodificacionService(territorial as never);
 
-    await expect(
-      service.geocodificar('CALLE 10', 'MEXICO'),
-    ).resolves.toMatchObject({
+    await expect(service.geocodificar('10', 'MEXICO')).resolves.toMatchObject({
       lat: 23.08,
       lon: -82.41,
     });
 
     const url = fetchMock.mock.calls[0]?.[0] as URL;
     expect(url.searchParams.get('q')).toBeNull();
-    expect(url.searchParams.get('street')).toBe('CALLE 10');
+    expect(url.searchParams.get('street')).toBe('10');
     expect(url.searchParams.get('city')).toBe('MARIANAO');
     expect(url.searchParams.get('state')).toBe('LA HABANA');
     expect(url.searchParams.get('postalcode')).toBe('11500');

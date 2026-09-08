@@ -14,7 +14,7 @@ describe('GeocodificacionService - manifest address examples', () => {
   it.each([
     [
       'CALLE VICENTE SOMONTE # 16 E/ AGRAMONTE Y MARTI, GUAIMARO, CAMAGUEY (Zona 4)',
-      'CALLE VICENTE SOMONTE',
+      'VICENTE SOMONTE',
       '16',
       'AGRAMONTE Y MARTI',
       'GUAIMARO',
@@ -22,7 +22,7 @@ describe('GeocodificacionService - manifest address examples', () => {
     ],
     [
       'CALLE SALVADOR CISNEROS # 54 E/ PEDRO VEGA Y NIETO, GUAIMARO, CAMAGUEY (Zona 4)',
-      'CALLE SALVADOR CISNEROS',
+      'SALVADOR CISNEROS',
       '54',
       'PEDRO VEGA Y NIETO',
       'GUAIMARO',
@@ -30,7 +30,7 @@ describe('GeocodificacionService - manifest address examples', () => {
     ],
     [
       'CALLE ANTONIO MACEO # 063B E/ CAMILO CIENFUEGOS Y MARTI, GUAIMARO, CAMAGUEY (Zona 4)',
-      'CALLE ANTONIO MACEO',
+      'ANTONIO MACEO',
       '063B',
       'CAMILO CIENFUEGOS Y MARTI',
       'GUAIMARO',
