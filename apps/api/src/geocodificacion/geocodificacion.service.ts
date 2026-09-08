@@ -91,7 +91,7 @@ export class GeocodificacionService {
     }
 
     this.logger.log(
-      `Geocodificando: \"${texto}\" -> \"${normalizada.canonica}\"${
+      `[GEOCODIFICACION][NORMALIZADOR] "${texto}" -> "${normalizada.canonica}"${
         esCuba ? ' | país=CUBA' : paisBusqueda ? ` | país=${paisBusqueda}` : ''
       }${
         normalizada.codigosPostales?.length
@@ -178,6 +178,12 @@ export class GeocodificacionService {
       .filter(Boolean)
       .join(', ');
 
+    const urlDiagnostico = new URL(url);
+    urlDiagnostico.searchParams.delete('key');
+    this.logger.debug(
+      `[GEOCODIFICACION][CONSULTA_ESTRUCTURADA] ${urlDiagnostico.toString()}`,
+    );
+
     return this.ejecutarBusquedaLocationIq(
       url,
       etiqueta,
@@ -212,6 +218,12 @@ export class GeocodificacionService {
       url.searchParams.set('countrycodes', 'cu');
     }
 
+    const urlDiagnostico = new URL(url);
+    urlDiagnostico.searchParams.delete('key');
+    this.logger.debug(
+      `[GEOCODIFICACION][CONSULTA_FALLBACK] ${urlDiagnostico.toString()}`,
+    );
+
     return this.ejecutarBusquedaLocationIq(
       url,
       query,
@@ -239,7 +251,7 @@ export class GeocodificacionService {
 
       if (response.status === 404) {
         this.logger.debug(
-          `LocationIQ no encontró resultados para \"${etiqueta}\".`,
+          `LocationIQ no encontró resultados para "${etiqueta}".`,
         );
         return null;
       }
@@ -249,6 +261,12 @@ export class GeocodificacionService {
       }
 
       const result = (await response.json()) as LocationIqResult[];
+      this.logger.debug(
+        `[GEOCODIFICACION][LOCATIONIQ][RESPUESTA] ${JSON.stringify({
+          etiqueta,
+          respuesta: result,
+        })}`,
+      );
       const firstResult = result?.[0];
 
       if (!firstResult) {
@@ -279,17 +297,33 @@ export class GeocodificacionService {
         },
       };
 
-      if (!this.esResultadoCompatible(resultado, direccionEsperada)) {
+      const motivoRechazo = this.obtenerMotivoIncompatibilidad(
+        resultado,
+        direccionEsperada,
+      );
+
+      if (motivoRechazo) {
         this.logger.warn(
-          `LocationIQ devolvió una ubicación incompatible con la dirección solicitada: \"${etiqueta}\" -> \"${resultado.displayName}\".`,
+          `[GEOCODIFICACION][VALIDACION][RECHAZADA] ${JSON.stringify({
+            etiqueta,
+            displayName: resultado.displayName,
+            motivo: motivoRechazo,
+          })}`,
         );
         return null;
       }
 
+      this.logger.log(
+        `[GEOCODIFICACION][VALIDACION][ACEPTADA] ${JSON.stringify({
+          etiqueta,
+          displayName: resultado.displayName,
+        })}`,
+      );
+
       return resultado;
     } catch (error) {
       this.logger.warn(
-        `No fue posible geocodificar \"${etiqueta}\": ${
+        `No fue posible geocodificar "${etiqueta}": ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
@@ -322,12 +356,12 @@ export class GeocodificacionService {
     );
   }
 
-  private esResultadoCompatible(
+  private obtenerMotivoIncompatibilidad(
     resultado: GeocodingResult,
     esperado: DireccionCubanaNormalizada,
-  ): boolean {
+  ): string | null {
     if (!esperado.provincia && !esperado.municipio) {
-      return true;
+      return null;
     }
 
     const normalizar = (value?: string) =>
@@ -350,23 +384,23 @@ export class GeocodificacionService {
     const municipioEsperado = normalizar(esperado.municipio);
 
     if (provinciaEsperada && provincia && provincia !== provinciaEsperada) {
-      return false;
+      return `provincia incompatible: esperada="${esperado.provincia}", recibida="${resultado.address?.state ?? ''}"`;
     }
 
     if (municipioEsperado && municipio && municipio !== municipioEsperado) {
-      return false;
+      return `municipio incompatible: esperado="${esperado.municipio}", recibido="${resultado.address?.municipality ?? resultado.address?.city ?? resultado.address?.town ?? resultado.address?.village ?? ''}"`;
     }
 
     const esCubaEsperado = this.esProvinciaCubana(provinciaEsperada);
     if (esCubaEsperado && pais && pais !== 'CUBA') {
-      return false;
+      return `país incompatible: esperado="CUBA", recibido="${resultado.address?.country ?? ''}"`;
     }
 
     if (esCubaEsperado && !pais && !provincia) {
-      return false;
+      return 'respuesta sin país ni provincia para una dirección cubana';
     }
 
-    return true;
+    return null;
   }
 
   private normalizarDireccionCubana(
@@ -438,7 +472,9 @@ export class GeocodificacionService {
       restante = restante.slice(0, reparto.index).trim();
     }
 
-    const edificio = restante.match(/\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i);
+    const edificio = restante.match(
+      /\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i,
+    );
     if (edificio) {
       resultado.edificio = edificio[1];
       restante = `${restante.slice(0, edificio.index)} ${restante.slice(
