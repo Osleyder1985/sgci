@@ -215,7 +215,7 @@ async function upsertConsejoPopular(
   const normalizado = normalizarTerritorio(nombre);
   if (!normalizado) return;
   await client.query(
-    `INSERT INTO "CatalogoConsejoPopularCubana" ("municipioId", "nombre", "nombreNormalizado")
+    `INSERT INTO "CatalogoConsejoPopularCubano" ("municipioId", "nombre", "nombreNormalizado")
      VALUES ($1, $2, $3)
      ON CONFLICT ("municipioId", "nombreNormalizado")
      DO UPDATE SET "nombre" = EXCLUDED."nombre", "activo" = true, "updatedAt" = CURRENT_TIMESTAMP`,
