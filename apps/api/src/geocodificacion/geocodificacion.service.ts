@@ -469,6 +469,7 @@ export class GeocodificacionService {
     const provincia = normalizar(resultado.address?.state);
     const municipiosRecibidos = [
       resultado.address?.municipality,
+      resultado.address?.county,
       resultado.address?.suburb,
       resultado.address?.city,
       resultado.address?.town,
@@ -499,7 +500,7 @@ export class GeocodificacionService {
       municipiosNormalizados.length > 0 &&
       !municipiosNormalizados.includes(municipioEsperado)
     ) {
-      return `municipio incompatible: esperado=\"${esperado.municipio}\", recibido=\"${municipiosRecibidos.join(' / ')}\"`;
+      return `municipio incompatible: esperado="${esperado.municipio}", recibido="${municipiosRecibidos.join(' / ')}"`;
     }
 
     const esCubaEsperado = this.esProvinciaCubana(provinciaEsperada);
