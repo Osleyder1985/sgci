@@ -63,6 +63,7 @@ interface DireccionCubanaNormalizada {
   apartamento?: string;
   edificio?: string;
   reparto?: string;
+  tipoVivienda?: string;
   municipio?: string;
   provincia?: string;
   codigosPostales?: readonly string[];
@@ -551,6 +552,7 @@ export class GeocodificacionService {
         resultado.calle,
         resultado.numeroCasa,
         resultado.entreCalles,
+        resultado.tipoVivienda,
         resultado.apartamento
           ? `APARTAMENTO ${resultado.apartamento}`
           : undefined,
@@ -570,7 +572,7 @@ export class GeocodificacionService {
     resultado: DireccionCubanaNormalizada,
   ): void {
     const marcadores =
-      /\bCALLE\b|\bE\s*\/|\bRPTO\.?|\bREPARTO\b|#|\bEDIF(?:ICIO)?\.?|\bBIPLANTA\b|\bMODULO\b|\bAPARTAMENTO\b|\bAPTO\.?/gi;
+      /\bCALLE\b|\bE\s*\/|\bRPTO\.?|\bREPARTO\b|#|\bEDIF(?:ICIO)?\.?|\bBIPLANTA\b|\bMODULO\b|\bAPARTAMENTO\b|\bAPTO\.?|\bALTOS\b/gi;
     const coincidencias = [...texto.matchAll(marcadores)];
 
     if (!coincidencias.length) {
@@ -600,25 +602,30 @@ export class GeocodificacionService {
         continue;
       }
 
-      if (!valor) continue;
+      if (!valor && marcador !== 'ALTOS') continue;
+
+      if (marcador === 'ALTOS') {
+        resultado.tipoVivienda ??= 'ALTOS';
+        continue;
+      }
 
       if (/^E\s*\/$/i.test(marcador)) {
-        resultado.entreCalles ??= this.normalizarEntrecalles(valor);
+        resultado.entreCalles ??= this.normalizarEntrecalles(valor ?? '');
         continue;
       }
 
       if (marcador === '#') {
-        resultado.numeroCasa ??= this.primerToken(valor);
+        resultado.numeroCasa ??= this.primerToken(valor ?? '');
         continue;
       }
 
       if (/^EDIF|^BIPLANTA|^MODULO/i.test(marcador)) {
-        resultado.edificio ??= this.primerToken(valor);
+        resultado.edificio ??= this.primerToken(valor ?? '');
         continue;
       }
 
       if (/^APARTAMENTO|^APTO/i.test(marcador)) {
-        resultado.apartamento ??= this.primerToken(valor);
+        resultado.apartamento ??= this.primerToken(valor ?? '');
         continue;
       }
 
@@ -629,11 +636,11 @@ export class GeocodificacionService {
             resultado.apartamento !== undefined);
 
         if (despuesDeEntrecalles && !resultado.apartamento) {
-          resultado.apartamento = this.primerToken(valor);
+          resultado.apartamento = this.primerToken(valor ?? '');
         } else if (!resultado.reparto) {
           resultado.reparto = valor;
         } else if (!resultado.apartamento && resultado.edificio) {
-          resultado.apartamento = this.primerToken(valor);
+          resultado.apartamento = this.primerToken(valor ?? '');
         }
       }
     }
@@ -689,6 +696,7 @@ export class GeocodificacionService {
       direccion.calle,
       direccion.numeroCasa,
       direccion.entreCalles,
+      direccion.tipoVivienda,
       direccion.apartamento
         ? `APARTAMENTO ${direccion.apartamento}`
         : undefined,
@@ -702,6 +710,7 @@ export class GeocodificacionService {
     const simplificada = [
       direccion.calle,
       direccion.numeroCasa,
+      direccion.tipoVivienda,
       direccion.reparto ? `REPARTO ${direccion.reparto}` : undefined,
       direccion.municipio,
       direccion.provincia,
@@ -737,7 +746,7 @@ export class GeocodificacionService {
     const ultimoComponente = normalizarTexto(original.split(',').at(-1) ?? '');
     const municipio = normalizarTexto(normalizada.municipio ?? '');
     const tieneMarcadorCubano =
-      /\bE\s*\/|\bRPTO\.?|\bREPARTO\b|\bEDIF(?:ICIO)?\.?|\bBIPLANTA\b|\bMODULO\b|\bAPTO\.?|\bAPARTAMENTO\b|#/.test(
+      /\bE\s*\/|\bRPTO\.?|\bREPARTO\b|\bEDIF(?:ICIO)?\.?|\bBIPLANTA\b|\bMODULO\b|\bAPTO\.?|\bAPARTAMENTO\b|\bALTOS\b|#/.test(
         normalizarTexto(original),
       );
 

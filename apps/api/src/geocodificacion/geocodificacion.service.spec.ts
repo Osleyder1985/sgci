@@ -13,6 +13,7 @@ describe('GeocodificacionService', () => {
           apartamento?: string;
           edificio?: string;
           reparto?: string;
+          tipoVivienda?: string;
           municipio?: string;
           provincia?: string;
           codigosPostales?: string[];
@@ -174,6 +175,37 @@ describe('GeocodificacionService', () => {
     expect(normalizar('CALLE SEGUNDA REPARTO PEDRO DIAZ COELLO').calle).toBe(
       'SEGUNDA',
     );
+  });
+
+  it('preserva ALTOS como tipo de vivienda y no como reparto', () => {
+    const result = normalizar(
+      'CALLE PERALTA, ALTOS # 48 E/ COLISEO Y 2DA, HOLGUIN, HOLGUIN',
+    );
+
+    expect(result).toMatchObject({
+      calle: 'PERALTA',
+      tipoVivienda: 'ALTOS',
+      numeroCasa: '48',
+      entreCalles: 'COLISEO Y 2DA',
+      municipio: 'HOLGUIN',
+      provincia: 'HOLGUIN',
+    });
+    expect(result.reparto).toBeUndefined();
+    expect(result.canonica).toBe(
+      'PERALTA, 48, COLISEO Y 2DA, ALTOS, HOLGUIN, HOLGUIN',
+    );
+  });
+
+  it('incluye ALTOS en la consulta sin convertirlo en REPARTO', () => {
+    const result = normalizar(
+      'CALLE PERALTA, ALTOS # 48 E/ COLISEO Y 2DA, HOLGUIN, HOLGUIN',
+    );
+    const queries = construirConsultas(result, 'CUBA');
+
+    expect(queries).toContain(
+      'PERALTA, 48, COLISEO Y 2DA, ALTOS, HOLGUIN, HOLGUIN, CUBA',
+    );
+    expect(queries.join(' ')).not.toContain('REPARTO ALTOS');
   });
 
   it('separa RPTO. posterior a E/ y lo interpreta como apartamento cuando existe MODULO', () => {
