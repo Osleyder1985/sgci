@@ -2,15 +2,7 @@ import 'dotenv/config';
 
 import { Pool } from 'pg';
 
-// Node 24 executes this script directly with --experimental-strip-types.
-// The runtime requires the .ts extension, while the shared API tsconfig rejects it.
-// @ts-expect-error TS5097: intentional runtime .ts import for this standalone script.
-import {
-  ECURED_CUBA_SYNC_PROVINCES,
-  ecuredLocalidadesUrl,
-  normalizarTerritorio,
-  parsearPaginaEcured,
-} from '../src/geocodificacion/ecured-cuba.catalog.ts';
+import type { EcuredProvinceCatalog } from '../src/geocodificacion/ecured-cuba.catalog.js';
 
 const MUNICIPIO_ALIASES: Record<string, string> = {
   'HABANA DEL ESTE': 'LA HABANA DEL ESTE',
@@ -21,6 +13,16 @@ const USER_AGENT = 'SGCI/1.0 (territorial catalog synchronization)';
 const FETCH_TIMEOUT_MS = 30_000;
 
 async function main(): Promise<void> {
+  const {
+    ECURED_CUBA_SYNC_PROVINCES,
+    ecuredLocalidadesUrl,
+    normalizarTerritorio,
+    parsearPaginaEcured,
+  } = await import(
+    new URL('../src/geocodificacion/ecured-cuba.catalog.ts', import.meta.url)
+      .href,
+  );
+
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error('DATABASE_URL no está definida.');
 
@@ -61,10 +63,8 @@ async function main(): Promise<void> {
     const catalogos: Array<{
       provincia: string;
       provinciaDbId: number;
-      localidades: ReturnType<typeof parsearPaginaEcured>['localidades'];
-      consejosPopulares: ReturnType<
-        typeof parsearPaginaEcured
-      >['consejosPopulares'];
+      localidades: EcuredProvinceCatalog['localidades'];
+      consejosPopulares: EcuredProvinceCatalog['consejosPopulares'];
     }> = [];
 
     for (const provincia of ECURED_CUBA_SYNC_PROVINCES) {
@@ -187,7 +187,11 @@ function resolverMunicipio(
     }
   >,
 ) {
-  const normalizado = normalizarTerritorio(nombre);
+  const normalizado = nombre
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
   const candidato = MUNICIPIO_ALIASES[normalizado] ?? normalizado;
   return municipioPorClave.get(`${provinciaId}:${candidato}`);
 }
@@ -197,7 +201,11 @@ async function upsertLocalidad(
   municipioId: number,
   nombre: string,
 ): Promise<void> {
-  const normalizado = normalizarTerritorio(nombre);
+  const normalizado = nombre
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
   if (!normalizado) return;
   await client.query(
     `INSERT INTO "CatalogoLocalidadCubana" ("municipioId", "nombre", "nombreNormalizado")
@@ -213,7 +221,11 @@ async function upsertConsejoPopular(
   municipioId: number,
   nombre: string,
 ): Promise<void> {
-  const normalizado = normalizarTerritorio(nombre);
+  const normalizado = nombre
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
   if (!normalizado) return;
   await client.query(
     `INSERT INTO "CatalogoConsejoPopularCubano" ("municipioId", "nombre", "nombreNormalizado")
