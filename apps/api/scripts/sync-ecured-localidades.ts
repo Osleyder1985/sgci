@@ -2,9 +2,7 @@ import 'dotenv/config';
 
 import { Pool } from 'pg';
 
-import type {
-  EcuredProvinceCatalog,
-} from '../src/geocodificacion/ecured-cuba.catalog.js';
+import type { EcuredProvinceCatalog } from '../src/geocodificacion/ecured-cuba.catalog.js';
 
 const {
   ECURED_CUBA_SYNC_PROVINCES,
@@ -12,7 +10,7 @@ const {
   normalizarTerritorio,
   parsearPaginaEcured,
 } = await import(
-  new URL('../src/geocodificacion/ecured-cuba.catalog.ts', import.meta.url).href,
+  new URL('../src/geocodificacion/ecured-cuba.catalog.ts', import.meta.url).href
 );
 
 const MUNICIPIO_ALIASES: Record<string, string> = {
