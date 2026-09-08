@@ -105,7 +105,6 @@ export default function ImportarManifiestoPage() {
     }, 900);
     return () => window.clearInterval(timer);
   }, [progress?.jobId, progress?.status]);
-  useEffect(() => { if (progress?.status === "completed" && progress.jobId && !details) void loadDetails("ALL"); }, [progress?.status, progress?.jobId]);
 
   const houses = useMemo(() => {
     const q = query.trim().toLowerCase();
