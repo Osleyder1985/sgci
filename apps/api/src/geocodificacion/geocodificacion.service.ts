@@ -2,10 +2,24 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { CODIGOS_POSTALES_CUBA, clavePostal } from './codigos-postales-cuba.js';
 
+export interface PuntuacionGeocodificacion {
+  total: number;
+  maximo: 5;
+  estrellas: number;
+  coincidencias: {
+    pais: boolean;
+    provincia: boolean;
+    municipio: boolean;
+    codigoPostal: boolean;
+    direccion: boolean;
+  };
+}
+
 export interface GeocodingResult {
   lat: number;
   lon: number;
   displayName: string;
+  puntuacion?: PuntuacionGeocodificacion;
   address?: {
     road?: string;
     houseNumber?: string;
@@ -13,6 +27,7 @@ export interface GeocodingResult {
     town?: string;
     village?: string;
     municipality?: string;
+    suburb?: string;
     state?: string;
     country?: string;
     postcode?: string;
@@ -292,6 +307,21 @@ export class GeocodificacionService {
         },
       };
 
+      resultado.puntuacion = this.calcularPuntuacion(
+        resultado,
+        direccionEsperada,
+      );
+
+      this.logger.log(
+        `[GEOCODIFICACION][PUNTUACION] ${JSON.stringify({
+          etiqueta,
+          displayName: resultado.displayName,
+          puntuacion: `${resultado.puntuacion.total}/5`,
+          estrellas: resultado.puntuacion.estrellas,
+          coincidencias: resultado.puntuacion.coincidencias,
+        })}`,
+      );
+
       const motivoRechazo = this.obtenerMotivoIncompatibilidad(
         resultado,
         direccionEsperada,
@@ -312,6 +342,7 @@ export class GeocodificacionService {
         `[GEOCODIFICACION][VALIDACION][ACEPTADA] ${JSON.stringify({
           etiqueta,
           displayName: resultado.displayName,
+          puntuacion: resultado.puntuacion,
         })}`,
       );
 
@@ -349,6 +380,77 @@ export class GeocodificacionService {
         clavePostal(direccion.provincia, direccion.municipio)
       ] ?? []
     );
+  }
+
+  private calcularPuntuacion(
+    resultado: GeocodingResult,
+    esperado: DireccionCubanaNormalizada,
+  ): PuntuacionGeocodificacion {
+    const normalizar = (value?: string) =>
+      (value ?? '')
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Z0-9]+/g, ' ')
+        .trim();
+
+    const esperadoPais = this.esDireccionCubana(
+      esperado.canonica,
+      esperado,
+    )
+      ? 'CUBA'
+      : undefined;
+    const esperadoProvincia = normalizar(esperado.provincia);
+    const esperadoMunicipio = normalizar(esperado.municipio);
+    const esperadosPostales = new Set(
+      (esperado.codigosPostales ?? []).map((codigo) => normalizar(codigo)),
+    );
+
+    const municipiosRecibidos = [
+      resultado.address?.municipality,
+      resultado.address?.suburb,
+      resultado.address?.city,
+      resultado.address?.town,
+      resultado.address?.village,
+    ].map(normalizar);
+
+    const pais =
+      !esperadoPais || normalizar(resultado.address?.country) === esperadoPais;
+    const provincia =
+      !esperadoProvincia ||
+      normalizar(resultado.address?.state) === esperadoProvincia;
+    const municipio =
+      !esperadoMunicipio ||
+      municipiosRecibidos.includes(esperadoMunicipio);
+    const codigoPostal =
+      !esperadosPostales.size ||
+      esperadosPostales.has(normalizar(resultado.address?.postcode));
+
+    const viaEsperada = normalizar(
+      [esperado.tipoVia, esperado.calle].filter(Boolean).join(' '),
+    );
+    const numeroEsperado = normalizar(esperado.numeroCasa);
+    const viaRecibida = normalizar(resultado.address?.road);
+    const numeroRecibido = normalizar(resultado.address?.houseNumber);
+    const direccion =
+      (!viaEsperada || viaRecibida === viaEsperada) &&
+      (!numeroEsperado || numeroRecibido === numeroEsperado);
+
+    const coincidencias = {
+      pais,
+      provincia,
+      municipio,
+      codigoPostal,
+      direccion,
+    };
+    const total = Object.values(coincidencias).filter(Boolean).length;
+
+    return {
+      total,
+      maximo: 5,
+      estrellas: total,
+      coincidencias,
+    };
   }
 
   private obtenerMotivoIncompatibilidad(
