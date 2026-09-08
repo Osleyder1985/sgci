@@ -1,9 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import {
-  CODIGOS_POSTALES_CUBA,
-  clavePostal,
-} from './codigos-postales-cuba.js';
+import { CODIGOS_POSTALES_CUBA, clavePostal } from './codigos-postales-cuba.js';
 
 export interface GeocodingResult {
   lat: number;
@@ -441,9 +438,7 @@ export class GeocodificacionService {
       restante = restante.slice(0, reparto.index).trim();
     }
 
-    const edificio = restante.match(
-      /\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i,
-    );
+    const edificio = restante.match(/\bEDIF(?:ICIO)?\.?\s*#?\s*([A-Z0-9-]+)/i);
     if (edificio) {
       resultado.edificio = edificio[1];
       restante = `${restante.slice(0, edificio.index)} ${restante.slice(
