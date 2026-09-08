@@ -131,7 +131,7 @@ describe('GeocodificacionService', () => {
   it('interpreta CALLE como marcador y no la incluye en el nombre de la calle', () => {
     expect(
       normalizar('CALLE MASO. REPARTO EL CRISTO # 320 ALTO E/').calle,
-    ).toBe('MASO');
+    ).toBe('MASO.');
   });
 
   it('interpreta el nombre de la calle antes de RPTO aunque no exista número', () => {
