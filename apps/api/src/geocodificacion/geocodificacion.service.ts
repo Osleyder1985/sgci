@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   CODIGOS_POSTALES_CUBA,
   clavePostal,
-} from './codigos-postales-cuba';
+} from './codigos-postales-cuba.js';
 
 export interface GeocodingResult {
   lat: number;
