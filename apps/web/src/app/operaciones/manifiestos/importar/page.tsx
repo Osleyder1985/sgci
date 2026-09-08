@@ -101,7 +101,9 @@ export default function ImportarManifiestoPage() {
         method: "POST",
         body,
       });
-      const data = (await response.json().catch(() => null)) as PreviewResponse | null;
+      const data = (await response.json().catch(() => null)) as
+        | PreviewResponse
+        | null;
       if (!response.ok || !data?.ok) {
         throw new Error(
           data?.mensaje ?? `El servidor respondió HTTP ${response.status}.`,
@@ -183,7 +185,9 @@ export default function ImportarManifiestoPage() {
         | GeocodingDetailsResponse
         | null;
       if (!response.ok || !data?.ok) {
-        throw new Error("No fue posible cargar los detalles de geocodificación.");
+        throw new Error(
+          "No fue posible cargar los detalles de geocodificación.",
+        );
       }
       setDetails(data);
     } catch (cause) {
@@ -207,9 +211,7 @@ export default function ImportarManifiestoPage() {
           { cache: "no-store" },
         );
         if (response.ok) {
-          setProgress(
-            (await response.json() as { progress: Progress }).progress,
-          );
+          setProgress((await response.json() as { progress: Progress }).progress);
         }
       } catch {
         // conserva el último estado
@@ -271,10 +273,7 @@ export default function ImportarManifiestoPage() {
     <main className="min-h-screen bg-[#f4f7fb] pb-16 text-slate-900">
       <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
         <header className="mb-6">
-          <a
-            href="/dashboard"
-            className="text-sm font-medium text-slate-500"
-          >
+          <a href="/dashboard" className="text-sm font-medium text-slate-500">
             ← Dashboard
           </a>
           <h1 className="mt-3 text-3xl font-black tracking-tight">
@@ -331,7 +330,10 @@ export default function ImportarManifiestoPage() {
         {preview?.ok && preview.total && !p && (
           <>
             <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-              <Kpi label="Master AWB" value={preview.metadata?.masterAwb ?? "—"} />
+              <Kpi
+                label="Master AWB"
+                value={preview.metadata?.masterAwb ?? "—"}
+              />
               <Kpi label="Houses" value={preview.total.cantidadHouses} />
               <Kpi label="Bultos" value={preview.total.cantidadSacas} />
               <Kpi label="Personas" value={preview.total.cantidadPersonas} />
@@ -378,20 +380,18 @@ export default function ImportarManifiestoPage() {
                 <table className="min-w-[900px] w-full text-left text-sm">
                   <thead className="sticky top-0 bg-slate-100 text-xs uppercase text-slate-500">
                     <tr>
-                      {["House", "Destinatario", "Carnet", "Dirección", "Destino"].map(
+                      ["House", "Destinatario", "Carnet", "Dirección", "Destino"].map(
                         (title) => (
                           <th key={title} className="px-4 py-3">
                             {title}
                           </th>
                         ),
-                      )}
+                      )
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {houses.map((house, index) => (
-                      <tr
-                        key={`${house.numeroHouse ?? house.house}-${index}`}
-                      >
+                      <tr key={`${house.numeroHouse ?? house.house}-${index}`}>
                         <td className="px-4 py-3 font-black">
                           {house.numeroHouse ?? house.house ?? "—"}
                         </td>
