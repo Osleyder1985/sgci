@@ -17,37 +17,41 @@ export class ManifiestosImportacionGeocodificacionDetalleService {
   constructor(private readonly prisma: PrismaService) {}
 
   async guardarDesdeWarnings(jobId: string, warnings: string[]): Promise<void> {
-    const detalles = warnings.flatMap((warning) => {
-      const notFound = warning.match(
-        /^No se encontró una ubicación para la dirección de (.+): (.+)$/,
-      );
-      if (notFound) {
-        return [
-          {
-            estado: 'NO_ENCONTRADA' as const,
-            nombre: notFound[1],
-            direccion: notFound[2],
-            motivo: 'El proveedor de geocodificación no devolvió una ubicación válida.',
-          },
-        ];
-      }
+    const detalles: GeocodificacionDetalle[] = warnings.flatMap(
+      (warning): GeocodificacionDetalle[] => {
+        const notFound = warning.match(
+          /^No se encontró una ubicación para la dirección de (.+): (.+)$/,
+        );
+        if (notFound) {
+          return [
+            {
+              estado: 'NO_ENCONTRADA',
+              nombre: notFound[1],
+              direccion: notFound[2],
+              motivo:
+                'El proveedor de geocodificación no devolvió una ubicación válida.',
+            },
+          ];
+        }
 
-      const review = warning.match(
-        /^No se pudo procesar la dirección de (.+): (.+)$/,
-      );
-      if (review) {
-        return [
-          {
-            estado: 'REQUIERE_REVISION' as const,
-            nombre: review[1],
-            direccion: review[2],
-            motivo: 'La dirección produjo un error durante la geocodificación y requiere revisión.',
-          },
-        ];
-      }
+        const review = warning.match(
+          /^No se pudo procesar la dirección de (.+): (.+)$/,
+        );
+        if (review) {
+          return [
+            {
+              estado: 'REQUIERE_REVISION',
+              nombre: review[1],
+              direccion: review[2],
+              motivo:
+                'La dirección produjo un error durante la geocodificación y requiere revisión.',
+            },
+          ];
+        }
 
-      return [];
-    });
+        return [];
+      },
+    );
 
     await this.prisma.$executeRaw`
       UPDATE "ManifiestoImportacionJob"
