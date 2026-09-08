@@ -380,13 +380,13 @@ export default function ImportarManifiestoPage() {
                 <table className="min-w-[900px] w-full text-left text-sm">
                   <thead className="sticky top-0 bg-slate-100 text-xs uppercase text-slate-500">
                     <tr>
-                      ["House", "Destinatario", "Carnet", "Dirección", "Destino"].map(
+                      {["House", "Destinatario", "Carnet", "Dirección", "Destino"].map(
                         (title) => (
                           <th key={title} className="px-4 py-3">
                             {title}
                           </th>
                         ),
-                      )
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
