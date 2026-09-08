@@ -254,8 +254,6 @@ describe('GeocodificacionService', () => {
       ),
     ).toBeNull();
   });
-});
-
 
   it('separa los delimitadores semánticos y elimina las palabras clave de los valores', () => {
     const result = normalizar(
@@ -296,3 +294,4 @@ describe('GeocodificacionService', () => {
       ),
     ).toBeNull();
   });
+});
